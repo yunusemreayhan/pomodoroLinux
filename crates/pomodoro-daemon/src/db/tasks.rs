@@ -53,7 +53,7 @@ pub async fn list_tasks_paged(pool: &Pool, f: TaskFilter<'_>, limit: i64, offset
     let mut q = format!("{} WHERE t.deleted_at IS NULL", TASK_SELECT);
     if f.status.is_some() { q.push_str(" AND t.status = ?"); }
     if f.project.is_some() { q.push_str(" AND t.project = ?"); }
-    if f.search.is_some() { q.push_str(" AND (t.title LIKE ? OR t.tags LIKE ?)"); }
+    if f.search.is_some() { q.push_str(" AND (t.title LIKE ? OR t.tags LIKE ? OR t.description LIKE ?)"); }
     if f.priority.is_some() { q.push_str(" AND t.priority = ?"); }
     if f.due_before.is_some() { q.push_str(" AND t.due_date IS NOT NULL AND t.due_date <= ?"); }
     if f.due_after.is_some() { q.push_str(" AND t.due_date IS NOT NULL AND t.due_date >= ?"); }
@@ -72,7 +72,7 @@ pub async fn list_tasks_paged(pool: &Pool, f: TaskFilter<'_>, limit: i64, offset
     let mut query = sqlx::query_as::<_, Task>(&q);
     if let Some(s) = f.status { query = query.bind(s); }
     if let Some(p) = f.project { query = query.bind(p); }
-    if let Some(s) = f.search { let like = format!("%{}%", s); query = query.bind(like.clone()).bind(like); }
+    if let Some(s) = f.search { let like = format!("%{}%", s); query = query.bind(like.clone()).bind(like.clone()).bind(like); }
     if let Some(p) = f.priority { query = query.bind(p); }
     if let Some(d) = f.due_before { query = query.bind(d); }
     if let Some(d) = f.due_after { query = query.bind(d); }
@@ -138,7 +138,7 @@ pub async fn count_tasks(pool: &Pool, f: TaskFilter<'_>) -> Result<i64> {
     let mut q = "SELECT COUNT(*) FROM tasks t WHERE t.deleted_at IS NULL".to_string();
     if f.status.is_some() { q.push_str(" AND t.status = ?"); }
     if f.project.is_some() { q.push_str(" AND t.project = ?"); }
-    if f.search.is_some() { q.push_str(" AND (t.title LIKE ? OR t.tags LIKE ?)"); }
+    if f.search.is_some() { q.push_str(" AND (t.title LIKE ? OR t.tags LIKE ? OR t.description LIKE ?)"); }
     if f.priority.is_some() { q.push_str(" AND t.priority = ?"); }
     if f.due_before.is_some() { q.push_str(" AND t.due_date IS NOT NULL AND t.due_date <= ?"); }
     if f.due_after.is_some() { q.push_str(" AND t.due_date IS NOT NULL AND t.due_date >= ?"); }
@@ -154,7 +154,7 @@ pub async fn count_tasks(pool: &Pool, f: TaskFilter<'_>) -> Result<i64> {
     let mut query = sqlx::query_as::<_, (i64,)>(&q);
     if let Some(s) = f.status { query = query.bind(s); }
     if let Some(p) = f.project { query = query.bind(p); }
-    if let Some(s) = f.search { let like = format!("%{}%", s); query = query.bind(like.clone()).bind(like); }
+    if let Some(s) = f.search { let like = format!("%{}%", s); query = query.bind(like.clone()).bind(like.clone()).bind(like); }
     if let Some(p) = f.priority { query = query.bind(p); }
     if let Some(d) = f.due_before { query = query.bind(d); }
     if let Some(d) = f.due_after { query = query.bind(d); }
