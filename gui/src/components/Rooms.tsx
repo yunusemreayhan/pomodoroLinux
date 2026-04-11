@@ -3,12 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Eye, Check, Crown, Trash2, Plus, X, Edit3 } from "lucide-react";
 import { apiCall } from "../store/api";
 import { useStore } from "../store/store";
-import type { Room, RoomState } from "../store/api";
 import TaskList from "./TaskList";
 import EstimationRoomView from "./EstimationRoomView";
-
-const POINT_CARDS = [0, 0.5, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89];
-const HOUR_CARDS = [0, 0.5, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24, 32, 40];
 
 // --- Room List ---
 

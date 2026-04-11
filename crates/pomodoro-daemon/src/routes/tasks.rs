@@ -156,9 +156,6 @@ pub async fn bulk_update_status(State(engine): State<AppState>, claims: Claims, 
     Ok(StatusCode::NO_CONTENT)
 }
 
-// --- Comments ---
-
-
 
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct ReorderRequest { pub orders: Vec<(i64, i64)> }
