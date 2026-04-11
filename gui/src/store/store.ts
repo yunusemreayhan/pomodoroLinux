@@ -23,6 +23,7 @@ interface Store {
   engine: EngineState | null;
   tasks: Task[];
   taskSprints: TaskSprintInfo[];
+  taskSprintsMap: Map<number, TaskSprintInfo[]>;
   burnTotals: Map<number, BurnTotalEntry>;
   allAssignees: Map<number, string[]>;
   stats: DayStat[];
@@ -83,6 +84,7 @@ export const useStore = create<Store>((set, get) => ({
   engine: null,
   tasks: [],
   taskSprints: [],
+  taskSprintsMap: new Map(),
   burnTotals: new Map(),
   allAssignees: new Map(),
   stats: [],
@@ -247,7 +249,14 @@ export const useStore = create<Store>((set, get) => ({
         list.push(a.username);
         allAssignees.set(a.task_id, list);
       }
-      set({ tasks: resp.tasks, taskSprints: resp.task_sprints || [], burnTotals, allAssignees });
+      const ts = resp.task_sprints || [];
+      const taskSprintsMap = new Map<number, TaskSprintInfo[]>();
+      for (const s of ts) {
+        const list = taskSprintsMap.get(s.task_id) || [];
+        list.push(s);
+        taskSprintsMap.set(s.task_id, list);
+      }
+      set({ tasks: resp.tasks, taskSprints: ts, taskSprintsMap, burnTotals, allAssignees });
       (window as unknown as Record<string, number>).__tasksLoadedAt = Date.now();
     } catch { /* ignore */ }
     set(s => ({ loading: { ...s.loading, tasks: false } }));

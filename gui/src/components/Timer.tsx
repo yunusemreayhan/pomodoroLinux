@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, Square, SkipForward, Coffee, MessageSquare } from "lucide-react";
 import { useStore } from "../store/store";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { CommentSection } from "./TaskDetailView";
 
 const PHASE_COLORS: Record<string, string> = {
@@ -51,6 +51,18 @@ export default function Timer() {
     ? tasks.find((t) => t.id === engine.current_task_id)
     : null;
 
+
+  const tickMarks = useMemo(() => Array.from({ length: 60 }).map((_, i) => {
+    const angle = (i / 60) * 2 * Math.PI;
+    const isMajor = i % 5 === 0;
+    const inner = R - (isMajor ? 12 : 6);
+    const outer = R - 2;
+    const x1 = SIZE / 2 + inner * Math.cos(angle);
+    const y1 = SIZE / 2 + inner * Math.sin(angle);
+    const x2 = SIZE / 2 + outer * Math.cos(angle);
+    const y2 = SIZE / 2 + outer * Math.sin(angle);
+    return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(255,255,255,0.12)" strokeWidth={isMajor ? 2 : 1} />;
+  }), []);
 
   return (
     <div className="flex flex-col items-center justify-center gap-6 h-full px-8">
@@ -102,22 +114,7 @@ export default function Timer() {
             transition={{ duration: 0.5, ease: "easeOut" }}
             style={{ filter: isActive ? `drop-shadow(0 0 8px ${color})` : "none" }}
           />
-          {Array.from({ length: 60 }).map((_, i) => {
-            const angle = (i / 60) * 2 * Math.PI;
-            const isMajor = i % 5 === 0;
-            const inner = R - (isMajor ? 12 : 6);
-            const outer = R - 2;
-            const x1 = SIZE / 2 + inner * Math.cos(angle);
-            const y1 = SIZE / 2 + inner * Math.sin(angle);
-            const x2 = SIZE / 2 + outer * Math.cos(angle);
-            const y2 = SIZE / 2 + outer * Math.sin(angle);
-            return (
-              <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
-                stroke="rgba(255,255,255,0.12)"
-                strokeWidth={isMajor ? 2 : 1}
-              />
-            );
-          })}
+          {tickMarks}
         </svg>
 
         {/* Center content */}

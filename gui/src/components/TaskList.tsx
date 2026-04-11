@@ -38,6 +38,7 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
   const currentUser = useStore(s => s.username);
   const role = useStore(s => s.role);
   const taskSprints = useStore(s => s.taskSprints);
+  const taskSprintsMap = useStore(s => s.taskSprintsMap);
   const burnTotals = useStore(s => s.burnTotals);
   const allAssignees = useStore(s => s.allAssignees);
   const config = useStore(s => s.config);
@@ -255,7 +256,7 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
           )}
           <div className="flex gap-2 text-xs text-white/30 mt-0.5 flex-wrap">
             {t.project && <span className="bg-white/5 px-1.5 py-0.5 rounded">{t.project}</span>}
-            {taskSprints.filter(ts => ts.task_id === t.id).map(ts => (
+            {(taskSprintsMap.get(t.id) || []).map(ts => (
               <span key={ts.sprint_id} className={`px-1.5 py-0.5 rounded text-[10px] ${
                 ts.sprint_status === "active" ? "bg-green-500/20 text-green-400" : "bg-green-500/10 text-green-400/40"
               }`}>🏃 {ts.sprint_name}</span>
