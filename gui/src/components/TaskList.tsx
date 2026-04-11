@@ -16,7 +16,8 @@ import { matchSearch } from "../utils";
 import type { TreeNode } from "../tree";
 import { apiCall } from "../store/api";
 import type { Task } from "../store/api";
-import TaskDetailView, { CommentSection } from "./TaskDetailView";
+import TaskDetailView from "./TaskDetailView";
+import CommentSection from "./CommentSection";
 import { InlineTimeReport, InlineComment } from "./TaskInlineEditors";
 import TaskContextMenu from "./TaskContextMenu";
 
