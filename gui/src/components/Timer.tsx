@@ -155,9 +155,10 @@ export default function Timer() {
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -5 }}
-            className="glass px-5 py-2.5 text-sm text-white/70 max-w-xs text-center truncate"
+            className="glass px-5 py-3 text-sm font-semibold text-white max-w-sm text-center truncate"
           >
             🎯 {currentTask.title}
+            {currentTask.project && <span className="text-xs text-white/40 ml-2">({currentTask.project})</span>}
           </motion.div>
         )}
       </AnimatePresence>

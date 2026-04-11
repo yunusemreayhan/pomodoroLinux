@@ -123,15 +123,19 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
         }}
         onContextMenu={async (e) => {
           e.preventDefault();
-          const [sprints, planning, users, burnUsers] = await Promise.all([
-            apiCall<{ id: number; name: string; status: string }[]>("GET", "/api/sprints?status=active").catch(() => []),
-            apiCall<{ id: number; name: string; status: string }[]>("GET", "/api/sprints?status=planning").catch(() => []),
-            apiCall<string[]>("GET", "/api/users").catch(() => []),
-            apiCall<string[]>("GET", `/api/tasks/${t.id}/burn-users`).catch(() => []),
-          ]);
-          setCtxSprints([...sprints, ...planning]);
-          setCtxUsers(users);
-          setCtxBurnUsers(burnUsers);
+          // Use cached data if available and recent (5s)
+          const now = Date.now();
+          if (!ctxSprints.length || (window as any).__ctxCacheTime < now - 5000) {
+            const [sprints, planning, users] = await Promise.all([
+              apiCall<{ id: number; name: string; status: string }[]>("GET", "/api/sprints?status=active").catch(() => []),
+              apiCall<{ id: number; name: string; status: string }[]>("GET", "/api/sprints?status=planning").catch(() => []),
+              apiCall<string[]>("GET", "/api/users").catch(() => []),
+            ]);
+            setCtxSprints([...sprints, ...planning]);
+            setCtxUsers(users);
+            (window as any).__ctxCacheTime = now;
+          }
+          setCtxBurnUsers(allAssignees.get(t.id) || []);
           setCtxSub(null);
           setCtxMenu({ x: e.clientX, y: e.clientY });
         }}

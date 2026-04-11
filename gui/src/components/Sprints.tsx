@@ -35,6 +35,10 @@ export default function Sprints() {
 
   const create = async () => {
     if (!form.name.trim()) return;
+    if (form.start_date && form.end_date && form.end_date < form.start_date) {
+      useStore.getState().toast("End date must be after start date", "error");
+      return;
+    }
     const body: any = { name: form.name.trim() };
     if (form.project) body.project = form.project;
     if (form.goal) body.goal = form.goal;

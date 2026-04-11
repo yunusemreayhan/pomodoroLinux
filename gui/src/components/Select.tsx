@@ -3,12 +3,13 @@ import { ChevronDown } from "lucide-react";
 
 type Option = { value: string; label: string; disabled?: boolean };
 
-export default function Select({ value, options, onChange, className = "", placeholder }: {
+export default function Select({ value, options, onChange, className = "", placeholder, ariaLabel }: {
   value: string;
   options: Option[];
   onChange: (v: string) => void;
   className?: string;
   placeholder?: string;
+  ariaLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [focused, setFocused] = useState(-1);
@@ -72,7 +73,7 @@ export default function Select({ value, options, onChange, className = "", place
   return (
     <div ref={ref} className={`relative ${className}`} role="combobox" aria-expanded={open} aria-haspopup="listbox" onKeyDown={handleKeyDown}>
       <button type="button" onClick={() => setOpen(!open)}
-        aria-label={placeholder || "Select option"}
+        aria-label={ariaLabel || placeholder || "Select option"}
         className="w-full flex items-center justify-between gap-2 bg-[var(--color-surface)] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-[var(--color-text)] outline-none hover:border-white/20 focus:border-[var(--color-accent)] transition-colors">
         <span className={selected ? "text-[var(--color-text)]" : "text-[var(--color-text)]/40"}>{selected?.label || placeholder || "Select..."}</span>
         <ChevronDown size={14} className="text-[var(--color-text)] opacity-40 transition-transform" style={open ? {transform:"rotate(180deg)"} : {}} />
