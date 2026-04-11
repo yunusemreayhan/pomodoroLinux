@@ -158,6 +158,20 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
         className={`flex items-center gap-3 group transition-all rounded-xl ${
           isProject ? "glass p-4" : "px-4 py-3 hover:bg-white/5"
         } ${engine?.current_task_id === t.id ? "ring-1 ring-[var(--color-work)]" : ""} ${dropZone === "on" ? "ring-1 ring-[var(--color-accent)]" : ""}`}
+        onKeyDown={(e) => {
+          if (!e.altKey) return;
+          const siblings = tasks.filter(s => s.parent_id === t.parent_id).sort((a, b) => a.sort_order - b.sort_order);
+          const idx = siblings.findIndex(s => s.id === t.id);
+          if (e.key === "ArrowUp" && idx > 0) {
+            e.preventDefault();
+            const prev = siblings[idx - 1];
+            updateTask(t.id, { sort_order: prev.sort_order - 1 });
+          } else if (e.key === "ArrowDown" && idx < siblings.length - 1) {
+            e.preventDefault();
+            const next = siblings[idx + 1];
+            updateTask(t.id, { sort_order: next.sort_order + 1 });
+          }
+        }}
         style={{ marginLeft: depth > 0 ? depth * 24 : 0 }}
         tabIndex={0}
         onKeyDown={e => { if (e.key === "Enter") onView(t.id); }}

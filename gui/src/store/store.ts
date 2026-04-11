@@ -40,6 +40,7 @@ interface Store {
   config: Config | null;
   connected: boolean;
   loading: { tasks: boolean; history: boolean; stats: boolean; config: boolean };
+  mutating: boolean;
   activeTab: string;
   timerTaskId: number | undefined;
   activeTeamId: number | null;
@@ -108,6 +109,7 @@ export const useStore = create<Store>((set, get) => ({
   config: null,
   connected: false,
   loading: { tasks: false, history: false, stats: false, config: false },
+  mutating: false,
   activeTab: "timer",
   timerTaskId: undefined,
   activeTeamId: JSON.parse((typeof localStorage !== "undefined" && localStorage.getItem("activeTeamId")) || "null"),
@@ -283,12 +285,16 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   createTask: async (title, parentId, project, priority = 3, estimated = 1) => {
-    const task = await apiCall<Task>("POST", "/api/tasks", { title, parent_id: parentId, project, priority, estimated });
-    if (task) set(s => ({ tasks: [...s.tasks, task] }));
-    get().toast("Task created");
+    set({ mutating: true });
+    try {
+      const task = await apiCall<Task>("POST", "/api/tasks", { title, parent_id: parentId, project, priority, estimated });
+      if (task) set(s => ({ tasks: [...s.tasks, task] }));
+      get().toast("Task created");
+    } finally { set({ mutating: false }); }
   },
 
   updateTask: async (id, fields) => {
+    set({ mutating: true });
     try {
       const updated = await apiCall<Task>("PUT", `/api/tasks/${id}`, fields);
       if (updated) set(s => ({ tasks: s.tasks.map(t => t.id === id ? updated : t) }));
@@ -300,7 +306,7 @@ export const useStore = create<Store>((set, get) => ({
         return;
       }
       throw e;
-    }
+    } finally { set({ mutating: false }); }
   },
 
   deleteTask: (id) => {

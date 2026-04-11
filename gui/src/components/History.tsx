@@ -133,7 +133,19 @@ export default function History() {
       {/* Heatmap */}
       <div className="glass p-5">
         <h3 className="text-sm font-semibold text-white/60 mb-4">Activity (Last 365 Days)</h3>
-        <div className="flex flex-wrap gap-[3px] overflow-x-auto max-w-full" role="grid" aria-label="Activity heatmap">
+        <div className="flex flex-wrap gap-[3px] overflow-x-auto max-w-full" role="grid" aria-label={t.activityHeatmap}
+          onKeyDown={(e) => {
+            const cells = Array.from(e.currentTarget.querySelectorAll<HTMLElement>("[role=gridcell]"));
+            const idx = cells.indexOf(e.target as HTMLElement);
+            if (idx < 0) return;
+            let next = -1;
+            if (e.key === "ArrowRight") next = Math.min(idx + 1, cells.length - 1);
+            else if (e.key === "ArrowLeft") next = Math.max(idx - 1, 0);
+            else if (e.key === "ArrowDown") next = Math.min(idx + 7, cells.length - 1);
+            else if (e.key === "ArrowUp") next = Math.max(idx - 7, 0);
+            if (next >= 0) { e.preventDefault(); cells[next].focus(); }
+          }}
+        >
           {heatmapData.map((d) => (
             <HeatmapCell key={d.date} count={d.count} max={maxCount} date={d.date} />
           ))}
@@ -165,6 +177,10 @@ export default function History() {
             </Bar>
           </BarChart>
         </ResponsiveContainer>
+        <table className="sr-only" aria-label={t.thisWeek}>
+          <thead><tr><th>Day</th><th>Sessions</th></tr></thead>
+          <tbody>{weeklyData.map(d => <tr key={d.day}><td>{d.day}</td><td>{d.count}</td></tr>)}</tbody>
+        </table>
       </div>
 
       {/* Recent sessions */}

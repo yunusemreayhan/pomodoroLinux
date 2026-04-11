@@ -24,6 +24,7 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
   stateRef.current = state;
   useEffect(() => () => { mountedRef.current = false; }, []);
   const [editDesc, setEditDesc] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(() => {
     apiCall<RoomState>("GET", `/api/rooms/${roomId}`).then(setState).catch(() => {});
@@ -52,8 +53,9 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
 
   const vote = async (value: number) => {
     setSelectedCard(value);
-    await apiCall("POST", `/api/rooms/${roomId}/vote`, { value });
-    load();
+    setSubmitting(true);
+    try { await apiCall("POST", `/api/rooms/${roomId}/vote`, { value }); load(); }
+    finally { setSubmitting(false); }
   };
 
   const doReveal = async () => {
@@ -195,6 +197,7 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
                   {cards.map(c => (
                     <motion.button key={c} whileHover={{ scale: 1.1, y: -8 }} whileTap={{ scale: 0.95 }}
                       onClick={() => vote(c)}
+                      disabled={submitting}
                       role="radio" aria-checked={selectedCard === c}
                       aria-label={`Vote ${c} ${room.estimation_unit}`}
                       className={`w-14 h-20 rounded-xl flex items-center justify-center text-lg font-bold transition-all border-2 ${
