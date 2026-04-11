@@ -17,13 +17,13 @@ pub fn dispatch(pool: Pool, event: &str, payload: serde_json::Value) {
                 .header("x-pomodoro-event", &event)
                 .body(body_str.clone());
             if let Some(ref secret) = hook.secret {
-                // HMAC signature: hex(hash(secret + body))
-                use std::collections::hash_map::DefaultHasher;
-                use std::hash::{Hash, Hasher};
-                let mut h = DefaultHasher::new();
-                secret.hash(&mut h);
-                body_str.hash(&mut h);
-                req = req.header("x-pomodoro-signature", format!("{:016x}", h.finish()));
+                use sha2::{Sha256, Digest};
+                // HMAC-like: SHA256(secret + body)
+                let mut hasher = Sha256::new();
+                hasher.update(secret.as_bytes());
+                hasher.update(body_str.as_bytes());
+                let sig = hasher.finalize().iter().map(|b| format!("{:02x}", b)).collect::<String>();
+                req = req.header("x-pomodoro-signature", format!("sha256={}", sig));
             }
             if let Err(e) = req.send().await {
                 tracing::warn!("Webhook {} failed: {}", hook.url, e);

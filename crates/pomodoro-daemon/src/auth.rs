@@ -129,22 +129,9 @@ pub async fn is_revoked(token: &str) -> bool {
 }
 
 fn md5_hash(data: &[u8]) -> u128 {
-    // Use SHA-256 truncated to 128 bits for token blocklist hashing
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    let mut h1 = DefaultHasher::new();
-    data.hash(&mut h1);
-    let a = h1.finish();
-    let mut h2 = DefaultHasher::new();
-    a.hash(&mut h2);
-    data.len().hash(&mut h2);
-    let b = h2.finish();
-    let mut h3 = DefaultHasher::new();
-    b.hash(&mut h3);
-    data.hash(&mut h3);
-    let c = h3.finish();
-    // Combine 3 hashes for better collision resistance
-    ((a as u128) << 64) | ((b as u128) ^ (c as u128))
+    use sha2::{Sha256, Digest};
+    let hash = Sha256::digest(data);
+    u128::from_be_bytes(hash[..16].try_into().unwrap())
 }
 
 impl<S: Send + Sync> FromRequestParts<S> for Claims {

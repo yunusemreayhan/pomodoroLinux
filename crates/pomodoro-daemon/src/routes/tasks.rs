@@ -30,7 +30,7 @@ pub async fn list_tasks(State(engine): State<AppState>, _claims: Claims, Query(q
             status: q.status.as_deref(), project: q.project.as_deref(),
             search: q.search.as_deref(), assignee: q.assignee.as_deref(),
             due_before: q.due_before.as_deref(), due_after: q.due_after.as_deref(),
-            priority: q.priority, team_id: None, // team filter handled separately
+            priority: q.priority, team_id: q.team_id,
         };
         Some(db::count_tasks(&engine.pool, filter2).await.map_err(internal)?)
     } else { None };
