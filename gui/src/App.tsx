@@ -373,7 +373,7 @@ export default function App() {
                   <button onClick={dismissConfirm} autoFocus
                     className="px-4 py-2 text-xs text-white/50 hover:text-white rounded-lg bg-white/5 hover:bg-white/10">{t.cancel}</button>
                   <button onClick={() => { confirmDialog.onConfirm(); dismissConfirm(); }}
-                    className="px-4 py-2 text-xs text-white rounded-lg bg-[var(--color-danger)]">{t.delete}</button>
+                    className="px-4 py-2 text-xs text-white rounded-lg bg-[var(--color-danger)]">{confirmDialog.confirmLabel || t.delete}</button>
                 </div>
               </motion.div>
             </motion.div>

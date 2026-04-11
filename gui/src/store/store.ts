@@ -90,8 +90,8 @@ interface Store {
   toast: (msg: string, type?: "success" | "error", onUndo?: () => void) => void;
   dismissToast: (id: number) => void;
   // Confirm dialog
-  confirmDialog: { msg: string; onConfirm: () => void } | null;
-  showConfirm: (msg: string, onConfirm: () => void) => void;
+  confirmDialog: { msg: string; onConfirm: () => void; confirmLabel?: string } | null;
+  showConfirm: (msg: string, onConfirm: () => void, confirmLabel?: string) => void;
   dismissConfirm: () => void;
 }
 
@@ -124,7 +124,7 @@ export const useStore = create<Store>((set, get) => ({
   },
   dismissToast: (id) => set(s => ({ toasts: s.toasts.filter(t => t.id !== id) })),
   confirmDialog: null,
-  showConfirm: (msg, onConfirm) => set({ confirmDialog: { msg, onConfirm } }),
+  showConfirm: (msg, onConfirm, confirmLabel) => set({ confirmDialog: { msg, onConfirm, confirmLabel } }),
   dismissConfirm: () => set({ confirmDialog: null }),
 
   setTab: (tab) => set({ activeTab: tab }),

@@ -200,8 +200,8 @@ describe("matchSearch", () => {
     expect(matchSearch("Fix Login Bug", "fix")).toBe(true);
   });
 
-  it("matches with regex", () => {
-    expect(matchSearch("backend-api", "back.*api")).toBe(true);
+  it("matches with regex using /pattern/ syntax", () => {
+    expect(matchSearch("backend-api", "/back.*api/")).toBe(true);
   });
 
   it("returns false for no match", () => {
@@ -212,7 +212,7 @@ describe("matchSearch", () => {
     expect(matchSearch("anything", "")).toBe(true);
   });
 
-  it("handles invalid regex gracefully", () => {
+  it("handles special characters as plain text", () => {
     expect(matchSearch("test [bracket", "[bracket")).toBe(true);
   });
 });

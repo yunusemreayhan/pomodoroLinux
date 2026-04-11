@@ -1,10 +1,10 @@
 export function matchSearch(text: string, query: string): boolean {
   if (!query) return true;
-  try {
-    return new RegExp(query, "i").test(text);
-  } catch {
-    return text.toLowerCase().includes(query.toLowerCase());
+  // Use regex only with /pattern/ syntax, otherwise plain substring
+  if (query.startsWith("/") && query.endsWith("/") && query.length > 2) {
+    try { return new RegExp(query.slice(1, -1), "i").test(text); } catch { /* fall through */ }
   }
+  return text.toLowerCase().includes(query.toLowerCase());
 }
 
 /** Format ISO date string using browser locale */

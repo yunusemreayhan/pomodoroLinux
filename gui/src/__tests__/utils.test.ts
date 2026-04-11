@@ -11,10 +11,10 @@ describe("matchSearch", () => {
     expect(matchSearch("Hello World", "WORLD")).toBe(true);
   });
 
-  it("matches with regex patterns", () => {
-    expect(matchSearch("backend-api-v2", "api.*v2")).toBe(true);
-    expect(matchSearch("task-123", "\\d+")).toBe(true);
-    expect(matchSearch("foo bar", "^foo")).toBe(true);
+  it("matches with regex patterns using /pattern/ syntax", () => {
+    expect(matchSearch("backend-api-v2", "/api.*v2/")).toBe(true);
+    expect(matchSearch("task-123", "/\\d+/")).toBe(true);
+    expect(matchSearch("foo bar", "/^foo/")).toBe(true);
   });
 
   it("returns false for no match", () => {
@@ -22,15 +22,19 @@ describe("matchSearch", () => {
     expect(matchSearch("", "something")).toBe(false);
   });
 
-  it("falls back to string match on invalid regex", () => {
+  it("uses plain substring for special characters (no regex by default)", () => {
     expect(matchSearch("test [bracket", "[bracket")).toBe(true);
     expect(matchSearch("test (paren", "(paren")).toBe(true);
     expect(matchSearch("test +plus", "+plus")).toBe(true);
+    // Without /.../ syntax, regex chars are treated as literals
+    expect(matchSearch("backend-api-v2", "api.*v2")).toBe(false);
   });
 
   it("handles special characters in text", () => {
-    expect(matchSearch("C++ programming", "c\\+\\+")).toBe(true);
-    expect(matchSearch("file.txt", "file\\.txt")).toBe(true);
+    expect(matchSearch("C++ programming", "c++")).toBe(true);
+    expect(matchSearch("file.txt", "file.txt")).toBe(true);
+    // Regex syntax for precise matching
+    expect(matchSearch("C++ programming", "/c\\+\\+/")).toBe(true);
   });
 
   it("matches partial strings", () => {

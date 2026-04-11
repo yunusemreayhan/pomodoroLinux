@@ -142,6 +142,19 @@ pub async fn increment_task_actual(pool: &Pool, id: i64) -> Result<()> {
 // --- Session CRUD ---
 
 pub async fn count_tasks(pool: &Pool, f: TaskFilter<'_>) -> Result<i64> {
+    // Pre-resolve assignee and team_id to task ID lists (same as list_tasks_paged)
+    let team_scope: Option<Vec<i64>> = if let Some(tid) = f.team_id {
+        let roots: Vec<(i64,)> = sqlx::query_as("SELECT task_id FROM team_root_tasks WHERE team_id = ?").bind(tid).fetch_all(pool).await?;
+        if roots.is_empty() { return Ok(0); }
+        Some(get_descendant_ids(pool, &roots.into_iter().map(|r| r.0).collect::<Vec<_>>()).await?)
+    } else { None };
+    let assignee_task_ids: Option<Vec<i64>> = if let Some(username) = f.assignee {
+        let rows: Vec<(i64,)> = sqlx::query_as("SELECT ta.task_id FROM task_assignees ta JOIN users u ON ta.user_id = u.id WHERE u.username = ?")
+            .bind(username).fetch_all(pool).await?;
+        Some(rows.into_iter().map(|r| r.0).collect())
+    } else { None };
+    if let Some(ref ids) = assignee_task_ids { if ids.is_empty() { return Ok(0); } }
+
     let mut q = "SELECT COUNT(*) FROM tasks t WHERE 1=1".to_string();
     if f.status.is_some() { q.push_str(" AND t.status = ?"); }
     if f.project.is_some() { q.push_str(" AND t.project = ?"); }
@@ -150,6 +163,14 @@ pub async fn count_tasks(pool: &Pool, f: TaskFilter<'_>) -> Result<i64> {
     if f.due_before.is_some() { q.push_str(" AND t.due_date IS NOT NULL AND t.due_date <= ?"); }
     if f.due_after.is_some() { q.push_str(" AND t.due_date IS NOT NULL AND t.due_date >= ?"); }
     if f.user_id.is_some() { q.push_str(" AND t.user_id = ?"); }
+    if let Some(ref ids) = assignee_task_ids {
+        let ph: String = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        q.push_str(&format!(" AND t.id IN ({})", ph));
+    }
+    if let Some(ref ids) = team_scope {
+        let ph: String = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        q.push_str(&format!(" AND t.id IN ({})", ph));
+    }
     let mut query = sqlx::query_as::<_, (i64,)>(&q);
     if let Some(s) = f.status { query = query.bind(s); }
     if let Some(p) = f.project { query = query.bind(p); }
@@ -158,6 +179,8 @@ pub async fn count_tasks(pool: &Pool, f: TaskFilter<'_>) -> Result<i64> {
     if let Some(d) = f.due_before { query = query.bind(d); }
     if let Some(d) = f.due_after { query = query.bind(d); }
     if let Some(uid) = f.user_id { query = query.bind(uid); }
+    if let Some(ref ids) = assignee_task_ids { for id in ids { query = query.bind(id); } }
+    if let Some(ref ids) = team_scope { for id in ids { query = query.bind(id); } }
     let (count,) = query.fetch_one(pool).await?;
     Ok(count)
 }
