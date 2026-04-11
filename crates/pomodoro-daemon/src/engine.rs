@@ -108,6 +108,7 @@ impl Engine {
             if let Some(v) = uc.auto_start_breaks { config.auto_start_breaks = v != 0; }
             if let Some(v) = uc.auto_start_work { config.auto_start_work = v != 0; }
             if let Some(v) = uc.daily_goal { config.daily_goal = v as u32; }
+            if let Some(v) = uc.theme { config.theme = v; }
         }
         config
     }

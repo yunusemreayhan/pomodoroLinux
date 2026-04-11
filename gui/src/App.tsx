@@ -27,8 +27,21 @@ const TABS = [
 function Sidebar() {
   const { activeTab, setTab, connected, username, logout, activeTeamId, setActiveTeam } = useStore();
   const t = useT();
-  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark");
+  const config = useStore(s => s.config);
+  const [theme, setThemeLocal] = useState(() => localStorage.getItem("theme") || "dark");
   const [teams, setTeams] = useState<{ id: number; name: string }[]>([]);
+
+  // Sync theme from server config on load
+  useEffect(() => {
+    if (config?.theme && config.theme !== theme) {
+      setThemeLocal(config.theme);
+    }
+  }, [config?.theme]);
+
+  const setTheme = (t: string) => {
+    setThemeLocal(t);
+    apiCall("PUT", "/api/config", { theme: t }).catch(() => {});
+  };
 
   useEffect(() => {
     apiCall<{ id: number; name: string }[]>("GET", "/api/me/teams").then(t => t && setTeams(t));

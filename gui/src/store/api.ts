@@ -113,6 +113,7 @@ export interface Config {
   daily_goal: number;
   estimation_mode: string;
   leaf_only_mode: boolean;
+  theme: string;
 }
 
 // TimeReport is now a BurnEntry (unified burn_log table)

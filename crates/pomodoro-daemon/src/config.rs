@@ -21,11 +21,14 @@ pub struct Config {
     pub estimation_mode: String,
     #[serde(default)]
     pub leaf_only_mode: bool,
+    #[serde(default = "default_theme")]
+    pub theme: String,
 }
 
 fn default_bind_address() -> String { "127.0.0.1".to_string() }
 fn default_bind_port() -> u16 { 9090 }
 fn default_estimation_mode() -> String { "hours".to_string() }
+fn default_theme() -> String { "dark".to_string() }
 
 impl Default for Config {
     fn default() -> Self {
@@ -43,6 +46,7 @@ impl Default for Config {
             bind_port: 9090,
             estimation_mode: "hours".to_string(),
             leaf_only_mode: false,
+            theme: "dark".to_string(),
         }
     }
 }
