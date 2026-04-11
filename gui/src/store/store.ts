@@ -12,7 +12,7 @@ export interface SavedServer {
 }
 
 function loadServers(): SavedServer[] {
-  try { return JSON.parse(localStorage.getItem("servers") || "[]"); } catch { return []; }
+  try { return JSON.parse((typeof localStorage !== "undefined" && localStorage.getItem("servers")) || "[]"); } catch { return []; }
 }
 function saveServers(servers: SavedServer[]) {
   localStorage.setItem("servers", JSON.stringify(servers));
@@ -91,13 +91,13 @@ export const useStore = create<Store>((set, get) => ({
   connected: false,
   loading: { tasks: false, history: false, stats: false, config: false },
   activeTab: "timer",
-  activeTeamId: JSON.parse(localStorage.getItem("activeTeamId") || "null"),
+  activeTeamId: JSON.parse((typeof localStorage !== "undefined" && localStorage.getItem("activeTeamId")) || "null"),
   teamScope: null,
   error: null,
   token: null,
   username: null,
   role: null,
-  serverUrl: localStorage.getItem("serverUrl") || "http://127.0.0.1:9090",
+  serverUrl: (typeof localStorage !== "undefined" && localStorage.getItem("serverUrl")) || "http://127.0.0.1:9090",
   savedServers: loadServers(),
   toasts: [],
   toast: (msg, type = "success", onUndo) => {
