@@ -356,7 +356,6 @@ function TeamManager() {
           <button key={t.id} onClick={() => loadDetail(t.id)}
             className={`px-2 py-1 rounded text-xs transition-colors ${selected?.team.id === t.id ? "bg-[var(--color-accent)] text-white" : "bg-white/5 text-white/50 hover:text-white/70"}`}>
             {t.name}
-            <span onClick={e => { e.stopPropagation(); del(t.id); }} className="ml-1 text-white/20 hover:text-red-400">×</span>
           </button>
         ))}
         {teams.length === 0 && !creating && <span className="text-xs text-white/20">No teams yet</span>}
@@ -364,6 +363,10 @@ function TeamManager() {
 
       {selected && (
         <div className="space-y-3 border-t border-white/5 pt-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-white/60">{selected.team.name}</span>
+            <button onClick={() => del(selected.team.id)} className="text-xs text-red-400/50 hover:text-red-400">Delete team</button>
+          </div>
           <div>
             <div className="text-xs text-white/40 mb-1">Members</div>
             {selected.members.map(m => (

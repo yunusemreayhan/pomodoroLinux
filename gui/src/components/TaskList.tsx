@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, Play, CheckCircle, Circle, ChevronRight, FolderOpen, Folder, MessageSquare, Eye, FileText, Clock } from "lucide-react";
 import { useStore } from "../store/store";
 import { useShallow } from "zustand/react/shallow";
-import { useState, useMemo, useCallback, useEffect, createContext, useContext } from "react";
+import React, { useState, useMemo, useCallback, useEffect, createContext, useContext } from "react";
 import { buildTree, countDescendants } from "../tree";
 
 const SearchCtx = createContext("");
@@ -91,6 +91,8 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
     setExpanded(true);
   }, [newTitle, t.id, createTask]);
 
+  const longPressRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
   return (
     <div>
       {dropZone === "above" && <div className="h-0.5 bg-[var(--color-accent)] rounded mx-2" />}
@@ -138,6 +140,14 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
             await updateTask(dragId, { parent_id: newParent, sort_order: newOrder === before ? after + 1 : newOrder });
           }
         }}
+        onTouchStart={(e) => {
+          const touch = e.touches[0];
+          longPressRef.current = setTimeout(() => {
+            setCtxMenu({ x: touch.clientX, y: touch.clientY });
+          }, 500);
+        }}
+        onTouchEnd={() => { if (longPressRef.current) clearTimeout(longPressRef.current); longPressRef.current = null; }}
+        onTouchMove={() => { if (longPressRef.current) clearTimeout(longPressRef.current); longPressRef.current = null; }}
         onContextMenu={async (e) => {
           e.preventDefault();
           setCtxBurnUsers(allAssignees.get(t.id) || []);
