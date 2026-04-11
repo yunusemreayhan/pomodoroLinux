@@ -13,7 +13,11 @@ async fn app() -> axum::Router {
 }
 
 fn json_req(method: &str, uri: &str, body: Option<Value>) -> Request<Body> {
-    let b = Request::builder().method(method).uri(uri).header("content-type", "application/json");
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    let ip = format!("10.0.0.{}", COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed) % 250 + 1);
+    let b = Request::builder().method(method).uri(uri)
+        .header("content-type", "application/json")
+        .header("x-forwarded-for", ip);
     if let Some(v) = body {
         b.body(Body::from(serde_json::to_vec(&v).unwrap())).unwrap()
     } else {

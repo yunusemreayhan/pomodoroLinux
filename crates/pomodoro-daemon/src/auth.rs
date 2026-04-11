@@ -64,6 +64,10 @@ fn secret() -> &'static [u8] {
         }
         if let Some(parent) = secret_path.parent() { std::fs::create_dir_all(parent).ok(); }
         std::fs::write(&secret_path, &buf).ok();
+        #[cfg(unix)] {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&secret_path, std::fs::Permissions::from_mode(0o600)).ok();
+        }
         tracing::info!("Generated new JWT secret at {}", secret_path.display());
         buf.to_vec()
     })
@@ -76,18 +80,22 @@ pub struct Claims {
     pub username: String,
     pub role: String,
     pub exp: usize,
+    #[serde(default = "default_token_type")]
+    pub typ: String,      // "access" or "refresh"
 }
+
+fn default_token_type() -> String { "access".to_string() }
 
 pub fn create_token(user_id: i64, username: &str, role: &str) -> Result<String, jsonwebtoken::errors::Error> {
     let exp = chrono::Utc::now().timestamp() as usize + 2 * 3600; // 2 hours
-    let claims = Claims { sub: user_id.to_string(), user_id, username: username.to_string(), role: role.to_string(), exp };
+    let claims = Claims { sub: user_id.to_string(), user_id, username: username.to_string(), role: role.to_string(), exp, typ: "access".to_string() };
     encode(&Header::default(), &claims, &EncodingKey::from_secret(secret()))
 }
 
 /// Create a long-lived refresh token (30 days)
 pub fn create_refresh_token(user_id: i64, username: &str, role: &str) -> Result<String, jsonwebtoken::errors::Error> {
     let exp = chrono::Utc::now().timestamp() as usize + 30 * 24 * 3600;
-    let claims = Claims { sub: user_id.to_string(), user_id, username: username.to_string(), role: role.to_string(), exp };
+    let claims = Claims { sub: user_id.to_string(), user_id, username: username.to_string(), role: role.to_string(), exp, typ: "refresh".to_string() };
     encode(&Header::default(), &claims, &EncodingKey::from_secret(secret()))
 }
 
@@ -159,7 +167,10 @@ impl<S: Send + Sync> FromRequestParts<S> for Claims {
                 .ok_or(axum::http::StatusCode::UNAUTHORIZED)?;
             let token = header.strip_prefix("Bearer ").ok_or(axum::http::StatusCode::UNAUTHORIZED)?;
             if is_revoked(token).await { return Err(axum::http::StatusCode::UNAUTHORIZED); }
-            verify_token(token).map_err(|_| axum::http::StatusCode::UNAUTHORIZED)
+            let claims = verify_token(token).map_err(|_| axum::http::StatusCode::UNAUTHORIZED)?;
+            // Reject refresh tokens used as access tokens
+            if claims.typ == "refresh" { return Err(axum::http::StatusCode::UNAUTHORIZED); }
+            Ok(claims)
         }
     }
 }

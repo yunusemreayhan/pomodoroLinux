@@ -140,7 +140,7 @@ pub mod rate_limit {
     use std::net::SocketAddr;
     use std::sync::Arc;
     use std::time::Instant;
-    use tokio::sync::Mutex;
+    use std::sync::Mutex;
 
     #[derive(Clone)]
     pub struct RateLimiter {
@@ -166,7 +166,7 @@ pub mod rate_limit {
             None => "unknown".to_string(),
         };
         let now = Instant::now();
-        let mut map = limiter.attempts.lock().await;
+        let mut map = limiter.attempts.lock().unwrap();
         let entries = map.entry(key).or_default();
         entries.retain(|t| now.duration_since(*t).as_secs() < limiter.window_secs);
         if entries.len() >= limiter.max_requests {

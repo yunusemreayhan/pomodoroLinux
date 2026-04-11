@@ -140,10 +140,8 @@ pub async fn room_ws(
             return Err(err(StatusCode::UNAUTHORIZED, "Ticket expired"));
         }
         uid
-    } else if let Some(token) = &q.token {
-        crate::auth::verify_token(token).map_err(|_| err(StatusCode::UNAUTHORIZED, "Invalid token"))?.user_id
     } else {
-        return Err(err(StatusCode::UNAUTHORIZED, "Auth required"));
+        return Err(err(StatusCode::UNAUTHORIZED, "Ticket required"));
     };
 
     let room_id = id;

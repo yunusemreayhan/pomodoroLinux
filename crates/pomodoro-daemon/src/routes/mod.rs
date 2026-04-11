@@ -14,15 +14,15 @@ fn auth_limiter() -> &'static crate::rate_limit::RateLimiter {
     AUTH_LIMITER.get_or_init(|| crate::rate_limit::RateLimiter::new(10, 60))
 }
 
-async fn check_auth_rate_limit(headers: &axum::http::HeaderMap) -> Result<(), ApiError> {
+pub(crate) fn check_auth_rate_limit(headers: &axum::http::HeaderMap) -> Result<(), ApiError> {
     let ip = headers.get("x-forwarded-for")
         .or_else(|| headers.get("x-real-ip"))
         .and_then(|v| v.to_str().ok())
-        .map(|s| s.split(',').next().unwrap_or(s).trim().to_string());
-    let ip = match ip { Some(ip) => ip, None => return Ok(()) };
+        .map(|s| s.split(',').next().unwrap_or(s).trim().to_string())
+        .unwrap_or_else(|| "unknown".to_string());
     let limiter = auth_limiter();
     let now = std::time::Instant::now();
-    let mut map = limiter.attempts.lock().await;
+    let mut map = limiter.attempts.lock().unwrap();
     let entries = map.entry(ip).or_default();
     entries.retain(|t| now.duration_since(*t).as_secs() < limiter.window_secs);
     if entries.len() >= limiter.max_requests {

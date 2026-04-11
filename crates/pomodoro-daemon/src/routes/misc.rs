@@ -126,7 +126,6 @@ pub async fn create_sse_ticket(claims: Claims) -> ApiResult<serde_json::Value> {
 }
 
 pub async fn sse_timer(State(engine): State<AppState>, Query(q): Query<SseQuery>) -> Result<axum::response::Sse<impl futures::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>>>, ApiError> {
-    // Prefer ticket over token
     let user_id = if let Some(ticket) = &q.ticket {
         let mut tickets = sse_tickets().lock().await;
         let (uid, created) = tickets.remove(ticket.as_str())
@@ -135,11 +134,8 @@ pub async fn sse_timer(State(engine): State<AppState>, Query(q): Query<SseQuery>
             return Err(err(StatusCode::UNAUTHORIZED, "Ticket expired"));
         }
         uid
-    } else if let Some(token) = &q.token {
-        // Backwards compatible: still accept token
-        auth::verify_token(token).map_err(|_| err(StatusCode::UNAUTHORIZED, "Invalid token"))?.user_id
     } else {
-        return Err(err(StatusCode::UNAUTHORIZED, "Ticket or token required"));
+        return Err(err(StatusCode::UNAUTHORIZED, "Ticket required — use POST /api/timer/ticket first"));
     };
     let mut timer_rx = engine.tx.subscribe();
     let mut change_rx = engine.changes.subscribe();
