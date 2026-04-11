@@ -102,8 +102,16 @@ pub async fn revoke_token(token: &str) {
             .unwrap_or_default();
         sqlx::query("INSERT OR IGNORE INTO token_blocklist (token_hash, expires_at) VALUES (?, ?)")
             .bind(&hash).bind(&expires).execute(pool).await.ok();
-        // Prune expired
+        // Prune expired from DB and sync in-memory blocklist
         sqlx::query("DELETE FROM token_blocklist WHERE expires_at < datetime('now')").execute(pool).await.ok();
+        // S3: Trim in-memory set to match DB (prevents unbounded growth)
+        let mut bl = blocklist().write().await;
+        if bl.len() > 1000 {
+            let valid: Vec<(String,)> = sqlx::query_as("SELECT token_hash FROM token_blocklist WHERE expires_at > datetime('now')")
+                .fetch_all(pool).await.unwrap_or_default();
+            let valid_set: HashSet<String> = valid.into_iter().map(|(h,)| h).collect();
+            *bl = valid_set;
+        }
     }
 }
 

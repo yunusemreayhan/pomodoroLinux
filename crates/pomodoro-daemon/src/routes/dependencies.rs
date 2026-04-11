@@ -11,7 +11,9 @@ pub async fn get_dependencies(State(engine): State<AppState>, _claims: Claims, P
 }
 
 #[utoipa::path(post, path = "/api/tasks/{id}/dependencies", responses((status = 204)), security(("bearer" = [])))]
-pub async fn add_dependency(State(engine): State<AppState>, _claims: Claims, Path(id): Path<i64>, Json(req): Json<AddDependencyRequest>) -> Result<StatusCode, ApiError> {
+pub async fn add_dependency(State(engine): State<AppState>, claims: Claims, Path(id): Path<i64>, Json(req): Json<AddDependencyRequest>) -> Result<StatusCode, ApiError> {
+    let task = db::get_task(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
+    if !is_owner_or_root(task.user_id, &claims) { return Err(err(StatusCode::FORBIDDEN, "Not owner")); }
     db::add_dependency(&engine.pool, id, req.depends_on).await
         .map_err(|e| err(StatusCode::BAD_REQUEST, e.to_string()))?;
     engine.notify(ChangeEvent::Tasks);
@@ -19,7 +21,9 @@ pub async fn add_dependency(State(engine): State<AppState>, _claims: Claims, Pat
 }
 
 #[utoipa::path(delete, path = "/api/tasks/{id}/dependencies/{dep_id}", responses((status = 204)), security(("bearer" = [])))]
-pub async fn remove_dependency(State(engine): State<AppState>, _claims: Claims, Path((id, dep_id)): Path<(i64, i64)>) -> Result<StatusCode, ApiError> {
+pub async fn remove_dependency(State(engine): State<AppState>, claims: Claims, Path((id, dep_id)): Path<(i64, i64)>) -> Result<StatusCode, ApiError> {
+    let task = db::get_task(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
+    if !is_owner_or_root(task.user_id, &claims) { return Err(err(StatusCode::FORBIDDEN, "Not owner")); }
     db::remove_dependency(&engine.pool, id, dep_id).await.map_err(internal)?;
     engine.notify(ChangeEvent::Tasks);
     Ok(StatusCode::NO_CONTENT)

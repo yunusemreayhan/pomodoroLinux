@@ -26,14 +26,18 @@ pub async fn delete_label(State(engine): State<AppState>, _claims: Claims, Path(
 }
 
 #[utoipa::path(put, path = "/api/tasks/{id}/labels/{label_id}", responses((status = 204)), security(("bearer" = [])))]
-pub async fn add_task_label(State(engine): State<AppState>, _claims: Claims, Path((task_id, label_id)): Path<(i64, i64)>) -> Result<StatusCode, ApiError> {
+pub async fn add_task_label(State(engine): State<AppState>, claims: Claims, Path((task_id, label_id)): Path<(i64, i64)>) -> Result<StatusCode, ApiError> {
+    let task = db::get_task(&engine.pool, task_id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
+    if !is_owner_or_root(task.user_id, &claims) { return Err(err(StatusCode::FORBIDDEN, "Not owner")); }
     db::add_task_label(&engine.pool, task_id, label_id).await.map_err(internal)?;
     engine.notify(ChangeEvent::Tasks);
     Ok(StatusCode::NO_CONTENT)
 }
 
 #[utoipa::path(delete, path = "/api/tasks/{id}/labels/{label_id}", responses((status = 204)), security(("bearer" = [])))]
-pub async fn remove_task_label(State(engine): State<AppState>, _claims: Claims, Path((task_id, label_id)): Path<(i64, i64)>) -> Result<StatusCode, ApiError> {
+pub async fn remove_task_label(State(engine): State<AppState>, claims: Claims, Path((task_id, label_id)): Path<(i64, i64)>) -> Result<StatusCode, ApiError> {
+    let task = db::get_task(&engine.pool, task_id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
+    if !is_owner_or_root(task.user_id, &claims) { return Err(err(StatusCode::FORBIDDEN, "Not owner")); }
     db::remove_task_label(&engine.pool, task_id, label_id).await.map_err(internal)?;
     engine.notify(ChangeEvent::Tasks);
     Ok(StatusCode::NO_CONTENT)

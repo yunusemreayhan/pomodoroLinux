@@ -17,7 +17,11 @@ pub async fn create_template(State(engine): State<AppState>, claims: Claims, Jso
 }
 
 #[utoipa::path(delete, path = "/api/templates/{id}", responses((status = 204)), security(("bearer" = [])))]
-pub async fn delete_template(State(engine): State<AppState>, _claims: Claims, Path(id): Path<i64>) -> Result<StatusCode, ApiError> {
+pub async fn delete_template(State(engine): State<AppState>, claims: Claims, Path(id): Path<i64>) -> Result<StatusCode, ApiError> {
+    // S9: Verify ownership — templates are per-user
+    let tmpl: (i64,) = sqlx::query_as("SELECT user_id FROM task_templates WHERE id = ?")
+        .bind(id).fetch_one(&engine.pool).await.map_err(|_| err(StatusCode::NOT_FOUND, "Template not found"))?;
+    if !is_owner_or_root(tmpl.0, &claims) { return Err(err(StatusCode::FORBIDDEN, "Not owner")); }
     db::delete_template(&engine.pool, id).await.map_err(internal)?;
     Ok(StatusCode::NO_CONTENT)
 }
