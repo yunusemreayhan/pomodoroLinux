@@ -3,8 +3,7 @@ import { apiCall, setToken } from "./api";
 import { invoke } from "@tauri-apps/api/core";
 import type { EngineState, Task, DayStat, Session, Config, Comment, TaskDetail, AuthResponse, TaskSprintInfo, BurnTotalEntry, TaskAssignee } from "./api";
 
-// Module-level timestamp for task staleness check
-export let _tasksLoadedAt = 0;
+// Task load timestamp tracked in store
 
 export interface SavedServer {
   url: string;
@@ -41,6 +40,7 @@ interface Store {
   connected: boolean;
   loading: { tasks: boolean; history: boolean; stats: boolean; config: boolean };
   mutating: boolean;
+  tasksLoadedAt: number;
   activeTab: string;
   timerTaskId: number | undefined;
   activeTeamId: number | null;
@@ -110,6 +110,7 @@ export const useStore = create<Store>((set, get) => ({
   connected: false,
   loading: { tasks: false, history: false, stats: false, config: false },
   mutating: false,
+  tasksLoadedAt: 0,
   activeTab: "timer",
   timerTaskId: undefined,
   activeTeamId: JSON.parse((typeof localStorage !== "undefined" && localStorage.getItem("activeTeamId")) || "null"),
@@ -278,8 +279,7 @@ export const useStore = create<Store>((set, get) => ({
       // Only update tasks if data actually changed (avoid unnecessary tree rebuilds)
       const prev = get().tasks;
       const tasksChanged = prev.length !== resp.tasks.length || resp.tasks.some((t, i) => t.id !== prev[i]?.id || t.updated_at !== prev[i]?.updated_at);
-      set({ tasks: tasksChanged ? resp.tasks : prev, taskSprints: ts, taskSprintsMap, burnTotals, allAssignees });
-      _tasksLoadedAt = Date.now();
+      set({ tasks: tasksChanged ? resp.tasks : prev, taskSprints: ts, taskSprintsMap, burnTotals, allAssignees, tasksLoadedAt: Date.now() });
     } catch { /* ignore */ }
     set(s => ({ loading: { ...s.loading, tasks: false } }));
   },
