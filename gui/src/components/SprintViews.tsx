@@ -8,6 +8,7 @@ export function BurnsView({ sprintId, sprintName, tasks }: { sprintId: number; s
   const [burns, setBurns] = useState<BurnEntry[]>([]);
   const [summary, setSummary] = useState<BurnSummaryEntry[]>([]);
   const [taskId, setTaskId] = useState<number>(tasks[0]?.id || 0);
+  useEffect(() => { if (tasks.length && !taskId) setTaskId(tasks[0].id); }, [tasks]);
   const [points, setPoints] = useState("");
   const [hours, setHours] = useState("");
   const [note, setNote] = useState("");

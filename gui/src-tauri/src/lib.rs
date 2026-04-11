@@ -79,6 +79,10 @@ async fn get_connection(state: tauri::State<'_, Arc<AppState>>) -> Result<Value,
 
 #[tauri::command]
 async fn set_connection(state: tauri::State<'_, Arc<AppState>>, base_url: String) -> Result<(), String> {
+    // Warn if not HTTPS and not localhost
+    if !base_url.starts_with("https://") && !base_url.contains("127.0.0.1") && !base_url.contains("localhost") {
+        eprintln!("WARNING: Connection to {} is not using HTTPS — credentials may be transmitted in plaintext", base_url);
+    }
     state.config.lock().await.base_url = base_url;
     Ok(())
 }
@@ -103,14 +107,13 @@ async fn write_file(path: String, content: String) -> Result<(), String> {
 }
 
 fn auth_key() -> Vec<u8> {
-    // Machine-specific key derived from hostname + username
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    let mut h = DefaultHasher::new();
-    whoami::hostname().hash(&mut h);
-    whoami::username().hash(&mut h);
-    "pomodoro-gui-auth".hash(&mut h);
-    h.finish().to_le_bytes().to_vec()
+    use sha2::{Sha256, Digest};
+    let mut h = Sha256::new();
+    h.update(whoami::hostname().as_bytes());
+    h.update(b":");
+    h.update(whoami::username().as_bytes());
+    h.update(b":pomodoro-gui-auth-v2");
+    h.finalize().to_vec()
 }
 
 fn xor_bytes(data: &[u8], key: &[u8]) -> Vec<u8> {
