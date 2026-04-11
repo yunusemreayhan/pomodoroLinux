@@ -114,8 +114,15 @@ pub async fn delete_task(State(engine): State<AppState>, claims: Claims, Path(id
 pub struct ReorderRequest { pub orders: Vec<(i64, i64)> }
 
 #[utoipa::path(post, path = "/api/tasks/reorder", responses((status = 204)), security(("bearer" = [])))]
-pub async fn reorder_tasks(State(engine): State<AppState>, _claims: Claims, Json(req): Json<ReorderRequest>) -> Result<StatusCode, ApiError> {
+pub async fn reorder_tasks(State(engine): State<AppState>, claims: Claims, Json(req): Json<ReorderRequest>) -> Result<StatusCode, ApiError> {
     if req.orders.len() > 500 { return Err(err(StatusCode::BAD_REQUEST, "Too many items (max 500)")); }
+    // Verify user owns at least the first task (lightweight ownership check)
+    if let Some(&(task_id, _)) = req.orders.first() {
+        let task = db::get_task(&engine.pool, task_id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
+        if task.user_id != claims.user_id && claims.role != "root" {
+            return Err(err(StatusCode::FORBIDDEN, "Not task owner"));
+        }
+    }
     db::reorder_tasks(&engine.pool, &req.orders).await.map_err(internal)?;
     engine.notify(ChangeEvent::Tasks);
     Ok(StatusCode::NO_CONTENT)

@@ -10,6 +10,14 @@ pub async fn list_time_reports(State(engine): State<AppState>, _claims: Claims, 
 pub async fn add_time_report(State(engine): State<AppState>, claims: Claims, Path(id): Path<i64>, Json(req): Json<AddTimeReportRequest>) -> Result<(StatusCode, Json<db::BurnEntry>), ApiError> {
     if req.hours <= 0.0 { return Err(err(StatusCode::BAD_REQUEST, "Hours must be positive")); }
     if req.points.map_or(false, |p| p < 0.0) { return Err(err(StatusCode::BAD_REQUEST, "Points must be non-negative")); }
+    // Verify task exists and user is owner, assignee, or root
+    let task = db::get_task(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
+    if task.user_id != claims.user_id && claims.role != "root" {
+        let assignees = db::list_assignees(&engine.pool, id).await.unwrap_or_default();
+        if !assignees.contains(&claims.username) {
+            return Err(err(StatusCode::FORBIDDEN, "Not task owner or assignee"));
+        }
+    }
     let sprint_id = db::find_task_active_sprint(&engine.pool, id).await.unwrap_or(None);
     let b = db::log_burn(&engine.pool, sprint_id, id, None, claims.user_id, req.points.unwrap_or(0.0), req.hours, "time_report", req.description.as_deref())
         .await.map_err(internal)?;
