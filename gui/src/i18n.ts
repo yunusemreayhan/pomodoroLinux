@@ -444,7 +444,12 @@ export function useT(): Locale {
   return useI18n((s) => s.t);
 }
 
-/** Simple string interpolation: t("Hello {name}", { name: "World" }) → "Hello World" */
+/** Simple string interpolation: interpolate("Hello {name}", { name: "World" }) → "Hello World" */
 export function interpolate(template: string, vars: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (_, key) => String(vars[key] ?? `{${key}}`));
+}
+
+/** Simple pluralization: plural(count, "session", "sessions") */
+export function plural(count: number, singular: string, pluralForm: string): string {
+  return count === 1 ? singular : pluralForm;
 }

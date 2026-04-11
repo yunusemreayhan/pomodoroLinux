@@ -2,7 +2,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, Square, SkipForward, Coffee, MessageSquare } from "lucide-react";
 import { useStore } from "../store/store";
 import { useEffect, useState, useMemo } from "react";
-import { CommentSection } from "./TaskDetailView";
+import CommentSection from "./CommentSection";
+import { useT } from "../i18n";
 
 const PHASE_COLORS: Record<string, string> = {
   Work: "#FF6B6B",
@@ -31,6 +32,7 @@ const CIRC = 2 * Math.PI * R;
 
 export default function Timer() {
   const { engine, tasks, start, pause, resume, stop, skip, startBreak, config } = useStore();
+  const t = useT();
   const [selectedTaskId, setSelectedTaskId] = useState<number | undefined>(undefined);
   const [showComment, setShowComment] = useState(false);
   const activeTasks = tasks.filter(t => t.status === "active" || t.status === "backlog");
@@ -187,7 +189,7 @@ export default function Timer() {
               style={{ background: `linear-gradient(135deg, ${color}, ${color}99)`, boxShadow: `0 4px 20px ${color}40` }}
             >
               <Play size={20} fill="white" />
-              Start Focus
+              {t.start}
             </motion.button>
           </div>
         )}
