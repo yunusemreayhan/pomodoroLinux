@@ -78,10 +78,14 @@ export default function Sprints() {
           <div className="flex gap-2">
             <input placeholder="Project" value={form.project} onChange={e => setForm({ ...form, project: e.target.value })}
               className="flex-1 bg-transparent border-b border-white/10 text-white/70 text-xs outline-none pb-1" />
-            <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })}
-              className="bg-transparent border-b border-white/10 text-white/70 text-xs outline-none pb-1" />
-            <input type="date" value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })}
-              className="bg-transparent border-b border-white/10 text-white/70 text-xs outline-none pb-1" />
+            <label className="flex flex-col text-[10px] text-white/30">Start
+              <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })}
+                className="bg-transparent border-b border-white/10 text-white/70 text-xs outline-none pb-1" />
+            </label>
+            <label className="flex flex-col text-[10px] text-white/30">End
+              <input type="date" value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })}
+                className="bg-transparent border-b border-white/10 text-white/70 text-xs outline-none pb-1" />
+            </label>
           </div>
           <textarea placeholder="Sprint goal" value={form.goal} onChange={e => setForm({ ...form, goal: e.target.value })}
             className="w-full bg-transparent border border-white/10 text-white/70 text-xs rounded p-1 outline-none" rows={2} />
@@ -217,7 +221,6 @@ function SprintView({ id, onBack }: { id: number; onBack: () => void }) {
             )}
           </div>
           <textarea
-            key={s.retro_notes || ""}
             defaultValue={s.retro_notes || ""}
             onBlur={e => {
               const val = e.target.value.trim() || null;

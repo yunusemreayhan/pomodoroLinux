@@ -127,14 +127,14 @@ function EditField({ label, value, type, onSave }: { label: string; value: strin
 
   if (!editing) {
     return (
-      <div className="flex items-center justify-between py-1.5 group cursor-pointer" tabIndex={0} role="button"
-        onClick={() => setEditing(true)} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditing(true); } }}>
+      <button className="flex items-center justify-between py-1.5 group cursor-pointer w-full text-left"
+        onClick={() => setEditing(true)}>
         <span className="text-xs text-white/40">{label}</span>
         <span className="text-xs text-white/70 group-hover:text-white flex items-center gap-1">
           {value || <span className="text-white/20 italic">empty</span>}
           <Edit3 size={10} className="opacity-0 group-hover:opacity-100 text-white/30" />
         </span>
-      </div>
+      </button>
     );
   }
 
@@ -144,6 +144,7 @@ function EditField({ label, value, type, onSave }: { label: string; value: strin
       <div className="flex gap-1">
         <input type={type || "text"} value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus
           onKeyDown={(e) => { if (e.key === "Enter") { onSave(draft); setEditing(false); } if (e.key === "Escape") setEditing(false); }}
+          onBlur={() => { if (draft !== String(value)) { onSave(draft); } setEditing(false); }}
           className="w-32 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white text-right outline-none focus:border-[var(--color-accent)]" />
         <button onClick={() => { onSave(draft); setEditing(false); }} className="text-[var(--color-success)]"><Save size={12} /></button>
       </div>
@@ -325,7 +326,15 @@ function DetailNode({ detail, depth, onRefresh, hoursMap }: { detail: TaskDetail
           <div className="border-t border-white/5 pt-2 mb-2">
             <EditField label="Title" value={t.title} onSave={(v) => saveField("title", v)} />
             <EditField label="Description" value={t.description || ""} onSave={(v) => saveField("description", v)} />
-            <EditField label="Status" value={t.status} onSave={(v) => saveField("status", v)} />
+            <div className="flex items-center justify-between py-1.5">
+              <span className="text-xs text-white/40">Status</span>
+              <select value={t.status} onChange={e => saveField("status", e.target.value)}
+                className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white outline-none">
+                {["backlog","active","in_progress","completed","done","estimated","archived"].map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
             <EditField label="Priority (1-5)" value={t.priority} type="number" onSave={(v) => saveField("priority", v)} />
             <EditField label="Est. Pomodoros / Points" value={t.estimated} type="number" onSave={(v) => saveField("estimated", v)} />
             <EditField label="Est. Hours" value={t.estimated_hours} type="number" onSave={(v) => saveField("estimated_hours", v)} />

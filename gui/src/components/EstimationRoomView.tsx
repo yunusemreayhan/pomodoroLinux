@@ -191,10 +191,11 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
             {room.status === "voting" && (
               <div>
                 <div className="text-xs text-white/30 mb-3">Pick your estimate ({room.estimation_unit}):</div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Estimation cards">
                   {cards.map(c => (
                     <motion.button key={c} whileHover={{ scale: 1.1, y: -8 }} whileTap={{ scale: 0.95 }}
                       onClick={() => vote(c)}
+                      role="radio" aria-checked={selectedCard === c}
                       aria-label={`Vote ${c} ${room.estimation_unit}`}
                       className={`w-14 h-20 rounded-xl flex items-center justify-center text-lg font-bold transition-all border-2 ${
                         selectedCard === c ? "border-[var(--color-accent)] bg-[var(--color-accent)]/20 text-[var(--color-accent)]"
