@@ -13,12 +13,24 @@ import TaskContextMenu from "./TaskContextMenu";
 
 const PRIORITY_COLORS = ["", "#10B981", "#4ECDC4", "#F59E0B", "#FF6B6B", "#EF4444"];
 
-function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, votedTaskIds, selectLabel, selectClassName }: {
+function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, votedTaskIds, selectLabel, selectClassName, bulkSelected, setBulkSelected }: {
   node: TreeNode; depth: number; onView: (id: number) => void;
   selectMode?: boolean; onSelect?: (id: number) => void; selectedTaskId?: number | null; votedTaskIds?: Set<number>;
   selectLabel?: string; selectClassName?: string;
+  bulkSelected?: Set<number>; setBulkSelected?: (fn: (prev: Set<number>) => Set<number>) => void;
 }) {
-  const { engine, createTask, updateTask, deleteTask, start, username: currentUser, role, taskSprints, burnTotals, allAssignees, config, tasks } = useStore();
+  const engine = useStore(s => s.engine);
+  const createTask = useStore(s => s.createTask);
+  const updateTask = useStore(s => s.updateTask);
+  const deleteTask = useStore(s => s.deleteTask);
+  const start = useStore(s => s.start);
+  const currentUser = useStore(s => s.username);
+  const role = useStore(s => s.role);
+  const taskSprints = useStore(s => s.taskSprints);
+  const burnTotals = useStore(s => s.burnTotals);
+  const allAssignees = useStore(s => s.allAssignees);
+  const config = useStore(s => s.config);
+  const tasks = useStore(s => s.tasks);
   const [expanded, setExpanded] = useState(true);
   const [adding, setAdding] = useState(false);
   const [commenting, setCommenting] = useState(false);
@@ -144,6 +156,20 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
         } ${engine?.current_task_id === t.id ? "ring-1 ring-[var(--color-work)]" : ""} ${dropZone === "on" ? "ring-1 ring-[var(--color-accent)]" : ""}`}
         style={{ marginLeft: depth > 0 ? depth * 24 : 0 }}
       >
+        {/* Bulk checkbox for subtasks */}
+        {!selectMode && depth > 0 && bulkSelected && setBulkSelected && (
+          <input type="checkbox" checked={bulkSelected.has(t.id)}
+            onChange={e => {
+              setBulkSelected(prev => {
+                const next = new Set(prev);
+                if (e.target.checked) next.add(t.id); else next.delete(t.id);
+                return next;
+              });
+            }}
+            className={`shrink-0 accent-[var(--color-accent)] cursor-pointer ${bulkSelected.size > 0 ? "opacity-100" : "opacity-0 hover:opacity-100"}`}
+            style={bulkSelected.size > 0 ? { opacity: 1 } : {}}
+          />
+        )}
         {/* Expand/collapse */}
         <button
           onClick={() => setExpanded(!expanded)}
@@ -428,7 +454,8 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
             {node.children.map((child) => (
               <TaskNode key={child.task.id} node={child} depth={depth + 1} onView={onView}
                 selectMode={selectMode} onSelect={onSelect} selectedTaskId={selectedTaskId} votedTaskIds={votedTaskIds}
-                selectLabel={selectLabel} selectClassName={selectClassName} />
+                selectLabel={selectLabel} selectClassName={selectClassName}
+                bulkSelected={bulkSelected} setBulkSelected={setBulkSelected} />
             ))}
           </motion.div>
         )}
@@ -603,7 +630,8 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
               <div className="flex-1">
                 <TaskNode node={node} depth={0} onView={setViewingTask}
                   selectMode={selectMode} onSelect={onSelect} selectedTaskId={selectedTaskId} votedTaskIds={votedTaskIds}
-                  selectLabel={selectLabel} selectClassName={selectClassName} />
+                  selectLabel={selectLabel} selectClassName={selectClassName}
+                  bulkSelected={bulkSelected} setBulkSelected={setBulkSelected} />
               </div>
             </div>
           ))}
