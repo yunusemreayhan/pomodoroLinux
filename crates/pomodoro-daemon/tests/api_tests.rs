@@ -3521,3 +3521,382 @@ async fn test_concurrent_timer_start_stop() {
     let body = body_json(resp).await;
     assert_eq!(body["status"].as_str().unwrap(), "Running");
 }
+
+// === T1: Sprint lifecycle (create → start → snapshot → complete) ===
+#[tokio::test]
+async fn test_sprint_lifecycle() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    // Create task + sprint
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"T1"})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+    let resp = app.clone().oneshot(auth_req("POST", "/api/sprints", &tok, Some(json!({"name":"Sprint1","goal":"Ship it"})))).await.unwrap();
+    assert_eq!(resp.status(), 201);
+    let sprint = body_json(resp).await;
+    let sid = sprint["id"].as_i64().unwrap();
+    assert_eq!(sprint["status"], "planning");
+
+    // Add task to sprint
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/tasks", sid), &tok, Some(json!({"task_ids":[tid]})))).await.unwrap();
+    assert!(resp.status().is_success());
+
+    // Start sprint
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/start", sid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let sprint = body_json(resp).await;
+    assert_eq!(sprint["status"], "active");
+
+    // Take snapshot
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/snapshot", sid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+
+    // Get board
+    let resp = app.clone().oneshot(auth_req("GET", &format!("/api/sprints/{}/board", sid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let board = body_json(resp).await;
+    assert!(board["todo"].as_array().unwrap().len() + board["in_progress"].as_array().unwrap().len() + board["done"].as_array().unwrap().len() > 0);
+
+    // Complete sprint
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/complete", sid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let sprint = body_json(resp).await;
+    assert_eq!(sprint["status"], "completed");
+
+    // Cannot start a completed sprint
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/start", sid), &tok, None)).await.unwrap();
+    assert_ne!(resp.status(), 200);
+}
+
+// === T2: Room voting flow ===
+#[tokio::test]
+async fn test_room_voting_flow() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    // Create room + task
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"VoteTask"})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+    let resp = app.clone().oneshot(auth_req("POST", "/api/rooms", &tok, Some(json!({"name":"VoteRoom"})))).await.unwrap();
+    let rid = body_json(resp).await["id"].as_i64().unwrap();
+
+    // Join room
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/rooms/{}/join", rid), &tok, None)).await.unwrap();
+    assert!(resp.status().is_success());
+
+    // Cannot vote in lobby state
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/rooms/{}/vote", rid), &tok, Some(json!({"value":5.0})))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+
+    // Start voting on task
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/rooms/{}/start-voting", rid), &tok, Some(json!({"task_id":tid})))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+
+    // Cast vote
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/rooms/{}/vote", rid), &tok, Some(json!({"value":8.0})))).await.unwrap();
+    assert_eq!(resp.status(), 204);
+
+    // Reveal votes
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/rooms/{}/reveal", rid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let room = body_json(resp).await;
+    assert_eq!(room["status"], "revealed");
+
+    // Accept estimate
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/rooms/{}/accept", rid), &tok, Some(json!({"value":8.0})))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+}
+
+// === T3: Attachment upload + download + delete cycle ===
+#[tokio::test]
+async fn test_attachment_cycle() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"AttTask"})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+
+    // Upload
+    let resp = app.clone().oneshot(
+        Request::builder().method("POST").uri(format!("/api/tasks/{}/attachments", tid))
+            .header("authorization", format!("Bearer {}", tok))
+            .header("content-type", "text/plain")
+            .header("x-filename", "test.txt")
+            .header("x-requested-with", "test")
+            .body(Body::from("hello world")).unwrap()
+    ).await.unwrap();
+    assert_eq!(resp.status(), 201);
+    let att = body_json(resp).await;
+    let aid = att["id"].as_i64().unwrap();
+    assert_eq!(att["filename"], "test.txt");
+    assert_eq!(att["size_bytes"], 11);
+
+    // List attachments
+    let resp = app.clone().oneshot(auth_req("GET", &format!("/api/tasks/{}/attachments", tid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let list = body_json(resp).await;
+    assert_eq!(list.as_array().unwrap().len(), 1);
+
+    // Download
+    let resp = app.clone().oneshot(auth_req("GET", &format!("/api/attachments/{}/download", aid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+
+    // Delete
+    let resp = app.clone().oneshot(auth_req("DELETE", &format!("/api/attachments/{}", aid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 204);
+
+    // Verify deleted
+    let resp = app.clone().oneshot(auth_req("GET", &format!("/api/tasks/{}/attachments", tid), &tok, None)).await.unwrap();
+    let list = body_json(resp).await;
+    assert_eq!(list.as_array().unwrap().len(), 0);
+}
+
+// === T4: Team scoping ===
+#[tokio::test]
+async fn test_team_scope() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    // Create team
+    let resp = app.clone().oneshot(auth_req("POST", "/api/teams", &tok, Some(json!({"name":"Alpha"})))).await.unwrap();
+    assert_eq!(resp.status(), 201);
+    let team_id = body_json(resp).await["id"].as_i64().unwrap();
+
+    // Create tasks
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"TeamTask"})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+
+    // Add root task to team
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/teams/{}/roots", team_id), &tok, Some(json!({"task_ids":[tid]})))).await.unwrap();
+    assert_eq!(resp.status(), 204);
+
+    // Query tasks scoped to team
+    let resp = app.clone().oneshot(auth_req("GET", &format!("/api/tasks?team_id={}", team_id), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let tasks = body_json(resp).await;
+    assert!(tasks.as_array().unwrap().iter().any(|t| t["id"] == tid));
+
+    // Remove root task
+    let resp = app.clone().oneshot(auth_req("DELETE", &format!("/api/teams/{}/roots/{}", team_id, tid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 204);
+}
+
+// === T5: Epic group snapshot ===
+#[tokio::test]
+async fn test_epic_group() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    // Create epic group
+    let resp = app.clone().oneshot(auth_req("POST", "/api/epics", &tok, Some(json!({"name":"Epic1","description":"Test epic"})))).await.unwrap();
+    assert_eq!(resp.status(), 201);
+    let eid = body_json(resp).await["id"].as_i64().unwrap();
+
+    // Create task and add to epic
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"EpicTask"})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/epics/{}/tasks", eid), &tok, Some(json!({"task_ids":[tid]})))).await.unwrap();
+    assert_eq!(resp.status(), 204);
+
+    // Get epic detail
+    let resp = app.clone().oneshot(auth_req("GET", &format!("/api/epics/{}", eid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let detail = body_json(resp).await;
+    assert_eq!(detail["task_ids"].as_array().unwrap().len(), 1);
+
+    // Delete epic
+    let resp = app.clone().oneshot(auth_req("DELETE", &format!("/api/epics/{}", eid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 204);
+}
+
+// === T6: Recurrence processing ===
+#[tokio::test]
+async fn test_recurrence_set_get_remove() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"RecurTask"})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+
+    // Set recurrence
+    let resp = app.clone().oneshot(auth_req("PUT", &format!("/api/tasks/{}/recurrence", tid), &tok,
+        Some(json!({"pattern":"daily","next_due":"2026-05-01"})))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let rec = body_json(resp).await;
+    assert_eq!(rec["pattern"], "daily");
+
+    // Get recurrence
+    let resp = app.clone().oneshot(auth_req("GET", &format!("/api/tasks/{}/recurrence", tid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+
+    // Invalid pattern rejected
+    let resp = app.clone().oneshot(auth_req("PUT", &format!("/api/tasks/{}/recurrence", tid), &tok,
+        Some(json!({"pattern":"yearly","next_due":"2026-05-01"})))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+
+    // Invalid date format rejected
+    let resp = app.clone().oneshot(auth_req("PUT", &format!("/api/tasks/{}/recurrence", tid), &tok,
+        Some(json!({"pattern":"daily","next_due":"not-a-date"})))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+
+    // Remove recurrence
+    let resp = app.clone().oneshot(auth_req("DELETE", &format!("/api/tasks/{}/recurrence", tid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 204);
+}
+
+// === T7: Webhook CRUD ===
+#[tokio::test]
+async fn test_webhook_crud() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    // Create webhook
+    let resp = app.clone().oneshot(auth_req("POST", "/api/webhooks", &tok,
+        Some(json!({"url":"https://example.com/hook","events":"task.created,task.updated","secret":"s3cret"})))).await.unwrap();
+    assert_eq!(resp.status(), 201);
+    let wh = body_json(resp).await;
+    let wid = wh["id"].as_i64().unwrap();
+    assert_eq!(wh["url"], "https://example.com/hook");
+
+    // List webhooks
+    let resp = app.clone().oneshot(auth_req("GET", "/api/webhooks", &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let list = body_json(resp).await;
+    assert!(list.as_array().unwrap().len() >= 1);
+
+    // Invalid event rejected
+    let resp = app.clone().oneshot(auth_req("POST", "/api/webhooks", &tok,
+        Some(json!({"url":"https://example.com/hook2","events":"invalid.event"})))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+
+    // Delete webhook
+    let resp = app.clone().oneshot(auth_req("DELETE", &format!("/api/webhooks/{}", wid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 204);
+}
+
+// === T8: Audit log ===
+#[tokio::test]
+async fn test_audit_log_entries() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    // Create and delete a task to generate audit entries
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"AuditTask"})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+    app.clone().oneshot(auth_req("DELETE", &format!("/api/tasks/{}", tid), &tok, None)).await.unwrap();
+
+    // Query audit log
+    let resp = app.clone().oneshot(auth_req("GET", "/api/audit", &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let entries = body_json(resp).await;
+    let arr = entries.as_array().unwrap();
+    assert!(arr.iter().any(|e| e["action"] == "create" && e["entity_type"] == "task"));
+    assert!(arr.iter().any(|e| e["action"] == "delete" && e["entity_type"] == "task"));
+
+    // Filter by entity type
+    let resp = app.clone().oneshot(auth_req("GET", "/api/audit?entity_type=task", &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let filtered = body_json(resp).await;
+    assert!(filtered.as_array().unwrap().iter().all(|e| e["entity_type"] == "task"));
+}
+
+// === T9: Auth flow (register → login → refresh → logout) ===
+#[tokio::test]
+async fn test_auth_full_flow() {
+    let app = app().await;
+
+    // Register
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/register", Some(json!({"username":"flowuser","password":"Flow1234"})))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let auth = body_json(resp).await;
+    let tok = auth["token"].as_str().unwrap().to_string();
+    let refresh = auth["refresh_token"].as_str().unwrap().to_string();
+    assert_eq!(auth["username"], "flowuser");
+
+    // Duplicate register fails
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/register", Some(json!({"username":"flowuser","password":"Flow1234"})))).await.unwrap();
+    assert_eq!(resp.status(), 409);
+
+    // Login
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/login", Some(json!({"username":"flowuser","password":"Flow1234"})))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+
+    // Wrong password
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/login", Some(json!({"username":"flowuser","password":"wrong"})))).await.unwrap();
+    assert_eq!(resp.status(), 401);
+
+    // Refresh token
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/refresh", Some(json!({"refresh_token": refresh})))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let new_auth = body_json(resp).await;
+    assert!(new_auth["token"].as_str().is_some());
+
+    // Logout
+    let resp = app.clone().oneshot(auth_req("POST", "/api/auth/logout", &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 204);
+
+    // Token should be revoked after logout
+    let resp = app.clone().oneshot(auth_req("GET", "/api/timer", &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 401);
+}
+
+// === T10: CSV export ===
+#[tokio::test]
+async fn test_csv_export() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    // Create some tasks
+    app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"CSV1","project":"P1"})))).await.unwrap();
+    app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"CSV2","project":"P1"})))).await.unwrap();
+
+    // Export CSV
+    let resp = app.clone().oneshot(auth_req("GET", "/api/export/tasks?format=csv", &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let ct = resp.headers().get("content-type").unwrap().to_str().unwrap();
+    assert!(ct.contains("csv") || ct.contains("text"));
+    let body = resp.into_body().collect().await.unwrap().to_bytes();
+    let csv = String::from_utf8(body.to_vec()).unwrap();
+    assert!(csv.contains("CSV1"));
+    assert!(csv.contains("CSV2"));
+}
+
+// === T11: Soft delete + restore ===
+#[tokio::test]
+async fn test_soft_delete_and_restore() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"SoftDel"})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+
+    // Delete (soft)
+    let resp = app.clone().oneshot(auth_req("DELETE", &format!("/api/tasks/{}", tid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 204);
+
+    // Task should not appear in list
+    let resp = app.clone().oneshot(auth_req("GET", "/api/tasks", &tok, None)).await.unwrap();
+    let tasks = body_json(resp).await;
+    assert!(!tasks.as_array().unwrap().iter().any(|t| t["id"] == tid));
+
+    // Restore
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/tasks/{}/restore", tid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 204);
+
+    // Task should reappear
+    let resp = app.clone().oneshot(auth_req("GET", "/api/tasks", &tok, None)).await.unwrap();
+    let tasks = body_json(resp).await;
+    assert!(tasks.as_array().unwrap().iter().any(|t| t["id"] == tid));
+}
+
+// === T12: Health endpoint ===
+#[tokio::test]
+async fn test_health_endpoint() {
+    let app = app().await;
+    // No auth required
+    let resp = app.clone().oneshot(Request::builder().method("GET").uri("/api/health").body(Body::empty()).unwrap()).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let body = body_json(resp).await;
+    assert_eq!(body["status"], "ok");
+    assert_eq!(body["db"], true);
+}
