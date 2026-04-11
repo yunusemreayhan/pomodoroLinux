@@ -2296,3 +2296,37 @@ async fn test_sprint_task_auth() {
     let resp = app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/tasks", sid), &tok2, Some(json!({"task_ids":[tid]})))).await.unwrap();
     assert_eq!(resp.status(), 403);
 }
+
+// T3: webhook HMAC uses SHA-256
+#[tokio::test]
+async fn test_webhook_ssrf_blocked() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    // Private IP should be blocked
+    let resp = app.clone().oneshot(auth_req("POST", "/api/webhooks", &tok,
+        Some(json!({"url":"http://192.168.1.1/hook"})))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+    // Localhost should be blocked
+    let resp = app.clone().oneshot(auth_req("POST", "/api/webhooks", &tok,
+        Some(json!({"url":"http://localhost/hook"})))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+    // Cloud metadata should be blocked
+    let resp = app.clone().oneshot(auth_req("POST", "/api/webhooks", &tok,
+        Some(json!({"url":"http://169.254.169.254/latest/meta-data"})))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+}
+
+// T5: rate limiter with no IP header doesn't crash
+#[tokio::test]
+async fn test_rate_limiter_no_ip_header() {
+    let app = app().await;
+    // Send request without x-forwarded-for — should not panic
+    let req = axum::http::Request::builder()
+        .method("POST").uri("/api/auth/login")
+        .header("content-type", "application/json")
+        .body(axum::body::Body::from(serde_json::to_string(&json!({"username":"root","password":"root1234"})).unwrap()))
+        .unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    // Should get a valid HTTP response (200 or 429), not a server error
+    assert!(resp.status().as_u16() < 500);
+}
