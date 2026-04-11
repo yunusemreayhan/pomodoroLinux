@@ -74,7 +74,9 @@ impl Config {
 
     pub fn save(&self) -> Result<()> {
         let path = Self::config_path();
-        std::fs::write(&path, toml::to_string_pretty(self)?)?;
+        let tmp = path.with_extension("toml.tmp");
+        std::fs::write(&tmp, toml::to_string_pretty(self)?)?;
+        std::fs::rename(&tmp, &path)?;
         Ok(())
     }
 }

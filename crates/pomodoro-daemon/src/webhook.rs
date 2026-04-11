@@ -1,5 +1,10 @@
 use crate::db::{self, Pool};
 
+static WEBHOOK_CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
+fn webhook_client() -> &'static reqwest::Client {
+    WEBHOOK_CLIENT.get_or_init(|| reqwest::Client::builder().timeout(std::time::Duration::from_secs(10)).build().unwrap_or_default())
+}
+
 /// Fire webhooks for an event in the background. Non-blocking, errors are logged.
 pub fn dispatch(pool: Pool, event: &str, payload: serde_json::Value) {
     let event = event.to_string();
@@ -8,7 +13,7 @@ pub fn dispatch(pool: Pool, event: &str, payload: serde_json::Value) {
             Ok(h) => h,
             Err(e) => { tracing::warn!("Failed to load webhooks: {}", e); return; }
         };
-        let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(10)).build().unwrap_or_default();
+        let client = webhook_client();
         for hook in hooks {
             let body = serde_json::json!({ "event": &event, "data": &payload });
             let body_str = serde_json::to_string(&body).unwrap_or_default();
