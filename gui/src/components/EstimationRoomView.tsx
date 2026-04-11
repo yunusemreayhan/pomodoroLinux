@@ -35,7 +35,11 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
   useSseDebounce("sse-rooms", load, 300);
 
   // Reset card selection when task changes
-  useEffect(() => { setSelectedCard(null); }, [state?.room.current_task_id]);
+  // F6: Restore selected card from vote state (value visible after reveal, otherwise keep local)
+  useEffect(() => {
+    if (myVote?.value != null) setSelectedCard(myVote.value);
+    else setSelectedCard(null);
+  }, [state?.room.current_task_id]);
 
   if (!state) return <div className="p-8 text-white/40">Loading...</div>;
 

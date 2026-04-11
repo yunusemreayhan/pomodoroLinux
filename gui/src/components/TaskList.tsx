@@ -611,6 +611,11 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
       {!selectMode && bulkSelected.size > 0 && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/20" role="toolbar" aria-live="polite" aria-label="Bulk actions">
           <span className="text-xs text-[var(--color-accent)] font-medium">{bulkSelected.size} selected</span>
+          <button onClick={() => {
+            const visible = tree.flatMap(function flat(n: TreeNode): number[] { return [n.task.id, ...n.children.flatMap(flat)]; });
+            setBulkSelected(new Set(visible));
+          }} className="px-2 py-0.5 rounded text-xs bg-white/5 text-white/50">Select all</button>
+          <button onClick={() => setBulkSelected(new Set())} className="px-2 py-0.5 rounded text-xs bg-white/5 text-white/50">Clear</button>
           <button onClick={async () => {
             for (const id of bulkSelected) await useStore.getState().updateTask(id, { status: "completed" });
             setBulkSelected(new Set());
