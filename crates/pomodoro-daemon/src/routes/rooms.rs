@@ -38,6 +38,7 @@ pub async fn join_room(State(engine): State<AppState>, claims: Claims, Path(id):
 #[utoipa::path(post, path = "/api/rooms/{id}/leave", responses((status = 200)), security(("bearer" = [])))]
 pub async fn leave_room(State(engine): State<AppState>, claims: Claims, Path(id): Path<i64>) -> Result<StatusCode, ApiError> {
     db::leave_room(&engine.pool, id, claims.user_id).await.map_err(internal)?;
+    engine.notify(ChangeEvent::Rooms);
     Ok(StatusCode::OK)
 }
 
@@ -67,7 +68,7 @@ pub async fn start_voting(State(engine): State<AppState>, claims: Claims, Path(i
     if !db::is_room_admin(&engine.pool, id, claims.user_id).await.map_err(internal)? && claims.role != "root" {
         return Err(err(StatusCode::FORBIDDEN, "Admin only"));
     }
-    db::start_voting(&engine.pool, id, req.task_id).await.map(Json).map_err(internal)
+    db::start_voting(&engine.pool, id, req.task_id).await.map(|r| { engine.notify(ChangeEvent::Rooms); Json(r) }).map_err(internal)
 }
 
 #[utoipa::path(post, path = "/api/rooms/{id}/vote", request_body = CastVoteRequest, responses((status = 200)), security(("bearer" = [])))]

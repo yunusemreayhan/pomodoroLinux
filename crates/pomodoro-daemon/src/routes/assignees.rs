@@ -10,6 +10,7 @@ pub async fn list_assignees(State(engine): State<AppState>, _claims: Claims, Pat
 pub async fn add_assignee(State(engine): State<AppState>, _claims: Claims, Path(id): Path<i64>, Json(req): Json<AssignRequest>) -> Result<StatusCode, ApiError> {
     let uid = db::get_user_id_by_username(&engine.pool, &req.username).await.map_err(|_| err(StatusCode::NOT_FOUND, "User not found"))?;
     db::add_assignee(&engine.pool, id, uid).await.map_err(internal)?;
+    engine.notify(ChangeEvent::Tasks);
     Ok(StatusCode::OK)
 }
 
@@ -19,6 +20,7 @@ pub async fn remove_assignee(State(engine): State<AppState>, claims: Claims, Pat
     if !is_owner_or_root(task.user_id, &claims) { return Err(err(StatusCode::FORBIDDEN, "Not owner")); }
     let uid = db::get_user_id_by_username(&engine.pool, &username).await.map_err(|_| err(StatusCode::NOT_FOUND, "User not found"))?;
     db::remove_assignee(&engine.pool, id, uid).await.map_err(internal)?;
+    engine.notify(ChangeEvent::Tasks);
     Ok(StatusCode::NO_CONTENT)
 }
 

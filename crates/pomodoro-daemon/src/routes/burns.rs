@@ -15,8 +15,9 @@ pub async fn list_burns(State(engine): State<AppState>, _claims: Claims, Path(id
 }
 
 #[utoipa::path(delete, path = "/api/sprints/{id}/burns/{burn_id}", responses((status = 200, body = db::BurnEntry)), security(("bearer" = [])))]
-pub async fn cancel_burn(State(engine): State<AppState>, claims: Claims, Path((_id, burn_id)): Path<(i64, i64)>) -> ApiResult<db::BurnEntry> {
+pub async fn cancel_burn(State(engine): State<AppState>, claims: Claims, Path((sprint_id, burn_id)): Path<(i64, i64)>) -> ApiResult<db::BurnEntry> {
     let burn = db::get_burn(&engine.pool, burn_id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Burn not found"))?;
+    if burn.sprint_id != Some(sprint_id) { return Err(err(StatusCode::BAD_REQUEST, "Burn does not belong to this sprint")); }
     if burn.cancelled != 0 { return Err(err(StatusCode::BAD_REQUEST, "Burn already cancelled")); }
     if burn.user_id != claims.user_id && claims.role != "root" {
         return Err(err(StatusCode::FORBIDDEN, "Not owner"));

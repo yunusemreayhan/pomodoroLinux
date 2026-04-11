@@ -115,7 +115,9 @@ impl Engine {
 
     async fn stop_session(pool: &Pool, state: &mut EngineState, reason: &str) {
         if let Some(sid) = state.current_session_id.take() {
-            db::end_session(pool, sid, reason).await.ok();
+            if let Err(e) = db::end_session(pool, sid, reason).await {
+                tracing::warn!("Failed to end session {}: {}", sid, e);
+            }
         }
     }
 
@@ -206,7 +208,32 @@ impl Engine {
     }
 
     pub async fn skip(&self, user_id: i64) -> anyhow::Result<EngineState> {
-        self.stop(user_id).await
+        let config = self.get_user_config(user_id).await;
+        let mut states = self.states.lock().await;
+        let state = states.entry(user_id).or_insert_with(|| Self::idle_state(user_id, &config));
+        // End current session
+        if let Some(sid) = state.current_session_id.take() {
+            if let Err(e) = db::end_session(&self.pool, sid, "skipped").await {
+                tracing::warn!("Failed to end session {}: {}", sid, e);
+            }
+        }
+        // Advance to next phase
+        let next_phase = match state.phase {
+            TimerPhase::Work => if state.session_count % config.long_break_interval == 0 { TimerPhase::LongBreak } else { TimerPhase::ShortBreak },
+            _ => TimerPhase::Work,
+        };
+        state.phase = next_phase;
+        state.elapsed_s = 0;
+        state.duration_s = match next_phase {
+            TimerPhase::Work => config.work_duration_min * 60,
+            TimerPhase::ShortBreak => config.short_break_min * 60,
+            TimerPhase::LongBreak => config.long_break_min * 60,
+            TimerPhase::Idle => 0,
+        };
+        state.status = TimerStatus::Idle;
+        let s = state.clone();
+        self.tx.send(s.clone()).ok();
+        Ok(s)
     }
 
     /// Tick all active user timers. Returns completed states for notification.
@@ -225,13 +252,33 @@ impl Engine {
         let completions: Vec<Completion>;
         let completed_states: Vec<EngineState>;
         {
-            let config = self.config.lock().await.clone(); // acquire once, before states lock
+            let global_config = self.config.lock().await.clone();
             let mut states = self.states.lock().await;
             let mut comps = Vec::new();
 
-            let user_ids: Vec<i64> = states.keys().copied().collect();
-            for uid in user_ids {
-                let state = match states.get_mut(&uid) {
+            // Pre-load per-user configs for active users
+            let user_ids: Vec<i64> = states.iter()
+                .filter(|(_, s)| s.status == TimerStatus::Running)
+                .map(|(uid, _)| *uid)
+                .collect();
+            let mut user_configs = std::collections::HashMap::new();
+            for uid in &user_ids {
+                if let Ok(Some(uc)) = db::get_user_config(&self.pool, *uid).await {
+                    let mut cfg = global_config.clone();
+                    if let Some(v) = uc.work_duration_min { cfg.work_duration_min = v as u32; }
+                    if let Some(v) = uc.short_break_min { cfg.short_break_min = v as u32; }
+                    if let Some(v) = uc.long_break_min { cfg.long_break_min = v as u32; }
+                    if let Some(v) = uc.long_break_interval { cfg.long_break_interval = v as u32; }
+                    if let Some(v) = uc.auto_start_breaks { cfg.auto_start_breaks = v != 0; }
+                    if let Some(v) = uc.auto_start_work { cfg.auto_start_work = v != 0; }
+                    if let Some(v) = uc.daily_goal { cfg.daily_goal = v as u32; }
+                    user_configs.insert(*uid, cfg);
+                }
+            }
+
+            for uid in &user_ids {
+                let config = user_configs.get(uid).unwrap_or(&global_config);
+                let state = match states.get_mut(uid) {
                     Some(s) if s.status == TimerStatus::Running => s,
                     _ => continue,
                 };
