@@ -3328,3 +3328,87 @@ async fn test_task_all_fields() {
     assert_eq!(task["estimated"], 5);
     assert_eq!(task["due_date"], "2026-12-31");
 }
+
+// ---- Bulk Status ----
+
+#[tokio::test]
+async fn test_bulk_status_change() {
+    let app = app().await;
+    let token = login_root(&app).await;
+    // Create two tasks
+    let r1 = app.clone().oneshot(auth_req("POST", "/api/tasks", &token, Some(json!({"title":"Bulk1"})))).await.unwrap();
+    let id1 = body_json(r1).await["id"].as_i64().unwrap();
+    let r2 = app.clone().oneshot(auth_req("POST", "/api/tasks", &token, Some(json!({"title":"Bulk2"})))).await.unwrap();
+    let id2 = body_json(r2).await["id"].as_i64().unwrap();
+    // Bulk update to done
+    let resp = app.clone().oneshot(auth_req("PUT", "/api/tasks/bulk-status", &token, Some(json!({"task_ids":[id1,id2],"status":"done"})))).await.unwrap();
+    assert_eq!(resp.status(), 204);
+    // Verify
+    let r = app.clone().oneshot(auth_req("GET", &format!("/api/tasks/{}", id1), &token, None)).await.unwrap();
+    assert_eq!(body_json(r).await["task"]["status"], "done");
+}
+
+#[tokio::test]
+async fn test_bulk_status_invalid() {
+    let app = app().await;
+    let token = login_root(&app).await;
+    let resp = app.clone().oneshot(auth_req("PUT", "/api/tasks/bulk-status", &token, Some(json!({"task_ids":[999],"status":"invalid"})))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+}
+
+// ---- CSV Import ----
+
+#[tokio::test]
+async fn test_csv_import_tasks() {
+    let app = app().await;
+    let token = login_root(&app).await;
+    let csv = "title,priority,estimated,project\nImported Task,2,5,myproj\nAnother,3,0,";
+    let resp = app.clone().oneshot(auth_req("POST", "/api/import/tasks", &token, Some(json!({"csv": csv})))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let body = body_json(resp).await;
+    assert_eq!(body["created"], 2);
+}
+
+// ---- Export Burns ----
+
+#[tokio::test]
+async fn test_export_burns_csv() {
+    let app = app().await;
+    let token = login_root(&app).await;
+    // Create sprint
+    let r = app.clone().oneshot(auth_req("POST", "/api/sprints", &token, Some(json!({"name":"BurnExport"})))).await.unwrap();
+    let sid = body_json(r).await["id"].as_i64().unwrap();
+    let resp = app.clone().oneshot(auth_req("GET", &format!("/api/export/burns/{}", sid), &token, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+    let csv = String::from_utf8(bytes.to_vec()).unwrap();
+    assert!(csv.starts_with("created_at,task_id,points,hours,username,source,note"));
+}
+
+// ---- Bcrypt Rehash ----
+
+#[tokio::test]
+async fn test_login_succeeds_after_register() {
+    let app = app().await;
+    // Register
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/register", Some(json!({"username":"rehashuser","password":"Testpass1"})))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    // Login should succeed
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/login", Some(json!({"username":"rehashuser","password":"Testpass1"})))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let body = body_json(resp).await;
+    assert!(body["token"].is_string());
+}
+
+// ---- Export with date range ----
+
+#[tokio::test]
+async fn test_export_sessions_date_range() {
+    let app = app().await;
+    let token = login_root(&app).await;
+    let resp = app.clone().oneshot(auth_req("GET", "/api/export/sessions?format=json&from=2020-01-01&to=2020-12-31", &token, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let body = body_json(resp).await;
+    assert!(body.is_array());
+    assert_eq!(body.as_array().unwrap().len(), 0); // no sessions in that range
+}
