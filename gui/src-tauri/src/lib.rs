@@ -95,20 +95,20 @@ async fn write_file(path: String, content: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn save_auth(state: tauri::State<'_, Arc<AppState>>, data: String) -> Result<(), String> {
+async fn save_auth(_state: tauri::State<'_, Arc<AppState>>, data: String) -> Result<(), String> {
     let dir = dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("pomodoro-gui");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     std::fs::write(dir.join(".auth"), data).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn load_auth(state: tauri::State<'_, Arc<AppState>>) -> Result<String, String> {
+async fn load_auth(_state: tauri::State<'_, Arc<AppState>>) -> Result<String, String> {
     let path = dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("pomodoro-gui").join(".auth");
     std::fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn clear_auth(state: tauri::State<'_, Arc<AppState>>) -> Result<(), String> {
+async fn clear_auth(_state: tauri::State<'_, Arc<AppState>>) -> Result<(), String> {
     let path = dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join("pomodoro-gui").join(".auth");
     let _ = std::fs::remove_file(&path);
     Ok(())
