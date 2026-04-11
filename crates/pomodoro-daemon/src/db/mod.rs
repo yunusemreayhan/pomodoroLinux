@@ -325,8 +325,16 @@ async fn migrate(pool: &Pool) -> Result<()> {
         created_at  TEXT NOT NULL
     )").execute(pool).await?;
 
-    // Migrations for existing DBs
-    sqlx::query("ALTER TABLE sprints ADD COLUMN retro_notes TEXT").execute(pool).await.ok();
+    // Migration versioning
+    sqlx::query("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)").execute(pool).await?;
+    let applied: Vec<(i64,)> = sqlx::query_as("SELECT version FROM schema_migrations").fetch_all(pool).await.unwrap_or_default();
+    let applied_set: std::collections::HashSet<i64> = applied.into_iter().map(|r| r.0).collect();
+
+    // Migration 1: Add retro_notes to sprints
+    if !applied_set.contains(&1) {
+        sqlx::query("ALTER TABLE sprints ADD COLUMN retro_notes TEXT").execute(pool).await.ok();
+        sqlx::query("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (1, ?)").bind(&now_str()).execute(pool).await.ok();
+    }
 
     sqlx::query("CREATE TABLE IF NOT EXISTS task_attachments (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -96,10 +96,13 @@ pub async fn add_sprint_tasks(State(engine): State<AppState>, claims: Claims, Pa
     if !is_owner_or_root(sprint.created_by_id, &claims) { return Err(err(StatusCode::FORBIDDEN, "Not sprint owner")); }
     if req.task_ids.len() > 500 { return Err(err(StatusCode::BAD_REQUEST, "Too many task IDs (max 500)")); }
     if req.task_ids.is_empty() { return Err(err(StatusCode::BAD_REQUEST, "task_ids cannot be empty")); }
-    // Validate all tasks exist
-    for &tid in &req.task_ids {
-        db::get_task(&engine.pool, tid).await.map_err(|_| err(StatusCode::NOT_FOUND, &format!("Task {} not found", tid)))?;
-    }
+    // Batch validate all tasks exist
+    let ph = req.task_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let q = format!("SELECT COUNT(*) FROM tasks WHERE id IN ({})", ph);
+    let mut query = sqlx::query_as::<_, (i64,)>(&q);
+    for id in &req.task_ids { query = query.bind(id); }
+    let (found,): (i64,) = query.fetch_one(&engine.pool).await.map_err(internal)?;
+    if found != req.task_ids.len() as i64 { return Err(err(StatusCode::NOT_FOUND, "One or more tasks not found")); }
     let result = db::add_sprint_tasks(&engine.pool, id, &req.task_ids, claims.user_id).await.map_err(internal)?;
     if db::get_sprint(&engine.pool, id).await.map(|s| s.status == "active").unwrap_or(false) {
         if let Err(e) = db::snapshot_sprint(&engine.pool, id).await { tracing::warn!("Snapshot failed: {}", e); }
