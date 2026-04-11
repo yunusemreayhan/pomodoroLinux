@@ -19,30 +19,37 @@ function saveServers(servers: SavedServer[]) {
 }
 
 interface Store {
-  // State
+  // --- Timer & Engine State ---
   engine: EngineState | null;
+
+  // --- Task Data ---
   tasks: Task[];
   taskSprints: TaskSprintInfo[];
   taskSprintsMap: Map<number, TaskSprintInfo[]>;
   burnTotals: Map<number, BurnTotalEntry>;
   allAssignees: Map<number, string[]>;
+
+  // --- History & Stats ---
   stats: DayStat[];
   history: Session[];
+
+  // --- Config & UI State ---
   config: Config | null;
   connected: boolean;
   loading: { tasks: boolean; history: boolean; stats: boolean; config: boolean };
   activeTab: string;
   activeTeamId: number | null;
-  teamScope: Set<number> | null; // descendant IDs for active team
+  teamScope: Set<number> | null;
   error: string | null;
-  // Auth
+
+  // --- Auth ---
   token: string | null;
   username: string | null;
   role: string | null;
   serverUrl: string;
   savedServers: SavedServer[];
 
-  // Actions
+  // --- Timer Actions ---
   setTab: (tab: string) => void;
   poll: () => Promise<void>;
   start: (taskId?: number) => Promise<void>;
@@ -51,18 +58,23 @@ interface Store {
   stop: () => Promise<void>;
   skip: () => Promise<void>;
   startBreak: (type: "short_break" | "long_break") => Promise<void>;
+
+  // --- Task Actions ---
   loadTasks: () => Promise<void>;
   createTask: (title: string, parentId?: number, project?: string, priority?: number, estimated?: number) => Promise<void>;
   updateTask: (id: number, fields: Record<string, unknown>) => Promise<void>;
   deleteTask: (id: number) => Promise<void>;
   setActiveTeam: (teamId: number | null) => void;
+  addComment: (taskId: number, content: string, sessionId?: number) => Promise<Comment>;
+  getTaskDetail: (id: number) => Promise<TaskDetail>;
+
+  // --- Data Loading ---
   loadStats: () => Promise<void>;
   loadHistory: () => Promise<void>;
   loadConfig: () => Promise<void>;
   updateConfig: (cfg: Config) => Promise<void>;
-  addComment: (taskId: number, content: string, sessionId?: number) => Promise<Comment>;
-  getTaskDetail: (id: number) => Promise<TaskDetail>;
-  // Auth
+
+  // --- Auth Actions ---
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, password: string) => Promise<void>;
   logout: () => void;
@@ -70,7 +82,7 @@ interface Store {
   setServerUrl: (url: string) => Promise<void>;
   switchToServer: (server: SavedServer) => Promise<void>;
   removeServer: (url: string, username: string) => void;
-  // Toast
+  // --- Toast & Dialog ---
   toasts: { id: number; msg: string; type: "success" | "error"; onUndo?: () => void }[];
   toast: (msg: string, type?: "success" | "error", onUndo?: () => void) => void;
   dismissToast: (id: number) => void;
