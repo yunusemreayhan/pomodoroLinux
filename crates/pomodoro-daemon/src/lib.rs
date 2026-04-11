@@ -19,7 +19,7 @@ pub fn build_router(engine: Arc<engine::Engine>) -> Router {
     let origins_str = std::env::var("POMODORO_CORS_ORIGINS").ok();
     let extra: Vec<HeaderValue> = origins_str.as_deref()
         .map(|s| s.split(',').filter_map(|o| o.trim().parse().ok()).collect())
-        .unwrap_or_default();
+        .unwrap_or_else(|| engine.config.try_lock().map(|c| c.cors_origins.iter().filter_map(|o| o.parse().ok()).collect()).unwrap_or_default());
     let mut all_origins: Vec<HeaderValue> = vec![
         "http://localhost:1420".parse().unwrap(),
         "http://127.0.0.1:1420".parse().unwrap(),

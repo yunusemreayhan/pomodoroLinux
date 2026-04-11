@@ -145,6 +145,7 @@ async fn main() -> Result<()> {
     let engine_snap = engine.clone();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600));
+        interval.tick().await; // Skip immediate first tick
         loop {
             interval.tick().await;
             if let Err(e) = db::snapshot_active_sprints(&engine_snap.pool).await {

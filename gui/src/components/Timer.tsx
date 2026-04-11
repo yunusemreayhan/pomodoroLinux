@@ -1,7 +1,7 @@
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, Square, SkipForward, Coffee, MessageSquare } from "lucide-react";
 import { useStore } from "../store/store";
-import { useEffect, useState, useMemo } from "react";
 import CommentSection from "./CommentSection";
 import { useT } from "../i18n";
 
@@ -35,7 +35,7 @@ export default function Timer() {
   const t = useT();
   const [selectedTaskId, setSelectedTaskId] = useState<number | undefined>(undefined);
   const [showComment, setShowComment] = useState(false);
-  const activeTasks = tasks.filter(t => t.status === "active" || t.status === "backlog");
+  const activeTasks = useMemo(() => tasks.filter(t => t.status === "active" || t.status === "backlog"), [tasks]);
 
   const phase = engine?.phase ?? "Idle";
   const status = engine?.status ?? "Idle";

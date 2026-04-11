@@ -163,10 +163,13 @@ pub async fn count_tasks(pool: &Pool, f: TaskFilter<'_>) -> Result<i64> {
 }
 
 pub async fn reorder_tasks(pool: &Pool, orders: &[(i64, i64)]) -> Result<()> {
+    let mut tx = pool.begin().await?;
+    let now = now_str();
     for (id, sort_order) in orders {
         sqlx::query("UPDATE tasks SET sort_order = ?, updated_at = ? WHERE id = ?")
-            .bind(sort_order).bind(&now_str()).bind(id).execute(pool).await?;
+            .bind(sort_order).bind(&now).bind(id).execute(&mut *tx).await?;
     }
+    tx.commit().await?;
     Ok(())
 }
 

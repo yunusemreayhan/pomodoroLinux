@@ -135,11 +135,23 @@ pub struct BulkStatusRequest { pub task_ids: Vec<i64>, pub status: String }
 #[utoipa::path(put, path = "/api/tasks/bulk-status", request_body = BulkStatusRequest, responses((status = 204)), security(("bearer" = [])))]
 pub async fn bulk_update_status(State(engine): State<AppState>, claims: Claims, Json(req): Json<BulkStatusRequest>) -> Result<StatusCode, ApiError> {
     validate_task_status(&req.status)?;
-    for id in &req.task_ids {
-        let task = db::get_task(&engine.pool, *id).await.map_err(|_| err(StatusCode::NOT_FOUND, &format!("Task {} not found", id)))?;
-        if !is_owner_or_root(task.user_id, &claims) { return Err(err(StatusCode::FORBIDDEN, &format!("Not owner of task {}", id))); }
-        db::update_task(&engine.pool, *id, None, None, None, None, None, None, None, None, None, Some(&req.status), None, None).await.map_err(internal)?;
+    if req.task_ids.is_empty() { return Ok(StatusCode::NO_CONTENT); }
+    // Batch ownership check
+    if claims.role != "root" {
+        let ph = req.task_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let q = format!("SELECT COUNT(*) FROM tasks WHERE id IN ({}) AND user_id != ?", ph);
+        let mut query = sqlx::query_as::<_, (i64,)>(&q);
+        for id in &req.task_ids { query = query.bind(id); }
+        query = query.bind(claims.user_id);
+        let (foreign,): (i64,) = query.fetch_one(&engine.pool).await.map_err(internal)?;
+        if foreign > 0 { return Err(err(StatusCode::FORBIDDEN, "Cannot update other users' tasks")); }
     }
+    // Batch update
+    let ph = req.task_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let sql = format!("UPDATE tasks SET status = ?, updated_at = ? WHERE id IN ({})", ph);
+    let mut q = sqlx::query(&sql).bind(&req.status).bind(crate::db::now_str());
+    for id in &req.task_ids { q = q.bind(id); }
+    q.execute(&engine.pool).await.map_err(internal)?;
     engine.notify(ChangeEvent::Tasks);
     Ok(StatusCode::NO_CONTENT)
 }

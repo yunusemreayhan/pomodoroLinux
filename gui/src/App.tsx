@@ -39,13 +39,13 @@ function Sidebar() {
     }
   }, [config?.theme]);
 
-  const setTheme = (t: string) => {
-    setThemeLocal(t);
-    apiCall("PUT", "/api/config", { theme: t }).catch(() => {});
+  const setTheme = (th: string) => {
+    setThemeLocal(th);
+    apiCall("PUT", "/api/config", { theme: th }).catch(() => {});
   };
 
   useEffect(() => {
-    apiCall<{ id: number; name: string }[]>("GET", "/api/me/teams").then(t => t && setTeams(t));
+    apiCall<{ id: number; name: string }[]>("GET", "/api/me/teams").then(res => res && setTeams(res));
   }, []);
 
   useEffect(() => {

@@ -29,12 +29,10 @@ pub async fn end_session(pool: &Pool, id: i64, status: &str) -> Result<Session> 
 
 pub async fn recover_interrupted(pool: &Pool) -> Result<Vec<Session>> {
     let sessions: Vec<Session> = sqlx::query_as(&format!("{} WHERE s.status = 'running'", SESSION_SELECT)).fetch_all(pool).await?;
-    for s in &sessions {
+    if !sessions.is_empty() {
         let now = now_str();
-        let started = parse_timestamp(&s.started_at);
-        let duration = (Utc::now().naive_utc() - started).num_seconds();
-        sqlx::query("UPDATE sessions SET status='interrupted', ended_at=?, duration_s=? WHERE id=?")
-            .bind(&now).bind(duration).bind(s.id).execute(pool).await?;
+        sqlx::query("UPDATE sessions SET status='interrupted', ended_at=? WHERE status='running'")
+            .bind(&now).execute(pool).await?;
     }
     Ok(sessions)
 }

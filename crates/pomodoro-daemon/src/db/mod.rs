@@ -8,7 +8,7 @@ use std::str::FromStr;
 mod types;
 pub use types::*;
 
-pub(crate) fn now_str() -> String {
+pub fn now_str() -> String {
     Utc::now().naive_utc().format("%Y-%m-%dT%H:%M:%S%.3f").to_string()
 }
 

@@ -78,8 +78,7 @@ pub struct Engine {
 
 impl Engine {
     pub async fn new(pool: Pool, config: Config) -> Self {
-        // Recover any sessions left running from a previous crash
-        db::recover_interrupted_sessions(&pool).await.ok();
+        // Recovery handled in main.rs before Engine::new
         let state = EngineState {
             daily_goal: config.daily_goal,
             duration_s: config.work_duration_min * 60,
