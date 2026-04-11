@@ -32,6 +32,14 @@ pub async fn create_webhook(State(engine): State<AppState>, claims: Claims, Json
         }
     }
     let events = req.events.as_deref().unwrap_or("*");
+    if events != "*" {
+        const VALID_EVENTS: &[&str] = &["task.created", "task.updated", "task.deleted", "sprint.created", "sprint.started", "sprint.completed"];
+        for ev in events.split(',') {
+            if !VALID_EVENTS.contains(&ev.trim()) {
+                return Err(err(StatusCode::BAD_REQUEST, format!("Unknown event '{}'. Valid: {}", ev.trim(), VALID_EVENTS.join(", "))));
+            }
+        }
+    }
     let wh = db::create_webhook(&engine.pool, claims.user_id, &req.url, events, req.secret.as_deref()).await.map_err(internal)?;
     Ok((StatusCode::CREATED, Json(wh)))
 }

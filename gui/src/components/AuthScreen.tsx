@@ -48,8 +48,8 @@ export default function AuthScreen() {
             style={{ background: "conic-gradient(from 0deg, #FF6B6B, #4ECDC4, #45B7D1, #7C3AED, #FF6B6B)" }}
           />
           <h1 className="text-xl font-bold text-white">Pomodoro</h1>
-          <p className="text-xs text-white/40 mt-1">{isRegister ? "Create your account" : "Sign in to continue"}</p>
-          <p className="text-xs text-white/30 mt-1">{isRegister ? "First user becomes admin" : ""}</p>
+          <p className="text-xs text-white/40 mt-1">{isRegister ? t.createAccount : t.signIn}</p>
+          <p className="text-xs text-white/30 mt-1">{isRegister ? t.firstUserAdmin : ""}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -112,7 +112,7 @@ export default function AuthScreen() {
           onClick={() => { setIsRegister(!isRegister); setError(""); }}
           className="w-full text-center text-xs text-white/40 hover:text-white/70 mt-4 transition-colors"
         >
-          {isRegister ? "Already have an account? Sign in" : "No account? Register"}
+          {isRegister ? t.switchToLogin : t.switchToRegister}
         </button>
 
         {savedServers.length > 0 && (
