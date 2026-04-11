@@ -130,8 +130,12 @@ export default function Settings() {
 
   if (!local) return <div className="p-8 text-white/40 text-sm">Loading...</div>;
 
-  const set = (key: keyof Config, val: unknown) =>
+  const set = (key: keyof Config, val: unknown) => {
+    setSaved(false);
     setLocal((prev) => prev ? { ...prev, [key]: val } : prev);
+  };
+
+  const isDirty = local && config && JSON.stringify(local) !== JSON.stringify(config);
 
   const save = async () => {
     if (!local) return;
@@ -267,7 +271,7 @@ export default function Settings() {
         style={{ background: saved ? "var(--color-success)" : "var(--color-accent)" }}
       >
         <Save size={18} />
-        {saved ? "Saved!" : "Save Settings"}
+        {saved ? "Saved!" : isDirty ? "Save Settings •" : "Save Settings"}
       </motion.button>
     </div>
   );

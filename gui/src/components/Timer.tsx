@@ -31,9 +31,10 @@ const R = (SIZE - STROKE) / 2;
 const CIRC = 2 * Math.PI * R;
 
 export default function Timer() {
-  const { engine, tasks, start, pause, resume, stop, skip, startBreak, config, toast } = useStore();
+  const { engine, tasks, start, pause, resume, stop, skip, startBreak, config, toast, timerTaskId } = useStore();
   const t = useT();
-  const [selectedTaskId, setSelectedTaskId] = useState<number | undefined>(undefined);
+  const setSelectedTaskId = (id: number | undefined) => useStore.setState({ timerTaskId: id });
+  const selectedTaskId = timerTaskId;
   const [showComment, setShowComment] = useState(false);
   const activeTasks = useMemo(() => tasks.filter(t => t.status === "active" || t.status === "backlog"), [tasks]);
 

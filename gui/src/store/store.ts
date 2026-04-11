@@ -41,6 +41,7 @@ interface Store {
   connected: boolean;
   loading: { tasks: boolean; history: boolean; stats: boolean; config: boolean };
   activeTab: string;
+  timerTaskId: number | undefined;
   activeTeamId: number | null;
   teamScope: Set<number> | null;
   error: string | null;
@@ -108,6 +109,7 @@ export const useStore = create<Store>((set, get) => ({
   connected: false,
   loading: { tasks: false, history: false, stats: false, config: false },
   activeTab: "timer",
+  timerTaskId: undefined,
   activeTeamId: JSON.parse((typeof localStorage !== "undefined" && localStorage.getItem("activeTeamId")) || "null"),
   teamScope: null,
   error: null,
