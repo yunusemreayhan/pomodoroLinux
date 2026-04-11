@@ -58,7 +58,7 @@ pub async fn start_sprint(State(engine): State<AppState>, claims: Claims, Path(i
     if !is_owner_or_root(sprint.created_by_id, &claims) { return Err(err(StatusCode::FORBIDDEN, "Not owner")); }
     if sprint.status != "planning" { return Err(err(StatusCode::BAD_REQUEST, format!("Cannot start sprint in '{}' status", sprint.status))); }
     let s = db::update_sprint(&engine.pool, id, None, None, None, Some("active"), None, None, None).await.map_err(internal)?;
-    let _ = db::snapshot_sprint(&engine.pool, id).await;
+    if let Err(e) = db::snapshot_sprint(&engine.pool, id).await { tracing::warn!("Snapshot failed: {}", e); }
     engine.notify(ChangeEvent::Sprints);
     Ok(Json(s))
 }
@@ -68,7 +68,7 @@ pub async fn complete_sprint(State(engine): State<AppState>, claims: Claims, Pat
     let sprint = db::get_sprint(&engine.pool, id).await.map_err(internal)?;
     if !is_owner_or_root(sprint.created_by_id, &claims) { return Err(err(StatusCode::FORBIDDEN, "Not owner")); }
     if sprint.status != "active" { return Err(err(StatusCode::BAD_REQUEST, format!("Cannot complete sprint in '{}' status", sprint.status))); }
-    let _ = db::snapshot_sprint(&engine.pool, id).await;
+    if let Err(e) = db::snapshot_sprint(&engine.pool, id).await { tracing::warn!("Snapshot failed: {}", e); }
     let s = db::update_sprint(&engine.pool, id, None, None, None, Some("completed"), None, None, None).await.map_err(internal)?;
     engine.notify(ChangeEvent::Sprints);
     Ok(Json(s))
@@ -85,7 +85,7 @@ pub async fn add_sprint_tasks(State(engine): State<AppState>, claims: Claims, Pa
     if !is_owner_or_root(sprint.created_by_id, &claims) { return Err(err(StatusCode::FORBIDDEN, "Not sprint owner")); }
     let result = db::add_sprint_tasks(&engine.pool, id, &req.task_ids, claims.user_id).await.map_err(internal)?;
     if db::get_sprint(&engine.pool, id).await.map(|s| s.status == "active").unwrap_or(false) {
-        let _ = db::snapshot_sprint(&engine.pool, id).await;
+        if let Err(e) = db::snapshot_sprint(&engine.pool, id).await { tracing::warn!("Snapshot failed: {}", e); }
     }
     engine.notify(ChangeEvent::Sprints);
     Ok(Json(result))
@@ -97,7 +97,7 @@ pub async fn remove_sprint_task(State(engine): State<AppState>, claims: Claims, 
     if !is_owner_or_root(sprint.created_by_id, &claims) { return Err(err(StatusCode::FORBIDDEN, "Not sprint owner")); }
     db::remove_sprint_task(&engine.pool, id, task_id).await.map_err(internal)?;
     if db::get_sprint(&engine.pool, id).await.map(|s| s.status == "active").unwrap_or(false) {
-        let _ = db::snapshot_sprint(&engine.pool, id).await;
+        if let Err(e) = db::snapshot_sprint(&engine.pool, id).await { tracing::warn!("Snapshot failed: {}", e); }
     }
     engine.notify(ChangeEvent::Sprints);
     Ok(StatusCode::NO_CONTENT)

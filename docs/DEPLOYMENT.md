@@ -110,3 +110,32 @@ cd gui
 npm run tauri build
 # Output: gui/src-tauri/target/release/bundle/deb/
 ```
+
+## SSE Events
+
+The server sends real-time updates via Server-Sent Events at `GET /api/timer/sse?ticket=<ticket>`.
+
+### Event Types
+
+| Event | Trigger | Frontend Handler |
+|---|---|---|
+| `timer` | Timer state change (tick, start, stop, pause, resume, skip) | Updates engine state |
+| `change` | Data mutation | Dispatches custom events based on `ChangeEvent` type |
+
+### Change Event Types
+
+| Type | Triggers On | Frontend Event |
+|---|---|---|
+| `Tasks` | Task CRUD, assignee add/remove, comment add/delete, time report | `sse-tasks` → reloads task list |
+| `Sprints` | Sprint CRUD, start/complete, task add/remove, burn log/cancel | `sse-sprints` → reloads sprint data |
+| `Rooms` | Room CRUD, join/leave, start voting, vote, reveal, accept | `sse-rooms` → reloads room state |
+
+### Obtaining a Ticket
+
+```
+POST /api/timer/ticket
+Authorization: Bearer <access_token>
+→ { "ticket": "<one-time-use-ticket>" }
+```
+
+Tickets expire after 30 seconds and are single-use.
