@@ -83,6 +83,8 @@ pub async fn get_sprint_tasks(State(engine): State<AppState>, _claims: Claims, P
 pub async fn add_sprint_tasks(State(engine): State<AppState>, claims: Claims, Path(id): Path<i64>, Json(req): Json<AddSprintTasksRequest>) -> ApiResult<Vec<db::SprintTask>> {
     let sprint = db::get_sprint(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Sprint not found"))?;
     if !is_owner_or_root(sprint.created_by_id, &claims) { return Err(err(StatusCode::FORBIDDEN, "Not sprint owner")); }
+    if req.task_ids.len() > 500 { return Err(err(StatusCode::BAD_REQUEST, "Too many task IDs (max 500)")); }
+    if req.task_ids.is_empty() { return Err(err(StatusCode::BAD_REQUEST, "task_ids cannot be empty")); }
     let result = db::add_sprint_tasks(&engine.pool, id, &req.task_ids, claims.user_id).await.map_err(internal)?;
     if db::get_sprint(&engine.pool, id).await.map(|s| s.status == "active").unwrap_or(false) {
         if let Err(e) = db::snapshot_sprint(&engine.pool, id).await { tracing::warn!("Snapshot failed: {}", e); }
