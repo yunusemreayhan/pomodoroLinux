@@ -285,6 +285,40 @@ function DetailNode({ detail, depth, onRefresh, hoursMap }: { detail: TaskDetail
         {rollup.progressHours !== null && <ProgressBar label="Hours" pct={rollup.progressHours} />}
         {rollup.progressPoints !== null && <ProgressBar label="Points" pct={rollup.progressPoints} />}
 
+        {/* Estimate vs Actual comparison */}
+        {(rollup.totalEstHours > 0 || rollup.totalEstPoints > 0) && (
+          <div className="flex gap-3 mb-3 text-xs">
+            {rollup.totalEstHours > 0 && (
+              <div className="flex-1 bg-white/5 rounded-lg p-2">
+                <div className="text-white/30 mb-1">Hours</div>
+                <div className="flex items-end gap-1 h-8">
+                  <div className="flex-1 bg-blue-500/30 rounded" style={{ height: `${Math.min(100, (rollup.totalEstHours / Math.max(rollup.totalEstHours, rollup.totalSpentHours)) * 100)}%` }} title={`Est: ${rollup.totalEstHours}h`} />
+                  <div className={`flex-1 rounded ${rollup.totalSpentHours > rollup.totalEstHours ? "bg-red-500/40" : "bg-green-500/30"}`}
+                    style={{ height: `${Math.min(100, (rollup.totalSpentHours / Math.max(rollup.totalEstHours, rollup.totalSpentHours)) * 100)}%` }} title={`Actual: ${rollup.totalSpentHours.toFixed(1)}h`} />
+                </div>
+                <div className="flex justify-between text-[10px] text-white/20 mt-1">
+                  <span>Est {rollup.totalEstHours}h</span>
+                  <span>Act {rollup.totalSpentHours.toFixed(1)}h</span>
+                </div>
+              </div>
+            )}
+            {rollup.totalEstPoints > 0 && (
+              <div className="flex-1 bg-white/5 rounded-lg p-2">
+                <div className="text-white/30 mb-1">Points</div>
+                <div className="flex items-end gap-1 h-8">
+                  <div className="flex-1 bg-purple-500/30 rounded" style={{ height: "100%" }} title={`Est: ${rollup.totalEstPoints}`} />
+                  <div className={`flex-1 rounded ${rollup.totalRemPoints === 0 ? "bg-green-500/30" : "bg-yellow-500/30"}`}
+                    style={{ height: `${Math.min(100, ((rollup.totalEstPoints - rollup.totalRemPoints) / rollup.totalEstPoints) * 100)}%` }} title={`Done: ${rollup.totalEstPoints - rollup.totalRemPoints}`} />
+                </div>
+                <div className="flex justify-between text-[10px] text-white/20 mt-1">
+                  <span>Est {rollup.totalEstPoints}</span>
+                  <span>Rem {rollup.totalRemPoints}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Rollup stats — own vs children vs total */}
         {hasChildren && (
           <div className="border border-white/5 rounded-lg p-3 mb-3 text-xs">

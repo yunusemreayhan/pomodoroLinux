@@ -246,6 +246,7 @@ export default function Settings() {
         </div>
         <LabelManager />
         <TemplateManager />
+        <WebhookManager />
       </div>
 
       {role === "root" && (
@@ -316,6 +317,49 @@ function TemplateManager() {
         </div>
       ))}
       {templates.length === 0 && <div className="text-xs text-[var(--color-dim)]">No templates yet</div>}
+    </div>
+  );
+}
+
+interface Webhook { id: number; url: string; events: string; active: number; created_at: string }
+
+function WebhookManager() {
+  const [hooks, setHooks] = useState<Webhook[]>([]);
+  const [url, setUrl] = useState("");
+  const [events, setEvents] = useState("*");
+
+  const load = () => apiCall<Webhook[]>("GET", "/api/webhooks").then(setHooks).catch(() => {});
+  useEffect(load, []);
+
+  const create = async () => {
+    if (!url.trim()) return;
+    await apiCall("POST", "/api/webhooks", { url: url.trim(), events });
+    setUrl(""); load();
+  };
+
+  const del = async (id: number) => {
+    await apiCall("DELETE", `/api/webhooks/${id}`);
+    load();
+  };
+
+  return (
+    <div className="mt-4">
+      <h3 className="text-sm font-medium text-[var(--color-text)] mb-2">Webhooks</h3>
+      <div className="flex gap-2 mb-2">
+        <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://example.com/hook"
+          className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-[var(--color-text)] outline-none" />
+        <input value={events} onChange={e => setEvents(e.target.value)} placeholder="* or task.created"
+          className="w-32 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-[var(--color-text)] outline-none" />
+        <button onClick={create} className="px-3 py-1 rounded text-xs bg-[var(--color-accent)] text-white">Add</button>
+      </div>
+      {hooks.map(h => (
+        <div key={h.id} className="flex items-center gap-2 text-xs py-1 group">
+          <span className="flex-1 truncate text-[var(--color-text)]">{h.url}</span>
+          <span className="text-[var(--color-dim)]">{h.events}</span>
+          <button onClick={() => del(h.id)} className="text-white/20 hover:text-[var(--color-danger)] opacity-0 group-hover:opacity-100">✕</button>
+        </div>
+      ))}
+      {hooks.length === 0 && <div className="text-xs text-[var(--color-dim)]">No webhooks configured</div>}
     </div>
   );
 }
