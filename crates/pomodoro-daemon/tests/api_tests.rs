@@ -3494,3 +3494,25 @@ async fn test_token_refresh_flow() {
     let resp = app.clone().oneshot(json_req("POST", "/api/auth/refresh", Some(json!({"refresh_token": refresh})))).await.unwrap();
     assert_eq!(resp.status(), 401);
 }
+
+// T6: Concurrent timer operations
+#[tokio::test]
+async fn test_concurrent_timer_start_stop() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let start_body = Some(json!({}));
+    // Start timer
+    let resp = app.clone().oneshot(auth_req("POST", "/api/timer/start", &tok, start_body.clone())).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    // Pause then stop
+    let _ = app.clone().oneshot(auth_req("POST", "/api/timer/pause", &tok, None)).await.unwrap();
+    let resp = app.clone().oneshot(auth_req("POST", "/api/timer/stop", &tok, None)).await.unwrap();
+    assert!(resp.status().is_success());
+    // Start again — should succeed (not stuck)
+    let resp = app.clone().oneshot(auth_req("POST", "/api/timer/start", &tok, start_body)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    // Verify state is running
+    let resp = app.clone().oneshot(auth_req("GET", "/api/timer", &tok, None)).await.unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["status"].as_str().unwrap(), "Running");
+}
