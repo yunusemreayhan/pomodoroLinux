@@ -17,6 +17,7 @@ export function InlineTimeReport({ taskId, depth, show, onClose, onLogged }: Pro
   const submit = async () => {
     const h = parseFloat(hours);
     if (!h || h <= 0) return;
+    if (!confirm(`Log ${h} hours?`)) return;
     await apiCall("POST", `/api/tasks/${taskId}/time`, { hours: h, description: desc || undefined });
     onLogged(h);
     setHours(""); setDesc(""); onClose();

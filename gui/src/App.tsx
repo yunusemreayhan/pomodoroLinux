@@ -359,7 +359,8 @@ export default function App() {
       <AnimatePresence>
         {showShortcuts && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowShortcuts(false)}>
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowShortcuts(false)}
+            onKeyDown={e => { if (e.key === "Escape") setShowShortcuts(false); }} role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
             <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
               className="glass p-6 rounded-2xl max-w-sm" onClick={e => e.stopPropagation()}>
               <h2 className="text-sm font-semibold text-white mb-3">Keyboard Shortcuts</h2>

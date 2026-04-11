@@ -181,7 +181,7 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
                 return next;
               });
             }}
-            className={`shrink-0 accent-[var(--color-accent)] cursor-pointer ${bulkSelected.size > 0 ? "opacity-100" : "opacity-0 hover:opacity-100"}`}
+            className={`shrink-0 accent-[var(--color-accent)] cursor-pointer ${bulkSelected.size > 0 ? "opacity-100" : "opacity-0 hover:opacity-100 focus:opacity-100"}`}
             style={bulkSelected.size > 0 ? { opacity: 1 } : {}}
           />
         )}

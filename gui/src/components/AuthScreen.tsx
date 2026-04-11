@@ -66,9 +66,9 @@ export default function AuthScreen() {
                 autoFocus />
             ) : (
               <button onClick={() => setEditingServer(true)}
-                className="flex-1 text-left text-xs text-white/30 hover:text-white/60 font-mono truncate transition-colors"
+                className="flex-1 text-left text-xs text-white/30 hover:text-white/60 font-mono truncate transition-colors flex items-center gap-1"
                 title="Click to change server">
-                🌐 {serverUrl}
+                🌐 {serverUrl} <span className="text-[10px] opacity-50">✎</span>
               </button>
             )}
           </div>
