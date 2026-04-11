@@ -79,16 +79,17 @@ describe("countDescendants", () => {
 
 // --- computeRollup ---
 
+function makeDetail(overrides: Partial<TaskDetail> = {}): TaskDetail {
+  return {
+    task: makeTask(),
+    comments: [],
+    sessions: [],
+    children: [],
+    ...overrides,
+  };
+}
+
 describe("computeRollup", () => {
-  function makeDetail(overrides: Partial<TaskDetail> = {}): TaskDetail {
-    return {
-      task: makeTask(),
-      comments: [],
-      sessions: [],
-      children: [],
-      ...overrides,
-    };
-  }
 
   it("returns zeros for empty task", () => {
     const r = computeRollup(makeDetail(), new Map());
@@ -233,5 +234,91 @@ describe("countDescendants", () => {
     ];
     const tree = buildTree(tasks);
     expect(countDescendants(tree[0])).toBe(3);
+  });
+});
+
+// --- buildTree edge cases (T7) ---
+
+describe("buildTree edge cases", () => {
+  it("orphaned children (parent_id references non-existent task) become roots", () => {
+    const tasks = [
+      makeTask({ id: 1, parent_id: 999 }), // parent doesn't exist
+      makeTask({ id: 2, parent_id: null }),
+    ];
+    const tree = buildTree(tasks);
+    expect(tree.length).toBe(2); // both become roots
+  });
+
+  it("handles deep nesting (5 levels)", () => {
+    const tasks = [
+      makeTask({ id: 1, parent_id: null }),
+      makeTask({ id: 2, parent_id: 1 }),
+      makeTask({ id: 3, parent_id: 2 }),
+      makeTask({ id: 4, parent_id: 3 }),
+      makeTask({ id: 5, parent_id: 4 }),
+    ];
+    const tree = buildTree(tasks);
+    expect(tree.length).toBe(1);
+    expect(tree[0].children[0].children[0].children[0].children[0].task.id).toBe(5);
+    expect(countDescendants(tree[0])).toBe(4);
+  });
+
+  it("handles single task", () => {
+    const tree = buildTree([makeTask({ id: 42 })]);
+    expect(tree.length).toBe(1);
+    expect(tree[0].task.id).toBe(42);
+    expect(countDescendants(tree[0])).toBe(0);
+  });
+
+  it("multiple roots with children", () => {
+    const tasks = [
+      makeTask({ id: 1, parent_id: null }),
+      makeTask({ id: 2, parent_id: null }),
+      makeTask({ id: 3, parent_id: 1 }),
+      makeTask({ id: 4, parent_id: 2 }),
+    ];
+    const tree = buildTree(tasks);
+    expect(tree.length).toBe(2);
+    expect(tree[0].children.length).toBe(1);
+    expect(tree[1].children.length).toBe(1);
+  });
+});
+
+// --- computeRollup edge cases (T8) ---
+
+describe("computeRollup edge cases", () => {
+  it("deeply nested rollup accumulates correctly", () => {
+    const grandchild = makeDetail({
+      task: makeTask({ id: 3, estimated_hours: 2, estimated: 3, remaining_points: 1 }),
+    });
+    const child = makeDetail({
+      task: makeTask({ id: 2, estimated_hours: 5, estimated: 5, remaining_points: 2 }),
+      children: [grandchild],
+    });
+    const parent = makeDetail({
+      task: makeTask({ id: 1, estimated_hours: 3, estimated: 2, remaining_points: 0 }),
+      children: [child],
+    });
+    const map = new Map([[1, 1], [2, 2], [3, 1]]);
+    const r = computeRollup(parent, map);
+    expect(r.totalEstHours).toBe(10); // 3 + 5 + 2
+    expect(r.totalSpentHours).toBe(4); // 1 + 2 + 1
+    expect(r.totalEstPoints).toBe(10); // 2 + 5 + 3
+    expect(r.totalRemPoints).toBe(3); // 0 + 2 + 1
+    expect(r.progressPoints).toBe(70); // (10-3)/10 = 70%
+  });
+
+  it("zero estimates return null progress", () => {
+    const d = makeDetail({ task: makeTask({ estimated_hours: 0, estimated: 0 }) });
+    const r = computeRollup(d, new Map());
+    expect(r.progressHours).toBeNull();
+    expect(r.progressPoints).toBeNull();
+  });
+
+  it("no hours in map returns 0 spent", () => {
+    const d = makeDetail({ task: makeTask({ id: 99, estimated_hours: 10 }) });
+    const r = computeRollup(d, new Map()); // id 99 not in map
+    expect(r.ownSpentHours).toBe(0);
+    expect(r.progressHours).toBe(0);
   });
 });
