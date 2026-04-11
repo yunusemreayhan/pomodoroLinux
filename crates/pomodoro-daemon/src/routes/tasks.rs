@@ -110,6 +110,22 @@ pub async fn delete_task(State(engine): State<AppState>, claims: Claims, Path(id
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct BulkStatusRequest { pub task_ids: Vec<i64>, pub status: String }
+
+#[utoipa::path(put, path = "/api/tasks/bulk-status", request_body = BulkStatusRequest, responses((status = 204)), security(("bearer" = [])))]
+pub async fn bulk_update_status(State(engine): State<AppState>, claims: Claims, Json(req): Json<BulkStatusRequest>) -> Result<StatusCode, ApiError> {
+    let valid = ["active", "backlog", "done", "archived"];
+    if !valid.contains(&req.status.as_str()) { return Err(err(StatusCode::BAD_REQUEST, "Invalid status")); }
+    for id in &req.task_ids {
+        let task = db::get_task(&engine.pool, *id).await.map_err(|_| err(StatusCode::NOT_FOUND, &format!("Task {} not found", id)))?;
+        if !is_owner_or_root(task.user_id, &claims) { return Err(err(StatusCode::FORBIDDEN, &format!("Not owner of task {}", id))); }
+        db::update_task(&engine.pool, *id, None, None, None, None, None, None, None, None, None, Some(&req.status), None, None).await.map_err(internal)?;
+    }
+    engine.notify(ChangeEvent::Tasks);
+    Ok(StatusCode::NO_CONTENT)
+}
+
 // --- Comments ---
 
 

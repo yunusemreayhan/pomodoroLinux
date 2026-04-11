@@ -185,6 +185,9 @@ pub async fn room_ws(
                         _ => {}
                     }
                 }
+                _ = tokio::time::sleep(std::time::Duration::from_secs(30)) => {
+                    if socket.send(Message::Ping(vec![].into())).await.is_err() { break; }
+                }
             }
         }
     }))

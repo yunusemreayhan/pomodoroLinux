@@ -201,9 +201,18 @@ export default function App() {
         } catch { /* ignore */ }
       });
 
-      sseInstance.onerror = () => useStore.setState({ connected: false });
-      sseInstance.onopen = () => useStore.setState({ connected: true });
+      sseInstance.onerror = () => {
+        useStore.setState({ connected: false });
+        sseInstance?.close();
+        sseInstance = null;
+        // Exponential backoff reconnect: 1s, 2s, 4s, 8s, max 30s
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+        reconnectAttempts++;
+        if (!unmounted) setTimeout(connectSse, delay);
+      };
+      sseInstance.onopen = () => { useStore.setState({ connected: true }); reconnectAttempts = 0; };
     };
+    let reconnectAttempts = 0;
     connectSse();
 
     // Fallback: poll timer if SSE drops
