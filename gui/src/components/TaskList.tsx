@@ -607,6 +607,7 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
   const [viewingTask, setViewingTask] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [bulkSelected, setBulkSelected] = useState<Set<number>>(new Set());
+  const [treeKey, setTreeKey] = useState(0);
 
   const tree = useMemo(() => {
     let t = tasks;
@@ -693,6 +694,8 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
           className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-all ${filter === "active" ? "bg-[var(--color-accent)] text-white" : "bg-white/5 text-white/40 hover:text-white/60"}`}>
           {filter === "active" ? "Active" : "All"} ({filtered.length})
         </button>
+        <button onClick={() => setTreeKey(k => k + 1)} title="Expand all"
+          className="shrink-0 px-2 py-1 rounded-full text-xs bg-white/5 text-white/40 hover:text-white/60">⊞</button>
       </div>
 
       {/* Bulk actions toolbar */}
@@ -719,7 +722,7 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
       )}
 
       {/* Tree */}
-      <div className="flex-1 overflow-y-auto space-y-2 pr-1"
+      <div key={treeKey} className="flex-1 overflow-y-auto space-y-2 pr-1"
         onDragOver={e => e.preventDefault()}
         onDrop={async e => {
           const dragId = Number(e.dataTransfer?.getData("text/plain"));
