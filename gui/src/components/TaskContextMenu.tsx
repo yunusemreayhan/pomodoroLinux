@@ -41,11 +41,11 @@ export default function TaskContextMenu(p: CtxMenuProps) {
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={close} />
-      <div className="fixed z-50 bg-[var(--color-surface)] border border-white/10 rounded-lg shadow-xl py-1 min-w-52 text-xs"
+      <div className="fixed z-50 bg-[var(--color-surface)] border border-white/10 rounded-lg shadow-xl py-1 min-w-52 text-xs max-h-[80vh] overflow-y-auto"
         style={{ left: Math.min(pos.x, window.innerWidth - 260), top: Math.min(pos.y, window.innerHeight - 400) }}>
 
         <div className="px-3 py-1 text-white/20 text-[10px] uppercase tracking-wider">Status</div>
-        {([["backlog","Todo","○"],["active","WIP","▶"],["completed","Done","✓"]] as const).map(([s,label,icon]) => (
+        {([["backlog","Todo","○"],["active","WIP","▶"],["completed","Done","✓"],["archived","Archive","📦"]] as const).map(([s,label,icon]) => (
           <button key={s} disabled={t.status === s} onClick={() => { p.updateTask(t.id, { status: s }); close(); }}
             className={`w-full text-left px-3 py-1.5 flex items-center gap-2 ${t.status === s ? "text-white/20" : "text-white/60 hover:bg-white/5"}`}>
             {icon} {label}

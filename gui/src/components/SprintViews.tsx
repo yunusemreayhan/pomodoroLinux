@@ -153,3 +153,30 @@ export function BurndownView({ stats }: { stats: SprintDailyStat[] }) {
     </div>
   );
 }
+
+export function VelocityChart() {
+  const [data, setData] = useState<{ sprint: string; points: number; hours: number }[]>([]);
+
+  useEffect(() => {
+    apiCall<{ sprint_name: string; total_points: number; total_hours: number }[]>("GET", "/api/sprints/velocity")
+      .then(v => {
+        if (v) setData(v.map(d => ({ sprint: d.sprint_name, points: d.total_points, hours: d.total_hours })));
+      }).catch(() => {});
+  }, []);
+
+  if (data.length < 2) return null;
+
+  return (
+    <div className="bg-[var(--color-surface)] p-3 rounded-lg border border-white/5">
+      <div className="text-xs text-white/50 font-medium mb-2">Velocity Trend</div>
+      <ResponsiveContainer width="100%" height={120}>
+        <AreaChart data={data}>
+          <XAxis dataKey="sprint" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 9 }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 9 }} axisLine={false} tickLine={false} width={25} />
+          <Tooltip contentStyle={{ background: "#1A1A2E", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 11 }} />
+          <Area type="monotone" dataKey="points" stroke="#7C3AED" fill="rgba(124,58,237,0.15)" strokeWidth={2} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}

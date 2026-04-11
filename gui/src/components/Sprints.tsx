@@ -8,7 +8,7 @@ import TaskList from "./TaskList";
 import Select from "./Select";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import EpicBurndown from "./EpicBurndown";
-import { BurnsView, BurndownView } from "./SprintViews";
+import { BurnsView, BurndownView, VelocityChart } from "./SprintViews";
 
 export default function Sprints() {
   const [sprints, setSprints] = useState<Sprint[]>([]);
@@ -140,6 +140,11 @@ export default function Sprints() {
         </div>
       ))}
       {sprints.length === 0 && <div className="text-center py-12"><div className="text-4xl mb-2">🏃</div><div className="text-white/30 text-sm">No sprints yet</div><div className="text-white/20 text-xs mt-1">Create one to start tracking progress</div></div>}
+
+      {/* Velocity chart for completed sprints */}
+      {sprints.filter(s => s.status === "completed").length >= 2 && (
+        <VelocityChart />
+      )}
     </div>
   );
 }

@@ -147,7 +147,7 @@ pub fn is_owner_or_root(task_user_id: i64, claims: &crate::auth::Claims) -> bool
     claims.user_id == task_user_id || claims.role == "root"
 }
 
-pub const VALID_TASK_STATUSES: &[&str] = &["backlog", "active", "in_progress", "completed", "done", "estimated"];
+pub const VALID_TASK_STATUSES: &[&str] = &["backlog", "active", "in_progress", "completed", "done", "estimated", "archived"];
 pub const VALID_SPRINT_STATUSES: &[&str] = &["planning", "active", "completed"];
 pub const VALID_ROLES: &[&str] = &["user", "root"];
 pub const VALID_ROOM_ROLES: &[&str] = &["admin", "voter"];

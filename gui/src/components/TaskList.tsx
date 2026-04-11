@@ -473,7 +473,7 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
     }
     return buildTree(t);
   }, [tasks, filterIds, excludeIds, search, rootOnly, leafOnly, teamScope]);
-  const filtered = filter === "all" ? tree : tree.filter((n) => n.task.status !== "completed");
+  const filtered = filter === "all" ? tree.filter(n => n.task.status !== "archived") : tree.filter((n) => n.task.status !== "completed" && n.task.status !== "archived");
 
   const handleAddRoot = () => {
     if (!newTitle.trim()) return;
