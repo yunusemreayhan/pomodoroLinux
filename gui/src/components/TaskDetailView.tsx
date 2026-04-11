@@ -526,6 +526,9 @@ function DetailNode({ detail, depth, onRefresh, hoursMap }: { detail: TaskDetail
         {showComments && <CommentSection taskId={t.id} />}
       </div>
 
+      {/* Activity feed */}
+      {depth === 0 && <TaskActivityFeed taskId={t.id} />}
+
       {detail.children.map((ch) => (
         <DetailNode key={ch.task.id} detail={ch} depth={depth + 1} onRefresh={onRefresh} hoursMap={hoursMap} />
       ))}
@@ -600,6 +603,41 @@ export default function TaskDetailView({ taskId, onBack, onNavigate }: { taskId:
         <ExportButton detail={detail} />
       </div>
       <DetailNode detail={detail} depth={0} onRefresh={load} hoursMap={hoursMap} />
+    </div>
+  );
+}
+
+interface AuditEntry { id: number; user_id: number; username: string; action: string; entity_type: string; entity_id: number | null; detail: string | null; created_at: string }
+
+function TaskActivityFeed({ taskId }: { taskId: number }) {
+  const [entries, setEntries] = useState<AuditEntry[]>([]);
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    if (show) apiCall<AuditEntry[]>("GET", `/api/audit?entity_type=task&entity_id=${taskId}&per_page=50`).then(e => setEntries(e || [])).catch(() => {});
+  }, [show, taskId]);
+
+  const icon = (a: string) => a === "create" ? "🆕" : a === "update" ? "✏️" : a === "delete" ? "🗑" : "📋";
+
+  return (
+    <div className="mt-2">
+      <button onClick={() => setShow(!show)} className="text-xs text-white/30 hover:text-white/50 flex items-center gap-1">
+        📋 {show ? "Hide" : "Show"} activity
+      </button>
+      {show && (
+        <div className="mt-1 space-y-1 max-h-48 overflow-y-auto">
+          {entries.map(e => (
+            <div key={e.id} className="flex items-center gap-2 text-[11px] text-white/40 py-0.5">
+              <span>{icon(e.action)}</span>
+              <span className="text-white/60">{e.username}</span>
+              <span>{e.action}</span>
+              {e.detail && <span className="truncate text-white/25 max-w-40" title={e.detail}>{e.detail}</span>}
+              <span className="ml-auto text-white/20 shrink-0">{e.created_at.slice(5, 16)}</span>
+            </div>
+          ))}
+          {entries.length === 0 && <div className="text-xs text-white/20 py-2">No activity recorded</div>}
+        </div>
+      )}
     </div>
   );
 }
