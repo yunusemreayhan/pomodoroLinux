@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useStore } from "../store/store";
+import { useT } from "../i18n";
 import { Trash2, Zap } from "lucide-react";
 
 export default function AuthScreen() {
   const { login, register, serverUrl, setServerUrl, savedServers, switchToServer, removeServer } = useStore();
+  const t = useT();
   const [isRegister, setIsRegister] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -73,7 +75,7 @@ export default function AuthScreen() {
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Username"
+            placeholder={t.username}
             className="bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 outline-none focus:border-[var(--color-accent)]"
             autoFocus
           />
@@ -94,7 +96,7 @@ export default function AuthScreen() {
             disabled={loading}
             className="py-3 rounded-xl font-semibold text-white text-sm transition-all bg-[var(--color-accent)] disabled:opacity-50"
           >
-            {loading ? "..." : isRegister ? "Register" : "Sign In"}
+            {loading ? "..." : isRegister ? t.registerButton : t.loginButton}
           </motion.button>
         </form>
 

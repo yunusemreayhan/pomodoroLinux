@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { apiCall } from "../store/api";
+import { useT } from "../i18n";
 
 interface AuditEntry {
   id: number;
@@ -13,6 +14,7 @@ interface AuditEntry {
 }
 
 export default function AuditLog() {
+  const t = useT();
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [filter, setFilter] = useState("");
 
@@ -28,7 +30,7 @@ export default function AuditLog() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <h2 className="text-sm font-semibold text-[var(--color-text)]">Audit Log</h2>
+        <h2 className="text-sm font-semibold text-[var(--color-text)]">{t.auditLog}</h2>
         <select value={filter} onChange={e => setFilter(e.target.value)}
           className="text-xs px-2 py-1 rounded bg-[var(--color-surface)] border border-white/10 text-[var(--color-text)]"
           aria-label="Filter by entity type">

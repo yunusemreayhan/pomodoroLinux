@@ -6,6 +6,7 @@ import type { Config, User, AuthResponse, Team, TeamDetail } from "../store/api"
 import { LabelManager } from "./Labels";
 import AuditLog from "./AuditLog";
 import Select from "./Select";
+import { useI18n, useT } from "../i18n";
 import { apiCall, setToken } from "../store/api";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -91,6 +92,8 @@ function AdminPanel() {
 
 export default function Settings() {
   const { config, loadConfig, updateConfig, username, role, serverUrl, setServerUrl } = useStore();
+  const t = useT();
+  const { locale, setLocale, availableLocales } = useI18n();
   const [local, setLocal] = useState<Config | null>(null);
   const [saved, setSaved] = useState(false);
   const [newUsername, setNewUsername] = useState("");
@@ -234,6 +237,13 @@ export default function Settings() {
       <TeamManager />
 
       <div className="glass p-6 rounded-2xl">
+        <div className="flex items-center gap-3 mb-4">
+          <span className="text-sm text-[var(--color-text)]">Language</span>
+          <select value={locale} onChange={e => setLocale(e.target.value)}
+            className="text-xs px-2 py-1 rounded bg-[var(--color-surface)] border border-white/10 text-[var(--color-text)]">
+            {availableLocales().map(l => <option key={l} value={l}>{l.toUpperCase()}</option>)}
+          </select>
+        </div>
         <LabelManager />
       </div>
 

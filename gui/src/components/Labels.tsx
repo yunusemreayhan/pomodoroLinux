@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { apiCall } from "../store/api";
 import { useStore } from "../store/store";
+import { useT } from "../i18n";
 
 interface Label {
   id: number;
@@ -9,6 +10,7 @@ interface Label {
 }
 
 export function LabelManager() {
+  const t = useT();
   const [labels, setLabels] = useState<Label[]>([]);
   const [name, setName] = useState("");
   const [color, setColor] = useState("#6366f1");
@@ -31,13 +33,13 @@ export function LabelManager() {
 
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-medium text-[var(--color-text)]">Labels</h3>
+      <h3 className="text-sm font-medium text-[var(--color-text)]">{t.labels}</h3>
       <div className="flex gap-2 items-center">
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="Label name"
+        <input value={name} onChange={e => setName(e.target.value)} placeholder={t.labelName}
           className="flex-1 px-2 py-1 rounded bg-[var(--color-surface)] border border-white/10 text-sm text-[var(--color-text)]"
           onKeyDown={e => e.key === "Enter" && create()} />
         <input type="color" value={color} onChange={e => setColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer" />
-        <button onClick={create} className="px-3 py-1 rounded text-xs bg-[var(--color-accent)] text-white">Add</button>
+        <button onClick={create} className="px-3 py-1 rounded text-xs bg-[var(--color-accent)] text-white">{t.addLabel}</button>
       </div>
       <div className="flex flex-wrap gap-2">
         {labels.map(l => (
@@ -54,6 +56,7 @@ export function LabelManager() {
 
 /** Inline label picker for task detail view */
 export function TaskLabelPicker({ taskId }: { taskId: number }) {
+  const t = useT();
   const [allLabels, setAllLabels] = useState<Label[]>([]);
   const [taskLabels, setTaskLabels] = useState<Label[]>([]);
 
@@ -86,7 +89,7 @@ export function TaskLabelPicker({ taskId }: { taskId: number }) {
           </button>
         );
       })}
-      {allLabels.length === 0 && <span className="text-xs text-[var(--color-dim)]">No labels — create in Settings</span>}
+      {allLabels.length === 0 && <span className="text-xs text-[var(--color-dim)]">{t.noLabels} — {t.createInSettings}</span>}
     </div>
   );
 }

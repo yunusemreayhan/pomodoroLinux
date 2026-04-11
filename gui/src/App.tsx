@@ -15,17 +15,18 @@ import Rooms from "./components/Rooms";
 import Sprints from "./components/Sprints";
 
 const TABS = [
-  { id: "timer", icon: TimerIcon, label: "Timer" },
-  { id: "tasks", icon: ListTodo, label: "Tasks" },
-  { id: "sprints", icon: Zap, label: "Sprints" },
-  { id: "rooms", icon: Users, label: "Rooms" },
-  { id: "history", icon: BarChart3, label: "History" },
-  { id: "api", icon: Code2, label: "API" },
-  { id: "settings", icon: SettingsIcon, label: "Settings" },
-];
+  { id: "timer", icon: TimerIcon, labelKey: "timer" },
+  { id: "tasks", icon: ListTodo, labelKey: "tasks" },
+  { id: "sprints", icon: Zap, labelKey: "sprints" },
+  { id: "rooms", icon: Users, labelKey: "rooms" },
+  { id: "history", icon: BarChart3, labelKey: "history" },
+  { id: "api", icon: Code2, labelKey: "api" },
+  { id: "settings", icon: SettingsIcon, labelKey: "settings" },
+] as const;
 
 function Sidebar() {
   const { activeTab, setTab, connected, username, logout, activeTeamId, setActiveTeam } = useStore();
+  const t = useT();
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark");
   const [teams, setTeams] = useState<{ id: number; name: string }[]>([]);
 
@@ -55,6 +56,7 @@ function Sidebar() {
       {TABS.map((tab) => {
         const Icon = tab.icon;
         const active = activeTab === tab.id;
+        const label = (t as Record<string, string>)[tab.labelKey] || tab.labelKey;
         return (
           <motion.button
             key={tab.id}
@@ -64,8 +66,8 @@ function Sidebar() {
             className={`relative w-11 h-11 flex items-center justify-center rounded-xl transition-all ${
               active ? "text-white" : "text-white/30 hover:text-white/60"
             }`}
-            title={tab.label}
-            aria-label={tab.label}
+            title={label}
+            aria-label={label}
             aria-current={active ? "page" : undefined}
           >
             {active && (
@@ -107,7 +109,7 @@ function Sidebar() {
           className="w-11 h-11 flex items-center justify-center rounded-xl text-white/30 hover:text-white/60 transition-all" title="Refresh data" aria-label="Refresh data">
           <RefreshCw size={16} />
         </button>
-        <button onClick={logout} className="w-11 h-11 flex items-center justify-center rounded-xl text-white/30 hover:text-white/60 transition-all" title="Logout" aria-label="Logout">
+        <button onClick={logout} className="w-11 h-11 flex items-center justify-center rounded-xl text-white/30 hover:text-white/60 transition-all" title={t.logout} aria-label={t.logout}>
           <LogOut size={16} />
         </button>
       </div>
@@ -127,6 +129,7 @@ function Sidebar() {
 
 export default function App() {
   const { activeTab, poll, loadTasks, connected, token, toasts, dismissToast, confirmDialog, dismissConfirm, loading } = useStore();
+  const t = useT();
 
   useEffect(() => {
     useStore.getState().restoreAuth();
@@ -245,7 +248,7 @@ export default function App() {
   return (
     <div className="flex h-screen bg-[var(--color-bg)]">
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-[var(--color-accent)] focus:text-white focus:rounded-lg focus:text-sm">
-        Skip to content
+        {t.skipToContent}
       </a>
       <nav aria-label="Main navigation">
         <Sidebar />
@@ -321,9 +324,9 @@ export default function App() {
                 <p className="text-sm text-white/80 mb-4">{confirmDialog.msg}</p>
                 <div className="flex gap-2 justify-end">
                   <button onClick={dismissConfirm} autoFocus
-                    className="px-4 py-2 text-xs text-white/50 hover:text-white rounded-lg bg-white/5 hover:bg-white/10">Cancel</button>
+                    className="px-4 py-2 text-xs text-white/50 hover:text-white rounded-lg bg-white/5 hover:bg-white/10">{t.cancel}</button>
                   <button onClick={() => { confirmDialog.onConfirm(); dismissConfirm(); }}
-                    className="px-4 py-2 text-xs text-white rounded-lg bg-[var(--color-danger)]">Delete</button>
+                    className="px-4 py-2 text-xs text-white rounded-lg bg-[var(--color-danger)]">{t.delete}</button>
                 </div>
               </motion.div>
             </motion.div>

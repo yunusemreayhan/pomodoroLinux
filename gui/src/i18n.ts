@@ -11,6 +11,7 @@ export interface Locale {
   sprints: string;
   rooms: string;
   skipToContent: string;
+  api: string;
 
   // Auth
   login: string;
@@ -160,6 +161,7 @@ const en: Locale = {
   sprints: "Sprints",
   rooms: "Rooms",
   skipToContent: "Skip to content",
+  api: "API",
 
   login: "Login",
   register: "Register",
@@ -296,11 +298,18 @@ interface I18nState {
   availableLocales: () => string[];
 }
 
+function getStorage(key: string, fallback: string): string {
+  try { return localStorage.getItem(key) || fallback; } catch { return fallback; }
+}
+function setStorage(key: string, value: string) {
+  try { localStorage.setItem(key, value); } catch {}
+}
+
 export const useI18n = create<I18nState>((set) => ({
-  locale: localStorage.getItem("locale") || "en",
-  t: locales[localStorage.getItem("locale") || "en"] || en,
+  locale: getStorage("locale", "en"),
+  t: locales[getStorage("locale", "en")] || en,
   setLocale: (locale: string) => {
-    localStorage.setItem("locale", locale);
+    setStorage("locale", locale);
     set({ locale, t: locales[locale] || en });
   },
   availableLocales: () => Object.keys(locales),
