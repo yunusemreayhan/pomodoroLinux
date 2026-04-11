@@ -22,6 +22,25 @@ A full-featured multi-user Pomodoro timer for Linux with a Rust HTTP backend, Ta
 - Recursive rollup of hours, points, and session time
 - Export tasks as Markdown, JSON, or XML
 
+### File Attachments
+- Upload files to tasks (10MB max per file)
+- Download and delete attachments
+- Filename sanitization (path traversal protection)
+
+### Labels, Dependencies & Recurrence
+- Create/manage labels with custom colors
+- Task dependencies (depends-on relationships)
+- Recurring tasks (daily/weekly/biweekly/monthly)
+
+### Task Templates
+- Save task configurations as reusable templates
+- Create/list/delete via API
+
+### Internationalization (i18n)
+- Zustand-based locale store with 90+ typed string keys
+- English locale included, extensible to any language
+- Locale selector in Settings
+
 ### Sprint Management
 - Create sprints with name, project, goal, and date range
 - Sprint lifecycle: planning → active → completed
@@ -309,3 +328,5 @@ Tests use in-memory SQLite — no disk I/O, fully isolated, no port conflicts.
 - **Backend**: Rust, axum 0.8, SQLite (sqlx), bcrypt, jsonwebtoken, utoipa (OpenAPI)
 - **Frontend**: Tauri v2, React 19, TypeScript, Tailwind v4, Zustand, Framer Motion, Lucide icons
 - **Testing**: tower test utilities, in-memory SQLite, http-body-util
+- **i18n**: Zustand-based locale store with English default, extensible to any language
+- **Security**: JWT with refresh token rotation, CSRF validation, rate limiting, XOR-encrypted auth storage

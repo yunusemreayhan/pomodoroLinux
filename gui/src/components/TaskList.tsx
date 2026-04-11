@@ -197,6 +197,7 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
         <div className="flex-1 min-w-0">
           {editingTitle && isOwner ? (
             <input value={titleDraft} onChange={e => setTitleDraft(e.target.value)} autoFocus
+              aria-label="Edit task title"
               onKeyDown={e => {
                 if (e.key === "Enter" && titleDraft.trim()) { updateTask(t.id, { title: titleDraft.trim() }); setEditingTitle(false); }
                 if (e.key === "Escape") setEditingTitle(false);
@@ -335,7 +336,7 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
                   if (e.key === "Enter") handleAdd();
                   if (e.key === "Escape") { setAdding(false); setNewTitle(""); }
                 }}
-                placeholder={`Add subtask to "${t.title}"...`}
+                placeholder={`Add subtask to "${t.title}"...`} aria-label={`Add subtask to ${t.title}`}
                 className="flex-1 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 px-3 py-2 outline-none focus:border-[var(--color-accent)]"
                 autoFocus
               />
@@ -372,7 +373,7 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
                   }
                   if (e.key === "Escape") setEditingDesc(false);
                 }}
-                placeholder="Add description... (Enter to save, Esc to cancel)"
+                placeholder="Add description... (Enter to save, Esc to cancel)" aria-label="Edit description"
                 className="flex-1 bg-white/5 border border-white/10 rounded-lg text-xs text-white placeholder-white/30 px-3 py-2 outline-none focus:border-[var(--color-accent)] resize-none min-h-[60px]"
                 autoFocus
                 rows={3}

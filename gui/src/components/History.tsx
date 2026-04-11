@@ -158,7 +158,19 @@ export default function History() {
 
       {/* Recent sessions */}
       <div className="glass p-5">
-        <h3 className="text-sm font-semibold text-white/60 mb-4">Recent Sessions</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-white/60">Recent Sessions</h3>
+          <button onClick={() => {
+            const csv = ["date,type,status,user,task,duration_min",
+              ...filteredHistory.map(s => `${s.started_at?.slice(0,10)},${s.session_type},${s.status},${s.user},${(s.task_path || []).join(" > ").replace(/,/g, ";")},${s.duration_s ? Math.round(s.duration_s / 60) : 0}`)
+            ].join("\n");
+            const blob = new Blob([csv], { type: "text/csv" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `sessions-${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+          }} className="text-xs text-[var(--color-accent)] hover:underline">↓ Export CSV</button>
+        </div>
         <div className="space-y-3 max-h-48 overflow-y-auto">
           {filteredHistory.slice(0, 20).map((s) => (
             <div key={s.id} className="flex items-center gap-3 text-xs text-white/60 py-1">
