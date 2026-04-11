@@ -305,7 +305,7 @@ export default function App() {
             className="h-full overflow-y-auto"
           >
             {activeTab === "timer" && <Timer />}
-            {activeTab === "tasks" && <TaskList />}
+            <div style={{ display: activeTab === "tasks" ? undefined : "none" }}><TaskList /></div>
             {activeTab === "sprints" && <Sprints />}
             {activeTab === "rooms" && <Rooms />}
             {activeTab === "history" && <History />}

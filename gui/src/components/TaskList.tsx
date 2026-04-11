@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, Play, CheckCircle, Circle, ChevronRight, FolderOpen, Folder, MessageSquare, Eye, FileText, Clock } from "lucide-react";
 import { useStore } from "../store/store";
+import { useShallow } from "zustand/react/shallow";
 import { useState, useMemo, useCallback, useEffect, createContext, useContext } from "react";
 import { buildTree, countDescendants } from "../tree";
 
@@ -31,19 +32,9 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
   selectLabel?: string; selectClassName?: string;
   bulkSelected?: Set<number>; setBulkSelected?: (fn: (prev: Set<number>) => Set<number>) => void;
 }) {
-  const engine = useStore(s => s.engine);
-  const createTask = useStore(s => s.createTask);
-  const updateTask = useStore(s => s.updateTask);
-  const deleteTask = useStore(s => s.deleteTask);
-  const start = useStore(s => s.start);
-  const currentUser = useStore(s => s.username);
-  const role = useStore(s => s.role);
-  const taskSprints = useStore(s => s.taskSprints);
-  const taskSprintsMap = useStore(s => s.taskSprintsMap);
-  const burnTotals = useStore(s => s.burnTotals);
-  const allAssignees = useStore(s => s.allAssignees);
-  const config = useStore(s => s.config);
-  const tasks = useStore(s => s.tasks);
+  const { engine, createTask, updateTask, deleteTask, start, username: currentUser, role, taskSprints, taskSprintsMap, burnTotals, allAssignees, config, tasks } = useStore(
+    useShallow(s => ({ engine: s.engine, createTask: s.createTask, updateTask: s.updateTask, deleteTask: s.deleteTask, start: s.start, username: s.username, role: s.role, taskSprints: s.taskSprints, taskSprintsMap: s.taskSprintsMap, burnTotals: s.burnTotals, allAssignees: s.allAssignees, config: s.config, tasks: s.tasks }))
+  );
   const searchQuery = useContext(SearchCtx);
   const [expanded, setExpanded] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -104,7 +95,7 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
     <div>
       {dropZone === "above" && <div className="h-0.5 bg-[var(--color-accent)] rounded mx-2" />}
       <motion.div
-        layout
+        layout="position"
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
         draggable={!selectMode}
