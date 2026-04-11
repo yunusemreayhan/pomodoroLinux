@@ -34,6 +34,8 @@ function NumInput({ value, onChange, min = 1, max = 120 }: { value: number; onCh
 function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
+      role="switch"
+      aria-checked={value}
       onClick={() => onChange(!value)}
       className={`w-11 h-6 rounded-full transition-all relative ${value ? "bg-[var(--color-accent)]" : "bg-white/10"}`}
     >

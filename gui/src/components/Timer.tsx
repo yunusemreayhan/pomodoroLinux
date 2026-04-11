@@ -189,21 +189,21 @@ export default function Timer() {
           <>
             <motion.button
               whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-              onClick={pause}
+              onClick={pause} aria-label="Pause"
               className="glass glass-hover w-12 h-12 flex items-center justify-center rounded-full text-white/70 hover:text-white"
             >
               <Pause size={22} />
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-              onClick={stop}
+              onClick={stop} aria-label="Stop"
               className="glass glass-hover w-12 h-12 flex items-center justify-center rounded-full text-white/70 hover:text-white"
             >
               <Square size={22} />
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-              onClick={skip}
+              onClick={skip} aria-label="Skip"
               className="glass glass-hover w-12 h-12 flex items-center justify-center rounded-full text-white/70 hover:text-white"
             >
               <SkipForward size={22} />

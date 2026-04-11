@@ -76,6 +76,7 @@ export default function AuthScreen() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder={t.username}
+            aria-label="Username"
             className="bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 outline-none focus:border-[var(--color-accent)]"
             autoFocus
           />
@@ -84,10 +85,11 @@ export default function AuthScreen() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password (min 6 chars)"
+            aria-label="Password"
             className="bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 outline-none focus:border-[var(--color-accent)]"
           />
 
-          {error && <div className="text-xs text-[var(--color-danger)] bg-[var(--color-danger)]/10 rounded-lg px-3 py-2">{error}</div>}
+          {error && <div role="alert" className="text-xs text-[var(--color-danger)] bg-[var(--color-danger)]/10 rounded-lg px-3 py-2">{error}</div>}
 
           <motion.button
             whileHover={{ scale: 1.02 }}
