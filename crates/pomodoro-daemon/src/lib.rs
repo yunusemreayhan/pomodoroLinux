@@ -167,6 +167,12 @@ pub mod rate_limit {
         };
         let now = Instant::now();
         let mut map = limiter.attempts.lock().unwrap();
+        // Periodic cleanup: remove stale IPs every 100 checks
+        if map.len() > 100 {
+            map.retain(|_, entries| {
+                entries.last().map_or(false, |t| now.duration_since(*t).as_secs() < limiter.window_secs * 2)
+            });
+        }
         let entries = map.entry(key).or_default();
         entries.retain(|t| now.duration_since(*t).as_secs() < limiter.window_secs);
         if entries.len() >= limiter.max_requests {

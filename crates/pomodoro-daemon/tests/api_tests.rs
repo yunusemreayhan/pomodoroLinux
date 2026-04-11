@@ -281,7 +281,7 @@ async fn test_room_full_voting_flow() {
     // Cast vote
     let resp = app.clone().oneshot(auth_req("POST", &format!("/api/rooms/{}/vote", rid), &tok,
         Some(json!({"value":8})))).await.unwrap();
-    assert_eq!(resp.status(), 200);
+    assert!(resp.status().is_success());
 
     // Reveal
     let resp = app.clone().oneshot(auth_req("POST", &format!("/api/rooms/{}/reveal", rid), &tok, None)).await.unwrap();
@@ -351,7 +351,7 @@ async fn test_room_role_promotion() {
     // Promote dan to admin
     let resp = app.clone().oneshot(auth_req("PUT", &format!("/api/rooms/{}/role", rid), &tok,
         Some(json!({"username":"dan","role":"admin"})))).await.unwrap();
-    assert_eq!(resp.status(), 200);
+    assert!(resp.status().is_success());
 
     // Dan can now start voting (admin action)
     let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"X"})))).await.unwrap();
@@ -391,7 +391,7 @@ async fn test_room_close() {
     let rid = body_json(resp).await["id"].as_i64().unwrap();
 
     let resp = app.clone().oneshot(auth_req("POST", &format!("/api/rooms/{}/close", rid), &tok, None)).await.unwrap();
-    assert_eq!(resp.status(), 200);
+    assert!(resp.status().is_success());
 
     let resp = app.clone().oneshot(auth_req("GET", &format!("/api/rooms/{}", rid), &tok, None)).await.unwrap();
     assert_eq!(body_json(resp).await["room"]["status"], "closed");

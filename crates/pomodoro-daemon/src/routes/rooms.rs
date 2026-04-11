@@ -36,14 +36,14 @@ pub async fn delete_room(State(engine): State<AppState>, claims: Claims, Path(id
 pub async fn join_room(State(engine): State<AppState>, claims: Claims, Path(id): Path<i64>) -> Result<StatusCode, ApiError> {
     db::join_room(&engine.pool, id, claims.user_id).await.map_err(internal)?;
     engine.notify(ChangeEvent::Rooms);
-    Ok(StatusCode::OK)
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[utoipa::path(post, path = "/api/rooms/{id}/leave", responses((status = 200)), security(("bearer" = [])))]
 pub async fn leave_room(State(engine): State<AppState>, claims: Claims, Path(id): Path<i64>) -> Result<StatusCode, ApiError> {
     db::leave_room(&engine.pool, id, claims.user_id).await.map_err(internal)?;
     engine.notify(ChangeEvent::Rooms);
-    Ok(StatusCode::OK)
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[utoipa::path(delete, path = "/api/rooms/{id}/members/{username}", responses((status = 204)), security(("bearer" = [])))]
@@ -64,7 +64,7 @@ pub async fn set_room_role(State(engine): State<AppState>, claims: Claims, Path(
     if !VALID_ROOM_ROLES.contains(&req.role.as_str()) { return Err(err(StatusCode::BAD_REQUEST, format!("Invalid room role '{}'. Must be one of: {}", req.role, VALID_ROOM_ROLES.join(", ")))); }
     let uid = db::get_user_id_by_username(&engine.pool, &req.username).await.map_err(|_| err(StatusCode::NOT_FOUND, "User not found"))?;
     db::set_room_member_role(&engine.pool, id, uid, &req.role).await.map_err(internal)?;
-    Ok(StatusCode::OK)
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[utoipa::path(post, path = "/api/rooms/{id}/start-voting", request_body = StartVotingRequest, responses((status = 200, body = db::Room)), security(("bearer" = [])))]
@@ -82,7 +82,7 @@ pub async fn cast_vote(State(engine): State<AppState>, claims: Claims, Path(id):
     let task_id = room.current_task_id.ok_or_else(|| err(StatusCode::BAD_REQUEST, "No active vote"))?;
     db::cast_vote(&engine.pool, id, task_id, claims.user_id, req.value).await.map_err(internal)?;
     engine.notify(ChangeEvent::Rooms);
-    Ok(StatusCode::OK)
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[utoipa::path(post, path = "/api/rooms/{id}/reveal", responses((status = 200, body = db::Room)), security(("bearer" = [])))]
@@ -125,7 +125,7 @@ pub async fn close_room(State(engine): State<AppState>, claims: Claims, Path(id)
     }
     db::set_room_status(&engine.pool, id, "closed").await.map_err(internal)?;
     engine.notify(ChangeEvent::Rooms);
-    Ok(StatusCode::OK)
+    Ok(StatusCode::NO_CONTENT)
 }
 
 
