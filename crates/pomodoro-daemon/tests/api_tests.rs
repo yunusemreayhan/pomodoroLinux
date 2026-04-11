@@ -2201,3 +2201,98 @@ async fn test_graceful_shutdown_recovery() {
     let state = body_json(resp).await;
     assert_eq!(state["status"].as_str().unwrap(), "Idle");
 }
+
+// T2: skip() advances to next phase
+#[tokio::test]
+async fn test_skip_advances_phase() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    // Start work
+    let resp = app.clone().oneshot(auth_req("POST", "/api/timer/start", &tok, Some(json!({})))).await.unwrap();
+    assert!(resp.status().is_success());
+    let state = body_json(resp).await;
+    assert_eq!(state["phase"], "Work");
+    // Skip
+    let resp = app.clone().oneshot(auth_req("POST", "/api/timer/skip", &tok, None)).await.unwrap();
+    assert!(resp.status().is_success());
+    let state = body_json(resp).await;
+    assert_eq!(state["status"], "Idle");
+    assert!(state["phase"] == "ShortBreak" || state["phase"] == "LongBreak");
+}
+
+// T4: cancel_burn validates sprint_id
+#[tokio::test]
+async fn test_cancel_burn_validates_sprint() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    // Create task and sprint
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"T"})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+    let resp = app.clone().oneshot(auth_req("POST", "/api/sprints", &tok, Some(json!({"name":"S"})))).await.unwrap();
+    let sid = body_json(resp).await["id"].as_i64().unwrap();
+    app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/tasks", sid), &tok, Some(json!({"task_ids":[tid]})))).await.unwrap();
+    // Log burn
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/burn", sid), &tok,
+        Some(json!({"task_id":tid,"points":1.0,"hours":0.5})))).await.unwrap();
+    let burn_id = body_json(resp).await["id"].as_i64().unwrap();
+    // Cancel with wrong sprint_id
+    let resp = app.clone().oneshot(auth_req("DELETE", &format!("/api/sprints/99999/burns/{}", burn_id), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 400);
+}
+
+// T6: refresh token cannot be used as access token
+#[tokio::test]
+async fn test_refresh_token_rejected_as_access() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    // Get refresh token via a fresh login
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/login", Some(json!({"username":"root","password":"root1234"})))).await.unwrap();
+    let body = body_json(resp).await;
+    let refresh = body["refresh_token"].as_str().unwrap_or("").to_string();
+    if refresh.is_empty() { return; } // skip if no refresh token support
+    // Try to use refresh token as access token
+    let resp = app.clone().oneshot(auth_req("GET", "/api/timer", &refresh, None)).await.unwrap();
+    assert_eq!(resp.status(), 401);
+}
+
+// T7: config validation bounds
+#[tokio::test]
+async fn test_config_validation_bounds() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let base = json!({"work_duration_min":25,"short_break_min":5,"long_break_min":15,"long_break_interval":4,"daily_goal":8,"estimation_mode":"points","auto_start_breaks":false,"auto_start_work":false,"sound_enabled":false,"notification_enabled":false});
+    // work_duration_min too high
+    let mut bad = base.clone(); bad["work_duration_min"] = json!(999);
+    let resp = app.clone().oneshot(auth_req("PUT", "/api/config", &tok, Some(bad))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+    // daily_goal too high
+    let mut bad = base.clone(); bad["daily_goal"] = json!(100);
+    let resp = app.clone().oneshot(auth_req("PUT", "/api/config", &tok, Some(bad))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+    // invalid estimation_mode
+    let mut bad = base.clone(); bad["estimation_mode"] = json!("invalid");
+    let resp = app.clone().oneshot(auth_req("PUT", "/api/config", &tok, Some(bad))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+}
+
+// T8: authorization on sprint task add
+#[tokio::test]
+async fn test_sprint_task_auth() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    // Create second user
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/register", Some(json!({"username":"sprinteve","password":"Sprinteve1"})))).await.unwrap();
+    assert!(resp.status().is_success(), "Register failed: {}", resp.status());
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/login", Some(json!({"username":"sprinteve","password":"Sprinteve1"})))).await.unwrap();
+    assert!(resp.status().is_success());
+    let tok2 = body_json(resp).await["token"].as_str().unwrap().to_string();
+    // Root creates sprint
+    let resp = app.clone().oneshot(auth_req("POST", "/api/sprints", &tok, Some(json!({"name":"S"})))).await.unwrap();
+    let sid = body_json(resp).await["id"].as_i64().unwrap();
+    // Root creates task
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"T"})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+    // Eve tries to add task to root's sprint
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/tasks", sid), &tok2, Some(json!({"task_ids":[tid]})))).await.unwrap();
+    assert_eq!(resp.status(), 403);
+}
