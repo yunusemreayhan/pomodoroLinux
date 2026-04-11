@@ -339,7 +339,8 @@ export default function App() {
           {confirmDialog && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="absolute inset-0 bg-black/50 flex items-center justify-center z-50"
-              onClick={dismissConfirm} role="dialog" aria-modal="true" aria-label="Confirmation dialog">
+              onClick={dismissConfirm} role="dialog" aria-modal="true" aria-label="Confirmation dialog"
+              onKeyDown={e => { if (e.key === "Escape") dismissConfirm(); }}>
               <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
                 className="glass p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
                 <p className="text-sm text-white/80 mb-4">{confirmDialog.msg}</p>

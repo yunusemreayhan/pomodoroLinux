@@ -167,6 +167,8 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
           isProject ? "glass p-4" : "px-4 py-3 hover:bg-white/5"
         } ${engine?.current_task_id === t.id ? "ring-1 ring-[var(--color-work)]" : ""} ${dropZone === "on" ? "ring-1 ring-[var(--color-accent)]" : ""}`}
         style={{ marginLeft: depth > 0 ? depth * 24 : 0 }}
+        tabIndex={0}
+        onKeyDown={e => { if (e.key === "Enter") onView(t.id); }}
       >
         {/* Bulk checkbox for subtasks */}
         {!selectMode && depth > 0 && bulkSelected && setBulkSelected && (

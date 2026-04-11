@@ -3,6 +3,7 @@ import { Plus, Trash2, Play, CheckCircle, ArrowLeft } from "lucide-react";
 import { apiCall } from "../store/api";
 import { useStore } from "../store/store";
 import { matchSearch } from "../utils";
+import { useSseDebounce } from "../hooks/useSseDebounce";
 import type { Sprint, SprintDetail, SprintBoard, SprintDailyStat, Task, BurnEntry, BurnSummaryEntry } from "../store/api";
 import TaskList from "./TaskList";
 import Select from "./Select";
@@ -29,12 +30,8 @@ export default function Sprints() {
     setLoading(false);
   }, [filter]);
 
-  useEffect(() => {
-    load();
-    let sseTimer: ReturnType<typeof setTimeout>; const onSse = () => { clearTimeout(sseTimer); sseTimer = setTimeout(load, 500); };
-    window.addEventListener("sse-sprints", onSse);
-    return () => { clearTimeout(sseTimer); window.removeEventListener("sse-sprints", onSse); };
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
+  useSseDebounce("sse-sprints", load);
 
   const create = async () => {
     if (!form.name.trim()) return;
@@ -168,12 +165,8 @@ function SprintView({ id, onBack }: { id: number; onBack: () => void }) {
     if (r) setRootIds(r);
   }, [id]);
 
-  useEffect(() => {
-    load();
-    let sseTimer: ReturnType<typeof setTimeout>; const onSse = () => { clearTimeout(sseTimer); sseTimer = setTimeout(load, 500); };
-    window.addEventListener("sse-sprints", onSse);
-    return () => { clearTimeout(sseTimer); window.removeEventListener("sse-sprints", onSse); };
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
+  useSseDebounce("sse-sprints", load);
 
   const start = () => useStore.getState().showConfirm("Start this sprint?", async () => { await apiCall("POST", `/api/sprints/${id}/start`); load(); });
   const complete = () => useStore.getState().showConfirm("Complete this sprint?", async () => { await apiCall("POST", `/api/sprints/${id}/complete`); load(); });
