@@ -275,7 +275,7 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
                     </motion.button>
                     <div className="flex items-center gap-1">
                       <input type="number" step="0.5" min="0" value={customAccept} onChange={e => setCustomAccept(e.target.value)}
-                        placeholder="custom" onKeyDown={e => { if (e.key === "Enter" && customAccept) acceptEstimate(parseFloat(customAccept)); }}
+                        placeholder="custom" onKeyDown={e => { if (e.key === "Enter" && customAccept && !isNaN(parseFloat(customAccept))) acceptEstimate(parseFloat(customAccept)); }}
                         className="w-20 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white placeholder-white/20 outline-none focus:border-[var(--color-accent)] text-center" />
                       {customAccept && (
                         <motion.button whileTap={{ scale: 0.95 }} onClick={() => { acceptEstimate(parseFloat(customAccept)); setCustomAccept(""); }}

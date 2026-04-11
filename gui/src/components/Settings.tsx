@@ -47,7 +47,7 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
 function AdminPanel() {
   const [users, setUsers] = useState<User[]>([]);
 
-  const load = () => { apiCall<User[]>("GET", "/api/admin/users").then(setUsers).catch(() => {}); };
+  const load = () => { apiCall<User[]>("GET", "/api/admin/users").then(u => u && setUsers(u)).catch(() => {}); };
   useEffect(load, []);
 
   const toggleRole = async (u: User) => {
@@ -388,7 +388,7 @@ function TeamManager() {
 
   useEffect(() => { load(); }, []);
   useEffect(() => {
-    apiCall<{ id: number; username: string }[]>("GET", "/api/admin/users").then(u => u && setAllUsers(u));
+    apiCall<{ id: number; username: string }[]>("GET", "/api/users").then(u => u && setAllUsers(u));
   }, []);
 
   const create = async () => {

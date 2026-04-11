@@ -663,14 +663,15 @@ function TaskAttachments({ taskId }: { taskId: number }) {
   const upload = async (file: File) => {
     setUploading(true);
     try {
+      const { serverUrl, token } = useStore.getState();
       const buf = await file.arrayBuffer();
-      const resp = await fetch(`${(window as any).__serverUrl || "http://127.0.0.1:9090"}/api/tasks/${taskId}/attachments`, {
+      const resp = await fetch(`${serverUrl}/api/tasks/${taskId}/attachments`, {
         method: "POST",
         headers: {
           "content-type": file.type || "application/octet-stream",
           "x-filename": file.name,
           "x-requested-with": "PomodoroGUI",
-          "authorization": `Bearer ${(window as any).__token || ""}`,
+          "authorization": `Bearer ${token}`,
         },
         body: buf,
       });
@@ -682,6 +683,20 @@ function TaskAttachments({ taskId }: { taskId: number }) {
   const del = async (id: number) => {
     await apiCall("DELETE", `/api/attachments/${id}`);
     setAtts(a => a.filter(x => x.id !== id));
+  };
+
+  const download = async (id: number, filename: string) => {
+    const { serverUrl, token } = useStore.getState();
+    const resp = await fetch(`${serverUrl}/api/attachments/${id}/download`, {
+      headers: { "authorization": `Bearer ${token}` },
+    });
+    if (resp.ok) {
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    }
   };
 
   const fmt = (bytes: number) => bytes < 1024 ? `${bytes}B` : bytes < 1048576 ? `${(bytes / 1024).toFixed(1)}KB` : `${(bytes / 1048576).toFixed(1)}MB`;
@@ -700,8 +715,8 @@ function TaskAttachments({ taskId }: { taskId: number }) {
         <div key={a.id} className="flex items-center gap-2 text-xs text-white/60 py-0.5 group">
           <span className="truncate flex-1">{a.filename}</span>
           <span className="text-white/20">{fmt(a.size_bytes)}</span>
-          <a href={`${(window as any).__serverUrl || "http://127.0.0.1:9090"}/api/attachments/${a.id}/download`}
-            className="text-[var(--color-accent)] hover:underline" target="_blank" rel="noopener">↓</a>
+          <button onClick={() => download(a.id, a.filename)}
+            className="text-[var(--color-accent)] hover:underline">↓</button>
           <button onClick={() => del(a.id)} className="text-white/20 hover:text-[var(--color-danger)] opacity-0 group-hover:opacity-100">✕</button>
         </div>
       ))}
