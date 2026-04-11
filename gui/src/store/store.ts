@@ -254,14 +254,15 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   createTask: async (title, parentId, project, priority = 3, estimated = 1) => {
-    await apiCall("POST", "/api/tasks", { title, parent_id: parentId, project, priority, estimated });
+    const task = await apiCall<Task>("POST", "/api/tasks", { title, parent_id: parentId, project, priority, estimated });
+    if (task) set(s => ({ tasks: [...s.tasks, task] }));
     get().toast("Task created");
-    get().loadTasks();
   },
 
   updateTask: async (id, fields) => {
     try {
-      await apiCall("PUT", `/api/tasks/${id}`, fields);
+      const updated = await apiCall<Task>("PUT", `/api/tasks/${id}`, fields);
+      if (updated) set(s => ({ tasks: s.tasks.map(t => t.id === id ? updated : t) }));
     } catch (e) {
       const msg = String(e);
       if (msg.includes("modified by another")) {
@@ -271,14 +272,20 @@ export const useStore = create<Store>((set, get) => ({
       }
       throw e;
     }
-    get().loadTasks();
   },
 
   deleteTask: async (id) => {
     get().showConfirm("Delete this task and all subtasks?", async () => {
       await apiCall("DELETE", `/api/tasks/${id}`);
+      // Remove task and all descendants from local state
+      const descendants = new Set<number>();
+      const collect = (pid: number) => {
+        descendants.add(pid);
+        get().tasks.filter(t => t.parent_id === pid).forEach(t => collect(t.id));
+      };
+      collect(id);
+      set(s => ({ tasks: s.tasks.filter(t => !descendants.has(t.id)) }));
       get().toast("Task deleted");
-      await get().loadTasks();
     });
   },
 

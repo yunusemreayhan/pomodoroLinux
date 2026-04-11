@@ -204,9 +204,7 @@ async fn main() -> Result<()> {
             let today = chrono::Utc::now().naive_utc().format("%Y-%m-%d").to_string();
             let tomorrow = (chrono::Utc::now().naive_utc() + chrono::Duration::days(1)).format("%Y-%m-%d").to_string();
             // Find tasks due today or tomorrow that aren't completed
-            let due_tasks: Vec<(i64, String, String)> = sqlx::query_as(
-                "SELECT id, title, due_date FROM tasks WHERE due_date IS NOT NULL AND due_date <= ? AND status != 'completed' AND status != 'done'"
-            ).bind(&tomorrow).fetch_all(&engine_due.pool).await.unwrap_or_default();
+            let due_tasks = db::get_due_tasks(&engine_due.pool, &tomorrow).await.unwrap_or_default();
             for (id, title, due) in due_tasks {
                 if notified.contains(&id) { continue; }
                 let urgency = if due <= today { "overdue" } else { "due tomorrow" };
