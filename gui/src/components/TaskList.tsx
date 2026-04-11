@@ -9,6 +9,7 @@ import { apiCall } from "../store/api";
 import type { Task } from "../store/api";
 import TaskDetailView, { CommentSection } from "./TaskDetailView";
 import { InlineTimeReport, InlineComment, InlineAddSubtask } from "./TaskInlineEditors";
+import TaskContextMenu from "./TaskContextMenu";
 
 const PRIORITY_COLORS = ["", "#10B981", "#4ECDC4", "#F59E0B", "#FF6B6B", "#EF4444"];
 
@@ -30,7 +31,6 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
   const [totalHours, setTotalHours] = useState(0);
   const [newTitle, setNewTitle] = useState("");
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
-  const [ctxSub, setCtxSub] = useState<string | null>(null);
   const [ctxSprints, setCtxSprints] = useState<{ id: number; name: string; status: string }[]>([]);
   const [ctxUsers, setCtxUsers] = useState<string[]>([]);
   const [ctxBurnUsers, setCtxBurnUsers] = useState<string[]>([]);
@@ -385,179 +385,19 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
 
       {/* Context menu */}
       {ctxMenu && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setCtxMenu(null)} />
-          <div className="fixed z-50 bg-[var(--color-surface)] border border-white/10 rounded-lg shadow-xl py-1 min-w-52 text-xs"
-            style={{ left: Math.min(ctxMenu.x, window.innerWidth - 260), top: Math.min(ctxMenu.y, window.innerHeight - 400) }}>
-
-            {/* --- Status --- */}
-            <div className="px-3 py-1 text-white/20 text-[10px] uppercase tracking-wider">Status</div>
-            {([["backlog","Todo","○"],["active","WIP","▶"],["completed","Done","✓"]] as const).map(([s,label,icon]) => (
-              <button key={s} disabled={t.status === s} onClick={() => { updateTask(t.id, { status: s }); setCtxMenu(null); }}
-                className={`w-full text-left px-3 py-1.5 flex items-center gap-2 ${t.status === s ? "text-white/20" : "text-white/60 hover:bg-white/5"}`}>
-                {icon} {label}
-                {t.status === s && <span className="ml-auto text-white/20">current</span>}
-              </button>
-            ))}
-
-            <div className="border-t border-white/5 my-1" />
-
-            {/* --- Priority --- */}
-            <div className="px-3 py-1 text-white/20 text-[10px] uppercase tracking-wider">Priority</div>
-            <div className="flex gap-1 px-3 py-1">
-              {[1,2,3,4,5].map(p => (
-                <button key={p} onClick={() => { updateTask(t.id, { priority: p }); setCtxMenu(null); }}
-                  className={`w-6 h-6 rounded-full border-2 transition-all ${t.priority === p ? "scale-125" : "opacity-50 hover:opacity-100"}`}
-                  style={{ borderColor: PRIORITY_COLORS[p], background: t.priority === p ? PRIORITY_COLORS[p] : "transparent" }}
-                  title={`Priority ${p}`} />
-              ))}
-            </div>
-
-            <div className="border-t border-white/5 my-1" />
-
-            {/* --- Sprints submenu --- */}
-            <div className="relative" onMouseEnter={() => setCtxSub("sprints")} onMouseLeave={() => setCtxSub(null)}>
-              <div className="px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center justify-between cursor-default">
-                🏃 Sprints <ChevronRight size={12} className="text-white/30" />
-              </div>
-              {ctxSub === "sprints" && (
-                <div className="absolute top-0 bg-[var(--color-surface)] border border-white/10 rounded-lg shadow-xl py-1 min-w-48 z-50"
-                  style={ctxMenu && ctxMenu.x > window.innerWidth - 520 ? { right: "100%" } : { left: "100%" }}>
-                  {taskSprints.filter(ts => ts.task_id === t.id).map(ts => (
-                    <button key={`rm-${ts.sprint_id}`} onClick={async () => {
-                      await apiCall("DELETE", `/api/sprints/${ts.sprint_id}/tasks/${t.id}`);
-                      useStore.getState().loadTasks(); setCtxMenu(null);
-                    }} className="w-full text-left px-3 py-1.5 text-red-400/70 hover:bg-white/5 flex items-center gap-2">
-                      ✕ Remove from {ts.sprint_name}
-                    </button>
-                  ))}
-                  {ctxSprints.filter(s => !taskSprints.some(ts => ts.task_id === t.id && ts.sprint_id === s.id)).map(s => (
-                    <button key={`add-${s.id}`} onClick={async () => {
-                      await apiCall("POST", `/api/sprints/${s.id}/tasks`, { task_ids: [t.id] });
-                      useStore.getState().loadTasks(); setCtxMenu(null);
-                    }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">
-                      + {s.name} <span className="text-white/20">({s.status})</span>
-                    </button>
-                  ))}
-                  {ctxSprints.length === 0 && taskSprints.filter(ts => ts.task_id === t.id).length === 0 && (
-                    <div className="px-3 py-1.5 text-white/20">No sprints available</div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* --- Assign submenu --- */}
-            <div className="relative" onMouseEnter={() => setCtxSub("assign")} onMouseLeave={() => setCtxSub(null)}>
-              <div className="px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center justify-between cursor-default">
-                👤 Assignees <ChevronRight size={12} className="text-white/30" />
-              </div>
-              {ctxSub === "assign" && (
-                <div className="absolute top-0 bg-[var(--color-surface)] border border-white/10 rounded-lg shadow-xl py-1 min-w-48 z-50 max-h-64 overflow-y-auto"
-                  style={ctxMenu && ctxMenu.x > window.innerWidth - 520 ? { right: "100%" } : { left: "100%" }}>
-                  {assignees.length > 0 && (
-                    <>
-                      <div className="px-3 py-1 text-white/20 text-[10px] uppercase tracking-wider">Assigned</div>
-                      {assignees.map(a => {
-                        const hasBurns = ctxBurnUsers.includes(a);
-                        return (
-                          <button key={`rm-${a}`} disabled={hasBurns} onClick={async () => {
-                            await apiCall("DELETE", `/api/tasks/${t.id}/assignees/${a}`);
-                            setAssignees(prev => prev.filter(x => x !== a)); setCtxMenu(null);
-                          }} className={`w-full text-left px-3 py-1.5 flex items-center gap-2 ${hasBurns ? "text-white/20 cursor-not-allowed" : "text-red-400/70 hover:bg-white/5"}`}>
-                            ✕ {a} {hasBurns && <span className="ml-auto text-[10px] text-white/15">has burns</span>}
-                          </button>
-                        );
-                      })}
-                    </>
-                  )}
-                  {ctxUsers.filter(u => !assignees.includes(u)).length > 0 && (
-                    <>
-                      <div className="px-3 py-1 text-white/20 text-[10px] uppercase tracking-wider">Add</div>
-                      {ctxUsers.filter(u => !assignees.includes(u)).map(u => (
-                        <button key={`add-${u}`} onClick={async () => {
-                          await apiCall("POST", `/api/tasks/${t.id}/assignees`, { username: u });
-                          setAssignees(prev => [...prev, u]); setCtxMenu(null);
-                        }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">
-                          + {u}
-                        </button>
-                      ))}
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-white/5 my-1" />
-
-            {/* --- Quick actions --- */}
-            <button onClick={async () => {
-              const allTasks = useStore.getState().tasks;
-              const siblings = allTasks.filter((s: Task) => s.parent_id === t.parent_id).sort((a: Task, b: Task) => a.sort_order - b.sort_order);
-              const idx = siblings.findIndex((s: Task) => s.id === t.id);
-              if (idx > 0) {
-                const prev = siblings[idx - 1];
-                await updateTask(t.id, { sort_order: prev.sort_order });
-                await updateTask(prev.id, { sort_order: t.sort_order });
-              }
-              setCtxMenu(null);
-            }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">
-              ↑ Move up
-            </button>
-            <button onClick={async () => {
-              const allTasks = useStore.getState().tasks;
-              const siblings = allTasks.filter((s: Task) => s.parent_id === t.parent_id).sort((a: Task, b: Task) => a.sort_order - b.sort_order);
-              const idx = siblings.findIndex((s: Task) => s.id === t.id);
-              if (idx < siblings.length - 1) {
-                const next = siblings[idx + 1];
-                await updateTask(t.id, { sort_order: next.sort_order });
-                await updateTask(next.id, { sort_order: t.sort_order });
-              }
-              setCtxMenu(null);
-            }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">
-              ↓ Move down
-            </button>
-            <div className="border-t border-white/5 my-1" />
-            <button onClick={() => { start(t.id); setCtxMenu(null); }}
-              className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2"
-              disabled={t.status === "completed" || (config?.leaf_only_mode && node.children.length > 0)}>
-              ▶ Start timer
-            </button>
-            <button onClick={() => { setTimeReporting(true); setCtxMenu(null); }}
-              className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">
-              🕐 Log time
-            </button>
-            <button onClick={() => { setCommenting(true); setCtxMenu(null); }}
-              className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">
-              💬 Comment
-            </button>
-            <button onClick={() => { setAdding(true); setCtxMenu(null); }}
-              className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">
-              ＋ Add subtask
-            </button>
-            <button onClick={() => { onView(t.id); setCtxMenu(null); }}
-              className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">
-              👁 View details
-            </button>
-
-            {isOwner && (
-              <>
-                <div className="border-t border-white/5 my-1" />
-                <button onClick={() => { setEditingTitle(true); setTitleDraft(t.title); setCtxMenu(null); }}
-                  className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">
-                  ✏️ Rename
-                </button>
-                <button onClick={() => { setEditingDesc(true); setDescDraft(t.description || ""); setCtxMenu(null); }}
-                  className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">
-                  📝 Edit description
-                </button>
-                <button onClick={() => { handleDelete(); setCtxMenu(null); }}
-                  className="w-full text-left px-3 py-1.5 text-red-400/70 hover:bg-red-500/10 flex items-center gap-2">
-                  🗑 Delete
-                </button>
-              </>
-            )}
-          </div>
-        </>
+        <TaskContextMenu
+          pos={ctxMenu} task={t} node={node} isOwner={isOwner}
+          assignees={assignees} ctxSprints={ctxSprints} ctxUsers={ctxUsers} ctxBurnUsers={ctxBurnUsers}
+          taskSprints={taskSprints} config={config}
+          onClose={() => setCtxMenu(null)}
+          updateTask={updateTask} start={start}
+          setAssignees={setAssignees}
+          setEditingTitle={setEditingTitle} setTitleDraft={setTitleDraft}
+          setEditingDesc={setEditingDesc} setDescDraft={setDescDraft}
+          handleDelete={handleDelete}
+          setTimeReporting={setTimeReporting} setCommenting={setCommenting} setAdding={setAdding}
+          onView={onView}
+        />
       )}
 
       {/* Inline time report */}
