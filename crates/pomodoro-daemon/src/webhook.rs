@@ -30,8 +30,21 @@ pub fn dispatch(pool: Pool, event: &str, payload: serde_json::Value) {
                 let sig = hasher.finalize().iter().map(|b| format!("{:02x}", b)).collect::<String>();
                 req = req.header("x-pomodoro-signature", format!("sha256={}", sig));
             }
-            if let Err(e) = req.send().await {
-                tracing::warn!("Webhook {} failed: {}", hook.url, e);
+            let mut attempts = 0;
+            loop {
+                attempts += 1;
+                match req.try_clone().unwrap_or_else(|| client.post(&hook.url).body(body_str.clone())).send().await {
+                    Ok(resp) if resp.status().is_success() => break,
+                    Ok(resp) => {
+                        tracing::warn!("Webhook {} returned {}", hook.url, resp.status());
+                        if attempts >= 3 { break; }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Webhook {} attempt {}/3 failed: {}", hook.url, attempts, e);
+                        if attempts >= 3 { break; }
+                    }
+                }
+                tokio::time::sleep(std::time::Duration::from_secs(1 << attempts)).await;
             }
         }
     });
