@@ -252,12 +252,16 @@ function BoardView({ board, reload }: { board: SprintBoard; reload: () => void }
     reload();
   };
 
-  const Column = ({ title, tasks, color }: { title: string; tasks: Task[]; color: string }) => (
-    <div className="flex-1 min-w-0" role="list" aria-label={`${title} tasks`}>
+  const Column = ({ title, tasks, color, status }: { title: string; tasks: Task[]; color: string; status: string }) => (
+    <div className="flex-1 min-w-0" role="list" aria-label={`${title} tasks`}
+      onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add("bg-white/5"); }}
+      onDragLeave={e => e.currentTarget.classList.remove("bg-white/5")}
+      onDrop={e => { e.currentTarget.classList.remove("bg-white/5"); const id = Number(e.dataTransfer.getData("text/plain")); if (id) changeStatus(id, status); }}>
       <div className={`text-xs font-medium mb-2 ${color}`}>{title} ({tasks.length})</div>
-      <div className="space-y-1.5">
+      <div className="space-y-1.5 min-h-[40px] rounded p-1 transition-colors">
         {tasks.map(t => (
-          <div key={t.id} className="bg-[var(--color-surface)] p-2 rounded border border-white/5 group">
+          <div key={t.id} draggable onDragStart={e => e.dataTransfer.setData("text/plain", String(t.id))}
+            className="bg-[var(--color-surface)] p-2 rounded border border-white/5 group cursor-grab active:cursor-grabbing">
             <div className="text-xs text-white/90 truncate">{t.title}</div>
             <div className="text-[10px] text-white/30 flex gap-1 mt-1">
               {t.estimated_hours > 0 && <span>{t.estimated_hours}h</span>}
@@ -288,9 +292,9 @@ function BoardView({ board, reload }: { board: SprintBoard; reload: () => void }
         <span>{pct}% done</span>
       </div>
       <div className="flex gap-3">
-      <Column title="Todo" tasks={board.todo} color="text-white/60" />
-      <Column title="In Progress" tasks={board.in_progress} color="text-yellow-400" />
-      <Column title="Done" tasks={board.done} color="text-green-400" />
+      <Column title="Todo" tasks={board.todo} color="text-white/60" status="backlog" />
+      <Column title="In Progress" tasks={board.in_progress} color="text-yellow-400" status="in_progress" />
+      <Column title="Done" tasks={board.done} color="text-green-400" status="completed" />
       </div>
     </div>
   );

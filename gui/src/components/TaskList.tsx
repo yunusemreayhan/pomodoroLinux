@@ -1,8 +1,17 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, Play, CheckCircle, Circle, ChevronRight, FolderOpen, Folder, MessageSquare, Eye, FileText, Clock } from "lucide-react";
 import { useStore } from "../store/store";
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, createContext, useContext } from "react";
 import { buildTree, countDescendants } from "../tree";
+
+const SearchCtx = createContext("");
+
+function highlightMatch(text: string, query: string) {
+  if (!query) return text;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return text;
+  return <>{text.slice(0, idx)}<mark className="bg-[var(--color-accent)]/30 text-inherit rounded px-0.5">{text.slice(idx, idx + query.length)}</mark>{text.slice(idx + query.length)}</>;
+}
 import { matchSearch } from "../utils";
 import type { TreeNode } from "../tree";
 import { apiCall } from "../store/api";
@@ -31,6 +40,7 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
   const allAssignees = useStore(s => s.allAssignees);
   const config = useStore(s => s.config);
   const tasks = useStore(s => s.tasks);
+  const searchQuery = useContext(SearchCtx);
   const [expanded, setExpanded] = useState(true);
   const [adding, setAdding] = useState(false);
   const [commenting, setCommenting] = useState(false);
@@ -233,7 +243,7 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
           ) : (
             <div className={`text-sm truncate ${isProject ? "font-semibold" : ""} ${t.status === "completed" ? "line-through text-white/30" : "text-white/90"}`}
               onDoubleClick={() => { if (isOwner) { setTitleDraft(t.title); setEditingTitle(true); } }}>
-              {t.title}
+              {searchQuery ? highlightMatch(t.title, searchQuery) : t.title}
             </div>
           )}
           {t.description && !editingDesc && (
@@ -608,6 +618,7 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
       )}
 
       {/* Tree */}
+      <SearchCtx.Provider value={search}>
       <div key={treeKey} className="flex-1 overflow-y-auto space-y-2 pr-1"
         onDragOver={e => e.preventDefault()}
         onDrop={async e => {
@@ -644,6 +655,7 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
           </div>
         )}
       </div>
+      </SearchCtx.Provider>
     </div>
   );
 }
