@@ -56,6 +56,7 @@ export default function TaskContextMenu(p: CtxMenuProps) {
           }
         }}>
 
+        <div className="px-3 py-1 text-white/20 text-[10px] truncate">{t.title} · {t.status} · P{t.priority}</div>
         <div className="px-3 py-1 text-white/20 text-[10px] uppercase tracking-wider" role="presentation">{tl.status}</div>
         {([["backlog","Todo","○"],["active","WIP","▶"],["completed","Done","✓"],["archived","Archive","📦"]] as const).map(([s,label,icon]) => (
           <button key={s} role="menuitem" disabled={t.status === s} onClick={() => { p.updateTask(t.id, { status: s }); close(); }}

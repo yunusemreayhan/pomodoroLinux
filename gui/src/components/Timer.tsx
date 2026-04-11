@@ -94,6 +94,7 @@ export default function Timer() {
           {PHASE_LABELS[phase] ?? phase}
         </motion.div>
       </AnimatePresence>
+      {currentTask && isActive && <div className="text-xs text-white/40 truncate max-w-[200px] text-center">{currentTask.title}</div>}
       </div>
 
       {/* Ring timer */}

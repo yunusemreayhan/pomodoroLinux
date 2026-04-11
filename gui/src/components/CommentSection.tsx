@@ -35,6 +35,7 @@ export default function CommentSection({ taskId, sessionId }: { taskId: number; 
             {c.content}
           </div>
           {(c.user === currentUser || role === "root") && <button onClick={async () => { await apiCall("DELETE", `/api/comments/${c.id}`); load(); }}
+            aria-label={`Delete comment by ${c.user}`}
             className="opacity-0 group-hover:opacity-100 text-white/20 hover:text-[var(--color-danger)] transition-all shrink-0">
             <Trash2 size={12} />
           </button>}

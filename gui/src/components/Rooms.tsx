@@ -15,8 +15,9 @@ function RoomList({ onSelect }: { onSelect: (id: number) => void }) {
   const [name, setName] = useState("");
   const [unit, setUnit] = useState("points");
   const [project, setProject] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const load = useCallback(() => { apiCall<Room[]>("GET", "/api/rooms").then(setRooms).catch(() => {}); }, []);
+  const load = useCallback(() => { apiCall<Room[]>("GET", "/api/rooms").then(r => { setRooms(r); setLoading(false); }).catch(() => setLoading(false)); }, []);
   useEffect(() => {
     load();
     const onSse = () => load();
@@ -73,12 +74,14 @@ function RoomList({ onSelect }: { onSelect: (id: number) => void }) {
         )}
       </AnimatePresence>
 
-      {active.length === 0 && !showCreate && <div className="text-center py-12"><div className="text-4xl mb-2">🃏</div><p className="text-sm text-white/30">No active rooms</p><p className="text-xs text-white/20 mt-1">Create one to start estimating</p></div>}
+      {loading && rooms.length === 0 && <div className="text-center py-12 text-white/20 text-sm">Loading rooms...</div>}
+      {!loading && active.length === 0 && !showCreate && <div className="text-center py-12"><div className="text-4xl mb-2">🃏</div><p className="text-sm text-white/30">No active rooms</p><p className="text-xs text-white/20 mt-1">Create one to start estimating</p></div>}
 
       <div className="space-y-2">
         {active.map(r => (
           <motion.div key={r.id} whileHover={{ scale: 1.01 }}
-            className="glass p-4 flex items-center gap-3 cursor-pointer group" onClick={() => onSelect(r.id)}>
+            className="glass p-4 flex items-center gap-3 cursor-pointer group" tabIndex={0} role="button"
+            onClick={() => onSelect(r.id)} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(r.id); } }}>
             <div className="flex-1">
               <div className="text-sm text-white font-semibold">{r.name}</div>
               <div className="text-xs text-white/30 flex gap-3">
