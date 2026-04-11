@@ -134,6 +134,13 @@ export default function History() {
             <HeatmapCell key={d.date} count={d.count} max={maxCount} date={d.date} />
           ))}
         </div>
+        <div className="flex items-center gap-1.5 mt-2 text-[10px] text-white/30 justify-end">
+          <span>Less</span>
+          {[0, 0.25, 0.5, 0.75, 1].map((intensity, i) => (
+            <div key={i} className="w-2.5 h-2.5 rounded-sm" style={{ background: `rgba(124, 58, 237, ${intensity * 0.8 + 0.1})` }} />
+          ))}
+          <span>More</span>
+        </div>
       </div>
 
       {/* Weekly bar chart */}

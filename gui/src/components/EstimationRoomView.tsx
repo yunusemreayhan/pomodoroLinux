@@ -62,7 +62,10 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
       setCountdown(i - 1);
     }
     setCountdown(null);
-    await apiCall("POST", `/api/rooms/${roomId}/reveal`);
+    // Only reveal if room is still in voting state (another admin may have revealed)
+    if (state?.room.status === "voting") {
+      await apiCall("POST", `/api/rooms/${roomId}/reveal`);
+    }
     if (mountedRef.current) load();
   };
 

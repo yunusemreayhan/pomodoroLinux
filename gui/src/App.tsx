@@ -323,6 +323,7 @@ export default function App() {
           <AnimatePresence>
             {toasts.map(t => (
               <motion.div key={t.id} initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 50 }}
+                role={t.type === "error" ? "alert" : undefined}
                 className={`pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium shadow-lg ${
                   t.type === "error" ? "bg-[var(--color-danger)] text-white" : "bg-[var(--color-success)]/90 text-white"
                 }`}>
@@ -367,15 +368,15 @@ export default function App() {
             onKeyDown={e => { if (e.key === "Escape") setShowShortcuts(false); }} role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
             <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
               className="glass p-6 rounded-2xl max-w-sm" onClick={e => e.stopPropagation()}>
-              <h2 className="text-sm font-semibold text-white mb-3">Keyboard Shortcuts</h2>
+              <h2 className="text-sm font-semibold text-white mb-3">{t.keyboardShortcuts}</h2>
               <div className="space-y-1.5 text-xs">
                 {[
-                  ["/", "Focus search"],
-                  ["?", "Toggle this panel"],
-                  ["Double-click", "Rename task"],
-                  ["Enter", "Save inline edit"],
-                  ["Escape", "Cancel inline edit"],
-                  ["Right-click", "Context menu"],
+                  ["/", t.focusSearch],
+                  ["?", t.toggleShortcuts],
+                  ["Double-click", t.renameTask],
+                  ["Enter", t.saveEdit],
+                  ["Escape", t.cancelEdit],
+                  ["Right-click", t.contextMenu],
                 ].map(([key, desc]) => (
                   <div key={key} className="flex items-center gap-3">
                     <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-white/70 font-mono text-[10px] min-w-[60px] text-center">{key}</kbd>

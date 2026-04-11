@@ -399,8 +399,10 @@ impl Engine {
         let states = self.states.lock().await;
         let mut state = states.get(&user_id).cloned().unwrap_or_else(|| Self::idle_state(user_id, &config));
         drop(states);
-        // Always refresh daily_completed from DB for accuracy after restart
-        state.daily_completed = db::get_today_completed_for_user(&self.pool, Some(user_id)).await.unwrap_or(state.daily_completed);
+        // Refresh daily_completed from DB only if user has no active state (first access / after restart)
+        if state.current_user_id == 0 || state.status == TimerStatus::Idle {
+            state.daily_completed = db::get_today_completed_for_user(&self.pool, Some(user_id)).await.unwrap_or(state.daily_completed);
+        }
         state
     }
 

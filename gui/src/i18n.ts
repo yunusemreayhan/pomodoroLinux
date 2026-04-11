@@ -12,6 +12,13 @@ export interface Locale {
   rooms: string;
   skipToContent: string;
   api: string;
+  keyboardShortcuts: string;
+  focusSearch: string;
+  toggleShortcuts: string;
+  renameTask: string;
+  saveEdit: string;
+  cancelEdit: string;
+  contextMenu: string;
 
   // Auth
   login: string;
@@ -162,6 +169,13 @@ const en: Locale = {
   rooms: "Rooms",
   skipToContent: "Skip to content",
   api: "API",
+  keyboardShortcuts: "Keyboard Shortcuts",
+  focusSearch: "Focus search",
+  toggleShortcuts: "Toggle this panel",
+  renameTask: "Rename task",
+  saveEdit: "Save inline edit",
+  cancelEdit: "Cancel inline edit",
+  contextMenu: "Context menu",
 
   login: "Login",
   register: "Register",
@@ -300,6 +314,13 @@ const tr: Locale = {
   rooms: "Odalar",
   skipToContent: "İçeriğe geç",
   api: "API",
+  keyboardShortcuts: "Klavye Kısayolları",
+  focusSearch: "Aramaya odaklan",
+  toggleShortcuts: "Bu paneli aç/kapat",
+  renameTask: "Görevi yeniden adlandır",
+  saveEdit: "Düzenlemeyi kaydet",
+  cancelEdit: "Düzenlemeyi iptal et",
+  contextMenu: "Bağlam menüsü",
   login: "Giriş",
   register: "Kayıt",
   username: "Kullanıcı adı",

@@ -18,7 +18,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function NumInput({ value, onChange, min = 1, max = 120 }: { value: number; onChange: (v: number) => void; min?: number; max?: number }) {
+function NumInput({ value, onChange, min = 1, max = 120, label }: { value: number; onChange: (v: number) => void; min?: number; max?: number; label?: string }) {
   return (
     <input
       type="number"
@@ -26,6 +26,7 @@ function NumInput({ value, onChange, min = 1, max = 120 }: { value: number; onCh
       min={min}
       max={max}
       onChange={(e) => onChange(Number(e.target.value))}
+      aria-label={label}
       className="w-18 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white text-center outline-none focus:border-[var(--color-accent)]"
     />
   );
@@ -142,16 +143,16 @@ export default function Settings() {
       <div className="glass p-5">
         <h3 className="text-sm font-semibold text-white/60 mb-3">Timer Durations</h3>
         <Field label="Work (minutes)">
-          <NumInput value={local.work_duration_min} onChange={(v) => set("work_duration_min", v)} />
+          <NumInput value={local.work_duration_min} onChange={(v) => set("work_duration_min", v)} label="Work duration (minutes)" />
         </Field>
         <Field label="Short Break (minutes)">
-          <NumInput value={local.short_break_min} onChange={(v) => set("short_break_min", v)} />
+          <NumInput value={local.short_break_min} onChange={(v) => set("short_break_min", v)} label="Short break (minutes)" />
         </Field>
         <Field label="Long Break (minutes)">
-          <NumInput value={local.long_break_min} onChange={(v) => set("long_break_min", v)} />
+          <NumInput value={local.long_break_min} onChange={(v) => set("long_break_min", v)} label="Long break (minutes)" />
         </Field>
         <Field label="Long Break Interval">
-          <NumInput value={local.long_break_interval} onChange={(v) => set("long_break_interval", v)} min={1} max={10} />
+          <NumInput value={local.long_break_interval} onChange={(v) => set("long_break_interval", v)} min={1} max={10} label="Long break interval" />
         </Field>
       </div>
 
@@ -178,7 +179,7 @@ export default function Settings() {
       <div className="glass p-5">
         <h3 className="text-sm font-semibold text-white/60 mb-3">Goals</h3>
         <Field label="Daily Goal (sessions)">
-          <NumInput value={local.daily_goal} onChange={(v) => set("daily_goal", v)} min={1} max={20} />
+          <NumInput value={local.daily_goal} onChange={(v) => set("daily_goal", v)} min={1} max={20} label="Daily goal" />
         </Field>
         <Field label="Estimation Mode">
           <Select value={local.estimation_mode} onChange={v => set("estimation_mode", v)}

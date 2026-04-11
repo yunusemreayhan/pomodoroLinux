@@ -170,3 +170,85 @@ All API endpoints (except `/api/auth/register` and `/api/auth/login`) require a 
 | Admin endpoints | Root only |
 | User list | Any authenticated user |
 | Profile update | Own profile only |
+
+## Rate Limiting
+
+Auth endpoints (`/api/auth/login`, `/api/auth/register`, `/api/auth/refresh`) are rate-limited to **10 requests per 60 seconds per IP address**.
+
+IP is extracted from `X-Forwarded-For` or `X-Real-IP` headers. IPv4-mapped IPv6 addresses (e.g., `::ffff:127.0.0.1`) are normalized to IPv4. If no IP header is present, the key `"unknown"` is used (all headerless requests share one bucket).
+
+The general API has a separate rate limiter on the `ConnectInfo` socket address when running behind `axum::serve` with `into_make_service_with_connect_info`.
+
+## Webhook Payload Format
+
+Webhooks receive POST requests with JSON body:
+
+```json
+{
+  "event": "task.created",
+  "data": { "id": 42, "title": "My Task" }
+}
+```
+
+**Event types:** `task.created`, `task.updated`, `task.deleted`, `sprint.created`, `sprint.started`, `sprint.completed`
+
+**Headers:**
+- `Content-Type: application/json`
+- `X-Pomodoro-Event: <event_type>`
+- `X-Pomodoro-Signature: sha256=<hex>` (if webhook has a secret — HMAC-SHA256)
+
+**Retry policy:** 3 attempts with exponential backoff (2s, 4s, 8s).
+
+## CORS Configuration
+
+Default allowed origins: `http://localhost:1420`, `http://127.0.0.1:1420`, `http://localhost:9090`, `http://127.0.0.1:9090`, `tauri://localhost`.
+
+Add custom origins via environment variable:
+
+```bash
+POMODORO_CORS_ORIGINS="https://app.example.com,https://staging.example.com" pomodoro-daemon
+```
+
+## Production Deployment
+
+### Reverse Proxy (nginx)
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name pomodoro.example.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:9090;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+### systemd Service
+
+```ini
+[Unit]
+Description=Pomodoro Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=pomodoro
+ExecStart=/usr/local/bin/pomodoro-daemon
+Environment=POMODORO_CORS_ORIGINS=https://pomodoro.example.com
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### Backup
+
+The SQLite database is at `~/.local/share/pomodoro/pomodoro.db`. Back up this file regularly. Attachments are stored in `~/.local/share/pomodoro/attachments/`.
