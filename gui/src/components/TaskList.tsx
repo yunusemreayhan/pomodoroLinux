@@ -149,7 +149,9 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
         }}
         onContextMenu={async (e) => {
           e.preventDefault();
-          // Use cached data if available and recent (5s)
+          setCtxBurnUsers(allAssignees.get(t.id) || []);
+          setCtxMenu({ x: e.clientX, y: e.clientY });
+          // Refresh cached data in background
           const now = Date.now();
           if (!ctxSprints.length || ctxCacheTime < now - 5000) {
             const [sprints, planning, users] = await Promise.all([
@@ -161,8 +163,6 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
             setCtxUsers(users);
             ctxCacheTime = now;
           }
-          setCtxBurnUsers(allAssignees.get(t.id) || []);
-          setCtxMenu({ x: e.clientX, y: e.clientY });
         }}
         className={`flex items-center gap-3 group transition-all rounded-xl ${
           isProject ? "glass p-4" : "px-4 py-3 hover:bg-white/5"

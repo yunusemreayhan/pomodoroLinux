@@ -126,7 +126,8 @@ function EditField({ label, value, type, onSave }: { label: string; value: strin
 
   if (!editing) {
     return (
-      <div className="flex items-center justify-between py-1.5 group cursor-pointer" onClick={() => setEditing(true)}>
+      <div className="flex items-center justify-between py-1.5 group cursor-pointer" tabIndex={0} role="button"
+        onClick={() => setEditing(true)} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditing(true); } }}>
         <span className="text-xs text-white/40">{label}</span>
         <span className="text-xs text-white/70 group-hover:text-white flex items-center gap-1">
           {value || <span className="text-white/20 italic">empty</span>}

@@ -175,7 +175,7 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
             <AnimatePresence>
               {countdown !== null && countdown > 0 && (
                 <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.5 }}
-                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" role="alert" aria-live="assertive">
                   <motion.div key={countdown} initial={{ scale: 2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }}
                     className="text-8xl font-bold text-[var(--color-accent)]">
                     {countdown}
