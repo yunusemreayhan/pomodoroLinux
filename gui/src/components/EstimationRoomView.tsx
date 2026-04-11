@@ -20,6 +20,8 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
   const [editingTask, setEditingTask] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const mountedRef = useRef(true);
+  const stateRef = useRef(state);
+  stateRef.current = state;
   useEffect(() => () => { mountedRef.current = false; }, []);
   const [editDesc, setEditDesc] = useState("");
 
@@ -62,8 +64,8 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
       setCountdown(i - 1);
     }
     setCountdown(null);
-    // Only reveal if room is still in voting state (another admin may have revealed)
-    if (state?.room.status === "voting") {
+    // Only reveal if room is still in voting state (use ref for fresh value)
+    if (stateRef.current?.room.status === "voting") {
       await apiCall("POST", `/api/rooms/${roomId}/reveal`);
     }
     if (mountedRef.current) load();

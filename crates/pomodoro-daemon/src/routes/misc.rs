@@ -133,9 +133,10 @@ pub async fn sse_timer(State(engine): State<AppState>, Query(q): Query<SseQuery>
             tokio::select! {
                 Ok(()) = timer_rx.changed() => {
                     let state = timer_rx.borrow().clone();
-                    // Only send events for this user
+                    // Only send events for this user; re-fetch to avoid stale watch value
                     if state.current_user_id == user_id || state.current_user_id == 0 {
-                        if let Ok(json) = serde_json::to_string(&state) {
+                        let fresh = engine.get_state(user_id).await;
+                        if let Ok(json) = serde_json::to_string(&fresh) {
                             yield Ok(axum::response::sse::Event::default().event("timer").data(json));
                         }
                     }

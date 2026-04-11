@@ -387,7 +387,9 @@ impl Engine {
                     }
                 }
             }
-            self.tx.send(completed_states[i].clone()).ok();
+            if let Some(cs) = completed_states.get(i) {
+                self.tx.send(cs.clone()).ok();
+            }
         }
 
         Ok(completed_states)

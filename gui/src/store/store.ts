@@ -66,7 +66,7 @@ interface Store {
   loadTasks: () => Promise<void>;
   createTask: (title: string, parentId?: number, project?: string, priority?: number, estimated?: number) => Promise<void>;
   updateTask: (id: number, fields: Record<string, unknown>) => Promise<void>;
-  deleteTask: (id: number) => Promise<void>;
+  deleteTask: (id: number) => void;
   setActiveTeam: (teamId: number | null) => void;
   addComment: (taskId: number, content: string, sessionId?: number) => Promise<Comment>;
   getTaskDetail: (id: number) => Promise<TaskDetail>;
@@ -301,7 +301,7 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 
-  deleteTask: async (id) => {
+  deleteTask: (id) => {
     const task = get().tasks.find(t => t.id === id);
     get().showConfirm("Delete this task and all subtasks?", async () => {
       await apiCall("DELETE", `/api/tasks/${id}`);
