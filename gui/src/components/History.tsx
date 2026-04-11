@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Users } from "lucide-react";
+import { formatDateTime } from "../utils";
 import Select from "./Select";
 
 function HeatmapCell({ count, max, date }: { count: number; max: number; date: string }) {
@@ -194,7 +195,7 @@ export default function History() {
               )}
               {(!s.task_path || s.task_path.length === 0) && <span className="flex-1" />}
               <span className="shrink-0">{s.duration_s ? `${Math.round(s.duration_s / 60)}m` : "-"}</span>
-              <span className="text-white/30 shrink-0">{s.started_at.slice(0, 16).replace("T", " ")}</span>
+              <span className="text-white/30 shrink-0">{formatDateTime(s.started_at)}</span>
             </div>
           ))}
           {filteredHistory.length === 0 && (

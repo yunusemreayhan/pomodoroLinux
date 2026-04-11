@@ -212,7 +212,15 @@ function SprintView({ id, onBack }: { id: number; onBack: () => void }) {
       {/* Retro notes */}
       {(s.status === "completed" || s.retro_notes) && (
         <div className="space-y-1">
-          <div className="text-xs text-white/30">Retro Notes</div>
+          <div className="flex items-center gap-2">
+            <div className="text-xs text-white/30">Retro Notes</div>
+            {!s.retro_notes && (
+              <button onClick={() => {
+                const template = "## What went well\n- \n\n## What to improve\n- \n\n## Action items\n- [ ] ";
+                apiCall("PUT", `/api/sprints/${id}`, { retro_notes: template }).then(() => load());
+              }} className="text-[10px] text-[var(--color-accent)] hover:underline">Use template</button>
+            )}
+          </div>
           <textarea
             key={s.retro_notes || ""}
             defaultValue={s.retro_notes || ""}

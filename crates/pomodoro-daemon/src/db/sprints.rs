@@ -105,13 +105,21 @@ pub async fn get_global_burndown(pool: &Pool) -> Result<Vec<SprintDailyStat>> {
 pub async fn snapshot_sprint(pool: &Pool, sprint_id: i64) -> Result<SprintDailyStat> {
     let tasks = get_sprint_tasks(pool, sprint_id).await?;
     let date = Utc::now().naive_utc().format("%Y-%m-%d").to_string();
-    // total_points = sum of estimated story points (fixed scope), done_points = completed tasks' estimated points
     let total_points: f64 = tasks.iter().map(|t| t.estimated as f64).sum();
     let done_points: f64 = tasks.iter().filter(|t| t.status == "completed" || t.status == "done").map(|t| t.estimated as f64).sum();
     let total_hours: f64 = tasks.iter().map(|t| t.estimated_hours).sum();
     let done_hours: f64 = tasks.iter().filter(|t| t.status == "completed" || t.status == "done").map(|t| t.estimated_hours).sum();
     let total_tasks = tasks.len() as i64;
     let done_tasks = tasks.iter().filter(|t| t.status == "completed" || t.status == "done").count() as i64;
+    // Skip if today's snapshot already matches (avoid unnecessary writes)
+    if let Ok(existing) = sqlx::query_as::<_, SprintDailyStat>("SELECT * FROM sprint_daily_stats WHERE sprint_id = ? AND date = ?")
+        .bind(sprint_id).bind(&date).fetch_one(pool).await {
+        if existing.total_tasks == total_tasks && existing.done_tasks == done_tasks
+            && (existing.total_points - total_points).abs() < 0.01
+            && (existing.done_points - done_points).abs() < 0.01 {
+            return Ok(existing);
+        }
+    }
     // Upsert: keep latest snapshot per day
     sqlx::query("INSERT INTO sprint_daily_stats (sprint_id, date, total_points, done_points, total_hours, done_hours, total_tasks, done_tasks) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(sprint_id, date) DO UPDATE SET total_points=excluded.total_points, done_points=excluded.done_points, total_hours=excluded.total_hours, done_hours=excluded.done_hours, total_tasks=excluded.total_tasks, done_tasks=excluded.done_tasks")
         .bind(sprint_id).bind(&date).bind(total_points).bind(done_points).bind(total_hours).bind(done_hours).bind(total_tasks).bind(done_tasks)

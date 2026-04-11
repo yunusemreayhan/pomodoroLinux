@@ -103,3 +103,27 @@ pub async fn export_burns(State(engine): State<AppState>, _claims: Claims, Path(
         .header("content-disposition", &format!("attachment; filename=\"burns_sprint_{}.csv\"", sprint_id))
         .body(axum::body::Body::from(csv)).map_err(|e| internal(e.to_string()))?)
 }
+
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct ImportCsvRequest { pub csv: String }
+
+#[utoipa::path(post, path = "/api/import/tasks", request_body = ImportCsvRequest, responses((status = 200)), security(("bearer" = [])))]
+pub async fn import_tasks_csv(State(engine): State<AppState>, claims: Claims, Json(req): Json<ImportCsvRequest>) -> ApiResult<serde_json::Value> {
+    let mut created = 0i64;
+    let mut errors = Vec::new();
+    for (i, line) in req.csv.lines().enumerate() {
+        if i == 0 { continue; } // skip header
+        let cols: Vec<&str> = line.split(',').collect();
+        if cols.is_empty() || cols[0].trim().is_empty() { continue; }
+        let title = cols[0].trim().trim_matches('"').to_string();
+        let priority = cols.get(1).and_then(|s| s.trim().parse::<i64>().ok()).unwrap_or(3);
+        let estimated = cols.get(2).and_then(|s| s.trim().parse::<i64>().ok()).unwrap_or(0);
+        let project = cols.get(3).map(|s| s.trim().trim_matches('"').to_string()).filter(|s| !s.is_empty());
+        match db::create_task(&engine.pool, claims.user_id, None, &title, None, project.as_deref(), None, priority, estimated, 0.0, 0.0, None).await {
+            Ok(_) => created += 1,
+            Err(e) => errors.push(format!("Line {}: {}", i + 1, e)),
+        }
+    }
+    engine.notify(ChangeEvent::Tasks);
+    Ok(Json(serde_json::json!({ "created": created, "errors": errors })))
+}
