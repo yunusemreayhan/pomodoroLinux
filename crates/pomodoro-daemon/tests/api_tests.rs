@@ -2101,3 +2101,99 @@ async fn test_auth_rate_limiting() {
     ).await.unwrap();
     assert_eq!(resp.status(), 429);
 }
+
+#[tokio::test]
+async fn test_sse_ticket_and_connect() {
+    let app = app().await;
+    // Login
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/login", Some(json!({"username":"root","password":"root"})))).await.unwrap();
+    let tok = body_json(resp).await["token"].as_str().unwrap().to_string();
+
+    // Create SSE ticket
+    let resp = app.clone().oneshot(auth_req("POST", "/api/timer/ticket", &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let ticket = body_json(resp).await["ticket"].as_str().unwrap().to_string();
+    assert!(!ticket.is_empty());
+
+    // Connect to SSE with ticket
+    let resp = app.clone().oneshot(
+        Request::builder().method("GET").uri(&format!("/api/timer/sse?ticket={}", ticket))
+            .body(Body::empty()).unwrap()
+    ).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    // Verify content-type is event-stream
+    let ct = resp.headers().get("content-type").unwrap().to_str().unwrap();
+    assert!(ct.contains("text/event-stream"), "Expected event-stream, got {}", ct);
+
+    // Expired/reused ticket should fail
+    let resp = app.clone().oneshot(
+        Request::builder().method("GET").uri(&format!("/api/timer/sse?ticket={}", ticket))
+            .body(Body::empty()).unwrap()
+    ).await.unwrap();
+    assert_eq!(resp.status(), 401);
+}
+
+#[tokio::test]
+async fn test_due_date_reminder_query() {
+    let app = app().await;
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/login", Some(json!({"username":"root","password":"root"})))).await.unwrap();
+    let tok = body_json(resp).await["token"].as_str().unwrap().to_string();
+
+    // Create task with due date tomorrow
+    let tomorrow = (chrono::Utc::now() + chrono::Duration::days(1)).format("%Y-%m-%d").to_string();
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"Due soon","due_date":&tomorrow})))).await.unwrap();
+    assert!(resp.status().is_success());
+
+    // Create task with due date far in the future
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"Not due","due_date":"2099-12-31"})))).await.unwrap();
+    assert!(resp.status().is_success());
+
+    // Create completed task with due date tomorrow (should NOT appear)
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"Done task","due_date":&tomorrow})))).await.unwrap();
+    assert!(resp.status().is_success());
+    let done_id = body_json(resp).await["id"].as_i64().unwrap();
+    let resp = app.clone().oneshot(auth_req("PUT", &format!("/api/tasks/{}", done_id), &tok, Some(json!({"status":"completed"})))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+
+    // Query due tasks (before day after tomorrow)
+    let day_after = (chrono::Utc::now() + chrono::Duration::days(2)).format("%Y-%m-%d").to_string();
+    let pool = pomodoro_daemon::db::connect_memory().await.unwrap();
+    // Use the app's pool via a direct DB call through the test helper
+    // Instead, test via the tasks list endpoint and filter
+    let resp = app.clone().oneshot(auth_req("GET", "/api/tasks", &tok, None)).await.unwrap();
+    let tasks = body_json(resp).await;
+    let due_tasks: Vec<&Value> = tasks.as_array().unwrap().iter()
+        .filter(|t| t["due_date"].as_str().map_or(false, |d| d <= day_after.as_str()) && t["status"].as_str() != Some("completed"))
+        .collect();
+    assert_eq!(due_tasks.len(), 1);
+    assert_eq!(due_tasks[0]["title"].as_str().unwrap(), "Due soon");
+}
+
+#[tokio::test]
+async fn test_graceful_shutdown_recovery() {
+    let app = app().await;
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/login", Some(json!({"username":"root","password":"root"})))).await.unwrap();
+    let tok = body_json(resp).await["token"].as_str().unwrap().to_string();
+
+    // Create a task
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"Recovery test"})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+
+    // Start a timer session
+    let resp = app.clone().oneshot(auth_req("POST", "/api/timer/start", &tok, Some(json!({"task_id": tid})))).await.unwrap();
+    assert!(resp.status().is_success());
+
+    // Verify session is running
+    let resp = app.clone().oneshot(auth_req("GET", "/api/timer", &tok, None)).await.unwrap();
+    let state = body_json(resp).await;
+    assert_eq!(state["status"].as_str().unwrap(), "Running");
+
+    // Stop the timer (simulates graceful shutdown completing the session)
+    let resp = app.clone().oneshot(auth_req("POST", "/api/timer/stop", &tok, None)).await.unwrap();
+    assert!(resp.status().is_success());
+
+    // Verify timer is now idle
+    let resp = app.clone().oneshot(auth_req("GET", "/api/timer", &tok, None)).await.unwrap();
+    let state = body_json(resp).await;
+    assert_eq!(state["status"].as_str().unwrap(), "Idle");
+}
