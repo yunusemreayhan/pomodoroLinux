@@ -55,6 +55,12 @@ enum Cmd {
     Deps { task_id: i64 },
     /// Export tasks as CSV
     Export,
+    /// List estimation rooms
+    Rooms,
+    /// Join a room
+    JoinRoom { room_id: i64 },
+    /// Vote in a room
+    Vote { room_id: i64, value: f64 },
 }
 
 async fn api(client: &reqwest::Client, base: &str, token: Option<&str>, method: &str, path: &str, body: Option<Value>) -> Result<Value> {
@@ -150,6 +156,20 @@ async fn main() -> Result<()> {
         Cmd::Export => {
             let csv = api(&client, base, token, "GET", "/api/export/tasks?format=csv", None).await?;
             print!("{}", csv.as_str().unwrap_or(&csv.to_string()));
+        }
+        Cmd::Rooms => {
+            let rooms = api(&client, base, token, "GET", "/api/rooms", None).await?;
+            if let Some(arr) = rooms.as_array() {
+                for r in arr { println!("#{} [{}] {} ({})", r["id"], r["status"].as_str().unwrap_or("?"), r["name"].as_str().unwrap_or("?"), r["estimation_unit"].as_str().unwrap_or("?")); }
+            }
+        }
+        Cmd::JoinRoom { room_id } => {
+            api(&client, base, token, "POST", &format!("/api/rooms/{}/join", room_id), None).await?;
+            println!("Joined room {}", room_id);
+        }
+        Cmd::Vote { room_id, value } => {
+            api(&client, base, token, "POST", &format!("/api/rooms/{}/vote", room_id), Some(json!({"value": value}))).await?;
+            println!("Voted {} in room {}", value, room_id);
         }
     }
     Ok(())
