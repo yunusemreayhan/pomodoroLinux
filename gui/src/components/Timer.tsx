@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, Square, SkipForward, Coffee, MessageSquare } from "lucide-react";
 import { useStore } from "../store/store";
@@ -31,7 +31,7 @@ const R = (SIZE - STROKE) / 2;
 const CIRC = 2 * Math.PI * R;
 
 export default function Timer() {
-  const { engine, tasks, start, pause, resume, stop, skip, startBreak, config } = useStore();
+  const { engine, tasks, start, pause, resume, stop, skip, startBreak, config, toast } = useStore();
   const t = useT();
   const [selectedTaskId, setSelectedTaskId] = useState<number | undefined>(undefined);
   const [showComment, setShowComment] = useState(false);
@@ -48,6 +48,15 @@ export default function Timer() {
 
   const isRunning = status === "Running";
   const isPaused = status === "Paused";
+
+  // F9: Flash + sound on phase completion
+  const prevPhaseRef = useRef(phase);
+  useEffect(() => {
+    if (prevPhaseRef.current === "Work" && (phase === "ShortBreak" || phase === "LongBreak")) {
+      toast("🍅 Session complete!", "success");
+    }
+    prevPhaseRef.current = phase;
+  }, [phase]);
   const isIdle = status === "Idle";
   const isActive = isRunning || isPaused;
 

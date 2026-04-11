@@ -43,7 +43,16 @@ export default function TaskContextMenu(p: CtxMenuProps) {
       <div className="fixed inset-0 z-40" onClick={close} onKeyDown={e => e.key === "Escape" && close()} />
       <div role="menu" aria-label="Task actions" className="fixed z-50 bg-[var(--color-surface)] border border-white/10 rounded-lg shadow-xl py-1 min-w-52 text-xs max-h-[80vh] overflow-y-auto"
         style={{ left: Math.min(pos.x, window.innerWidth - 260), top: Math.min(pos.y, window.innerHeight - 400) }}
-        onKeyDown={e => { if (e.key === "Escape") close(); }}>
+        onKeyDown={e => {
+          if (e.key === "Escape") close();
+          if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            const items = (e.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled)');
+            const idx = Array.from(items).indexOf(e.target as HTMLElement);
+            const next = e.key === "ArrowDown" ? (idx + 1) % items.length : (idx - 1 + items.length) % items.length;
+            items[next]?.focus();
+          }
+        }}>
 
         <div className="px-3 py-1 text-white/20 text-[10px] uppercase tracking-wider" role="presentation">Status</div>
         {([["backlog","Todo","○"],["active","WIP","▶"],["completed","Done","✓"],["archived","Archive","📦"]] as const).map(([s,label,icon]) => (
