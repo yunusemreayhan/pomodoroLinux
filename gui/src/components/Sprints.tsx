@@ -158,6 +158,7 @@ export default function Sprints() {
 function SprintView({ id, onBack }: { id: number; onBack: () => void }) {
   const [detail, setDetail] = useState<SprintDetail | null>(null);
   const [board, setBoard] = useState<SprintBoard | null>(null);
+  const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"board" | "backlog" | "burns" | "burndown" | "summary">("board");
   const [rootIds, setRootIds] = useState<number[]>([]);
   const allTasks = useStore(s => s.tasks);
@@ -169,6 +170,7 @@ function SprintView({ id, onBack }: { id: number; onBack: () => void }) {
     if (b) setBoard(b);
     const r = await apiCall<number[]>("GET", `/api/sprints/${id}/roots`);
     if (r) setRootIds(r);
+    setLoading(false);
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
@@ -178,7 +180,13 @@ function SprintView({ id, onBack }: { id: number; onBack: () => void }) {
   const complete = () => useStore.getState().showConfirm("Complete this sprint?", async () => { await apiCall("POST", `/api/sprints/${id}/complete`); load(); });
   const snapshot = async () => { await apiCall("POST", `/api/sprints/${id}/snapshot`); load(); };
 
-  if (!detail) return <div className="p-4 text-white/30">Loading...</div>;
+  if (loading || !detail) return (
+    <div className="p-4 space-y-3 animate-pulse">
+      <div className="h-6 bg-white/5 rounded w-48" />
+      <div className="h-4 bg-white/5 rounded w-32" />
+      <div className="h-32 bg-white/5 rounded" />
+    </div>
+  );
   const s = detail.sprint;
   const taskIds = new Set(detail.tasks.map(t => t.id));
 
