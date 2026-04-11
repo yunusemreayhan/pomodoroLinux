@@ -1,11 +1,12 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, MessageSquare, Download, Clock, Plus, Trash2, Users, Edit3, Save, Paperclip } from "lucide-react";
+import { ArrowLeft, MessageSquare, Download, Clock, Plus, Trash2, Users, Edit3, Save } from "lucide-react";
 import { useStore } from "../store/store";
 import { useState, useEffect, useCallback } from "react";
 import type { TaskDetail, Comment, TimeReport } from "../store/api";
 import { TaskLabelPicker } from "./Labels";
 import { TaskDependencies } from "./Dependencies";
 import { TaskRecurrence } from "./Recurrence";
+import { TaskActivityFeed, TaskAttachments } from "./TaskDetailParts";
 import Select from "./Select";
 import { apiCall } from "../store/api";
 import { computeRollup } from "../rollup";
@@ -568,119 +569,4 @@ export default function TaskDetailView({ taskId, onBack, onNavigate }: { taskId:
   );
 }
 
-interface AuditEntry { id: number; user_id: number; username: string; action: string; entity_type: string; entity_id: number | null; detail: string | null; created_at: string }
-
-function TaskActivityFeed({ taskId }: { taskId: number }) {
-  const [entries, setEntries] = useState<AuditEntry[]>([]);
-  const [show, setShow] = useState(false);
-
-  useEffect(() => {
-    if (show) apiCall<AuditEntry[]>("GET", `/api/audit?entity_type=task&entity_id=${taskId}&per_page=50`).then(e => setEntries(e || [])).catch(() => {});
-  }, [show, taskId]);
-
-  const icon = (a: string) => a === "create" ? "🆕" : a === "update" ? "✏️" : a === "delete" ? "🗑" : "📋";
-
-  return (
-    <div className="mt-2">
-      <button onClick={() => setShow(!show)} className="text-xs text-white/30 hover:text-white/50 flex items-center gap-1">
-        📋 {show ? "Hide" : "Show"} activity
-      </button>
-      {show && (
-        <div className="mt-1 space-y-1 max-h-48 overflow-y-auto">
-          {entries.map(e => (
-            <div key={e.id} className="flex items-center gap-2 text-[11px] text-white/40 py-0.5">
-              <span>{icon(e.action)}</span>
-              <span className="text-white/60">{e.username}</span>
-              <span>{e.action}</span>
-              {e.detail && <span className="truncate text-white/25 max-w-40" title={e.detail}>{e.detail}</span>}
-              <span className="ml-auto text-white/20 shrink-0">{e.created_at.slice(5, 16)}</span>
-            </div>
-          ))}
-          {entries.length === 0 && <div className="text-xs text-white/20 py-2">No activity recorded</div>}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export { ExportButton };
-
-interface Attachment {
-  id: number;
-  task_id: number;
-  filename: string;
-  mime_type: string;
-  size_bytes: number;
-  created_at: string;
-}
-
-function TaskAttachments({ taskId }: { taskId: number }) {
-  const [atts, setAtts] = useState<Attachment[]>([]);
-  const [uploading, setUploading] = useState(false);
-
-  const load = () => apiCall<Attachment[]>("GET", `/api/tasks/${taskId}/attachments`).then(setAtts).catch(() => {});
-  useEffect(load, [taskId]);
-
-  const upload = async (file: File) => {
-    setUploading(true);
-    try {
-      const { serverUrl, token } = useStore.getState();
-      const buf = await file.arrayBuffer();
-      const resp = await fetch(`${serverUrl}/api/tasks/${taskId}/attachments`, {
-        method: "POST",
-        headers: {
-          "content-type": file.type || "application/octet-stream",
-          "x-filename": file.name,
-          "x-requested-with": "PomodoroGUI",
-          "authorization": `Bearer ${token}`,
-        },
-        body: buf,
-      });
-      if (resp.ok) load();
-    } catch {}
-    setUploading(false);
-  };
-
-  const del = async (id: number) => {
-    await apiCall("DELETE", `/api/attachments/${id}`);
-    setAtts(a => a.filter(x => x.id !== id));
-  };
-
-  const download = async (id: number, filename: string) => {
-    const { serverUrl, token } = useStore.getState();
-    const resp = await fetch(`${serverUrl}/api/attachments/${id}/download`, {
-      headers: { "authorization": `Bearer ${token}` },
-    });
-    if (resp.ok) {
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = filename; a.click();
-      URL.revokeObjectURL(url);
-    }
-  };
-
-  const fmt = (bytes: number) => bytes < 1024 ? `${bytes}B` : bytes < 1048576 ? `${(bytes / 1024).toFixed(1)}KB` : `${(bytes / 1048576).toFixed(1)}MB`;
-
-  return (
-    <div className="mb-3">
-      <div className="flex items-center gap-2 mb-1">
-        <Paperclip size={12} className="text-white/30" />
-        <span className="text-xs text-[var(--color-dim)]">Attachments ({atts.length})</span>
-        <label className="text-xs text-[var(--color-accent)] cursor-pointer hover:underline">
-          {uploading ? "Uploading..." : "+ Add"}
-          <input type="file" className="hidden" onChange={e => { if (e.target.files?.[0]) upload(e.target.files[0]); e.target.value = ""; }} />
-        </label>
-      </div>
-      {atts.map(a => (
-        <div key={a.id} className="flex items-center gap-2 text-xs text-white/60 py-0.5 group">
-          <span className="truncate flex-1">{a.filename}</span>
-          <span className="text-white/20">{fmt(a.size_bytes)}</span>
-          <button onClick={() => download(a.id, a.filename)}
-            className="text-[var(--color-accent)] hover:underline">↓</button>
-          <button onClick={() => del(a.id)} className="text-white/20 hover:text-[var(--color-danger)] opacity-0 group-hover:opacity-100">✕</button>
-        </div>
-      ))}
-    </div>
-  );
-}

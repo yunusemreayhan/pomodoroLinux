@@ -116,7 +116,25 @@ async fn write_file(path: String, content: String) -> Result<(), String> {
 
 fn auth_key() -> Vec<u8> {
     use sha2::{Sha256, Digest};
+    // Load or create a random salt (generated once per installation)
+    let dir = auth_dir();
+    let salt_path = dir.join(".auth_salt");
+    let salt = if let Ok(s) = std::fs::read(&salt_path) {
+        if s.len() == 32 { s } else {
+            let s = generate_salt();
+            let _ = std::fs::create_dir_all(&dir);
+            let _ = std::fs::write(&salt_path, &s);
+            s
+        }
+    } else {
+        let s = generate_salt();
+        let _ = std::fs::create_dir_all(&dir);
+        let _ = std::fs::write(&salt_path, &s);
+        s
+    };
     let mut h = Sha256::new();
+    h.update(&salt);
+    h.update(b":");
     h.update(whoami::hostname().as_bytes());
     h.update(b":");
     h.update(whoami::username().as_bytes());
@@ -124,8 +142,35 @@ fn auth_key() -> Vec<u8> {
     h.finalize().to_vec()
 }
 
-fn xor_bytes(data: &[u8], key: &[u8]) -> Vec<u8> {
-    data.iter().enumerate().map(|(i, b)| b ^ key[i % key.len()]).collect()
+fn generate_salt() -> Vec<u8> {
+    use std::io::Read;
+    let mut buf = vec![0u8; 32];
+    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
+        let _ = f.read_exact(&mut buf);
+    }
+    buf
+}
+
+fn encrypt_auth(data: &[u8], key: &[u8]) -> Result<Vec<u8>, String> {
+    use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|e| e.to_string())?;
+    // Generate random 12-byte nonce
+    let mut nonce_bytes = [0u8; 12];
+    std::io::Read::read_exact(&mut std::fs::File::open("/dev/urandom").map_err(|e| e.to_string())?, &mut nonce_bytes).map_err(|e| e.to_string())?;
+    let nonce = Nonce::from_slice(&nonce_bytes);
+    let ciphertext = cipher.encrypt(nonce, data).map_err(|e| e.to_string())?;
+    // Prepend nonce to ciphertext
+    let mut out = nonce_bytes.to_vec();
+    out.extend(ciphertext);
+    Ok(out)
+}
+
+fn decrypt_auth(data: &[u8], key: &[u8]) -> Result<Vec<u8>, String> {
+    use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
+    if data.len() < 12 { return Err("Data too short".into()); }
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|e| e.to_string())?;
+    let nonce = Nonce::from_slice(&data[..12]);
+    cipher.decrypt(nonce, &data[12..]).map_err(|e| e.to_string())
 }
 
 fn auth_dir() -> std::path::PathBuf {
@@ -136,14 +181,14 @@ fn auth_dir() -> std::path::PathBuf {
 async fn save_auth(_state: tauri::State<'_, Arc<AppState>>, data: String) -> Result<(), String> {
     let dir = auth_dir();
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let encrypted = xor_bytes(data.as_bytes(), &auth_key());
+    let encrypted = encrypt_auth(data.as_bytes(), &auth_key())?;
     std::fs::write(dir.join(".auth"), encrypted).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn load_auth(_state: tauri::State<'_, Arc<AppState>>) -> Result<String, String> {
     let raw = std::fs::read(auth_dir().join(".auth")).map_err(|e| e.to_string())?;
-    let decrypted = xor_bytes(&raw, &auth_key());
+    let decrypted = decrypt_auth(&raw, &auth_key())?;
     String::from_utf8(decrypted).map_err(|_| "Failed to decrypt auth data".to_string())
 }
 
