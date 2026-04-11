@@ -18,7 +18,7 @@ function HeatmapCell({ count, max, date }: { count: number; max: number; date: s
       role="gridcell"
       aria-label={`${date}: ${count} sessions`}
       title={`${date}: ${count} sessions`}
-      className="w-3 h-3 rounded-sm cursor-pointer transition-transform hover:scale-150"
+      className="w-4 h-4 rounded-sm cursor-pointer transition-transform hover:scale-125"
       style={{ background: bg }}
     />
   );
@@ -28,6 +28,7 @@ export default function History() {
   const t = useT();
   const { stats, loadStats, history, loadHistory } = useStore();
   const [userFilter, setUserFilter] = useState<string>("all");
+  const [showCount, setShowCount] = useState(20);
 
   useEffect(() => {
     loadStats();
@@ -184,8 +185,8 @@ export default function History() {
             URL.revokeObjectURL(url);
           }} className="text-xs text-[var(--color-accent)] hover:underline">{t.exportCsv}</button>
         </div>
-        <div className="space-y-3 max-h-48 overflow-y-auto">
-          {filteredHistory.slice(0, 20).map((s) => (
+        <div className="space-y-3 max-h-64 overflow-y-auto">
+          {filteredHistory.slice(0, showCount).map((s) => (
             <div key={s.id} className="flex items-center gap-3 text-xs text-white/60 py-1">
               <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
                 s.status === "completed" ? "bg-[var(--color-success)]" :
@@ -205,6 +206,11 @@ export default function History() {
           ))}
           {filteredHistory.length === 0 && (
             <div className="text-center text-white/20 py-6">No sessions yet</div>
+          )}
+          {filteredHistory.length > showCount && (
+            <button onClick={() => setShowCount(c => c + 20)} className="w-full text-center text-xs text-[var(--color-accent)] hover:underline py-2">
+              Show more ({filteredHistory.length - showCount} remaining)
+            </button>
           )}
         </div>
       </div>
