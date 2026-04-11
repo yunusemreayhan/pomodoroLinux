@@ -14,6 +14,8 @@ pub async fn create_sprint(State(engine): State<AppState>, claims: Claims, Json(
     if let Some(ref d) = req.end_date { if d.len() != 10 { return Err(err(StatusCode::BAD_REQUEST, "end_date must be YYYY-MM-DD")); } }
     let s = db::create_sprint(&engine.pool, claims.user_id, &req.name, req.project.as_deref(), req.goal.as_deref(), req.start_date.as_deref(), req.end_date.as_deref())
         .await.map_err(internal)?;
+    db::audit(&engine.pool, claims.user_id, "create", "sprint", Some(s.id), Some(&s.name)).await.ok();
+    crate::webhook::dispatch(engine.pool.clone(), "sprint.created", serde_json::json!({"id": s.id, "name": &s.name}));
     engine.notify(ChangeEvent::Sprints);
     Ok((StatusCode::CREATED, Json(s)))
 }
@@ -60,6 +62,8 @@ pub async fn start_sprint(State(engine): State<AppState>, claims: Claims, Path(i
     if !is_owner_or_root(sprint.created_by_id, &claims) { return Err(err(StatusCode::FORBIDDEN, "Not owner")); }
     if sprint.status != "planning" { return Err(err(StatusCode::BAD_REQUEST, format!("Cannot start sprint in '{}' status", sprint.status))); }
     let s = db::update_sprint(&engine.pool, id, None, None, None, Some("active"), None, None, None).await.map_err(internal)?;
+    db::audit(&engine.pool, claims.user_id, "start", "sprint", Some(id), None).await.ok();
+    crate::webhook::dispatch(engine.pool.clone(), "sprint.started", serde_json::json!({"id": id}));
     if let Err(e) = db::snapshot_sprint(&engine.pool, id).await { tracing::warn!("Snapshot failed: {}", e); }
     engine.notify(ChangeEvent::Sprints);
     Ok(Json(s))
@@ -72,6 +76,8 @@ pub async fn complete_sprint(State(engine): State<AppState>, claims: Claims, Pat
     if sprint.status != "active" { return Err(err(StatusCode::BAD_REQUEST, format!("Cannot complete sprint in '{}' status", sprint.status))); }
     if let Err(e) = db::snapshot_sprint(&engine.pool, id).await { tracing::warn!("Snapshot failed: {}", e); }
     let s = db::update_sprint(&engine.pool, id, None, None, None, Some("completed"), None, None, None).await.map_err(internal)?;
+    db::audit(&engine.pool, claims.user_id, "complete", "sprint", Some(id), None).await.ok();
+    crate::webhook::dispatch(engine.pool.clone(), "sprint.completed", serde_json::json!({"id": id}));
     engine.notify(ChangeEvent::Sprints);
     Ok(Json(s))
 }
