@@ -541,6 +541,12 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
     return buildTree(t);
   }, [tasks, filterIds, excludeIds, search, rootOnly, leafOnly, teamScope]);
   const filtered = filter === "all" ? tree.filter(n => n.task.status !== "archived") : tree.filter((n) => n.task.status !== "completed" && n.task.status !== "archived");
+  const [sortBy, setSortBy] = useState<"order" | "priority" | "due" | "updated">("order");
+  const sorted = sortBy === "order" ? filtered : [...filtered].sort((a, b) => {
+    if (sortBy === "priority") return a.task.priority - b.task.priority;
+    if (sortBy === "due") return (a.task.due_date || "9999") < (b.task.due_date || "9999") ? -1 : 1;
+    return b.task.updated_at < a.task.updated_at ? -1 : 1;
+  });
 
   const handleAddRoot = () => {
     if (!newTitle.trim()) return;
@@ -596,15 +602,22 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
             className={`w-full bg-white/5 border border-white/10 text-xs text-white placeholder-white/30 outline-none focus:border-[var(--color-accent)] ${selectMode ? "rounded px-2 py-1" : "rounded-full px-4 py-2 pr-16"}`} />
           {search && (
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-              <span className="text-[10px] text-white/30">{filtered.length} results</span>
+              <span className="text-[10px] text-white/30">{sorted.length} results</span>
               <button onClick={() => setSearch("")} className="text-white/30 hover:text-white/60 text-xs" aria-label="Clear search">✕</button>
             </div>
           )}
         </div>
         <button onClick={() => setFilter(filter === "all" ? "active" : "all")}
           className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-all ${filter === "active" ? "bg-[var(--color-accent)] text-white" : "bg-white/5 text-white/40 hover:text-white/60"}`}>
-          {filter === "active" ? "Active" : "All"} ({filtered.length})
+          {filter === "active" ? "Active" : "All"} ({sorted.length})
         </button>
+        <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} aria-label="Sort tasks"
+          className="text-[10px] bg-transparent border border-white/10 rounded px-1 py-0.5 text-white/40">
+          <option value="order">Manual</option>
+          <option value="priority">Priority</option>
+          <option value="due">Due date</option>
+          <option value="updated">Updated</option>
+        </select>
         <button onClick={() => setTreeKey(k => k + 1)} title="Expand all"
           className="shrink-0 px-2 py-1 rounded-full text-xs bg-white/5 text-white/40 hover:text-white/60">⊞</button>
       </div>
@@ -655,7 +668,7 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
           if (dragId) { await useStore.getState().updateTask(dragId, { parent_id: null, sort_order: Date.now() }); }
         }}>
         <AnimatePresence>
-          {filtered.map((node) => (
+          {sorted.map((node) => (
             <div key={node.task.id} className="flex items-start gap-1">
               {!selectMode && (
                 <input type="checkbox" checked={bulkSelected.has(node.task.id)}
@@ -678,7 +691,7 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
           ))}
         </AnimatePresence>
 
-        {filtered.length === 0 && (
+        {sorted.length === 0 && (
           <div className="text-center text-white/20 text-sm py-16">
             {searchQuery ? "No matching tasks" : "No projects yet. Create one above!"}
           </div>
