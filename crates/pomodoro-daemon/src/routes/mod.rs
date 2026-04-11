@@ -19,6 +19,8 @@ pub(crate) fn check_auth_rate_limit(headers: &axum::http::HeaderMap) -> Result<(
         .or_else(|| headers.get("x-real-ip"))
         .and_then(|v| v.to_str().ok())
         .map(|s| s.split(',').next().unwrap_or(s).trim().to_string())
+        // Normalize IPv4-mapped IPv6 (::ffff:127.0.0.1 → 127.0.0.1)
+        .map(|s| s.strip_prefix("::ffff:").unwrap_or(&s).to_string())
         .unwrap_or_else(|| "unknown".to_string());
     let limiter = auth_limiter();
     let now = std::time::Instant::now();

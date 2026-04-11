@@ -22,12 +22,11 @@ pub fn dispatch(pool: Pool, event: &str, payload: serde_json::Value) {
                 .header("x-pomodoro-event", &event)
                 .body(body_str.clone());
             if let Some(ref secret) = hook.secret {
-                use sha2::{Sha256, Digest};
-                // HMAC-like: SHA256(secret + body)
-                let mut hasher = Sha256::new();
-                hasher.update(secret.as_bytes());
-                hasher.update(body_str.as_bytes());
-                let sig = hasher.finalize().iter().map(|b| format!("{:02x}", b)).collect::<String>();
+                use hmac::{Hmac, Mac, KeyInit};
+                use sha2::Sha256;
+                let mut mac = <Hmac<Sha256>>::new_from_slice(secret.as_bytes()).unwrap();
+                mac.update(body_str.as_bytes());
+                let sig = mac.finalize().into_bytes().iter().map(|b| format!("{:02x}", b)).collect::<String>();
                 req = req.header("x-pomodoro-signature", format!("sha256={}", sig));
             }
             let mut attempts = 0;

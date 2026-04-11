@@ -38,8 +38,16 @@ pub async fn upload_attachment(
         .and_then(|v| v.to_str().ok())
         .unwrap_or("application/octet-stream");
 
-    // Generate unique storage key
-    let key = format!("{}_{}", chrono::Utc::now().timestamp_millis(), &safe_name);
+    // Generate unique storage key with random component
+    let random_hex = {
+        let mut buf = [0u8; 8];
+        if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
+            use std::io::Read;
+            let _ = f.read_exact(&mut buf);
+        }
+        buf.iter().map(|b| format!("{:02x}", b)).collect::<String>()
+    };
+    let key = format!("{}_{}", random_hex, &safe_name);
     let path = db::attachments_dir().join(&key);
 
     tokio::fs::write(&path, &body).await.map_err(|e| internal(format!("Failed to write file: {}", e)))?;
@@ -59,6 +67,8 @@ pub async fn download_attachment(State(engine): State<AppState>, _claims: Claims
         .status(StatusCode::OK)
         .header("content-type", &att.mime_type)
         .header("content-disposition", format!("attachment; filename=\"{}\"", att.filename.replace('"', "_")))
+        .header("content-security-policy", "default-src 'none'")
+        .header("x-content-type-options", "nosniff")
         .body(axum::body::Body::from(data))
         .map_err(|e| internal(e.to_string()))?)
 }

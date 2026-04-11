@@ -15,14 +15,22 @@ use axum::http::{HeaderValue, Method, header};
 pub fn build_router(engine: Arc<engine::Engine>) -> Router {
     use axum::routing::{delete, get, post, put};
 
+    // CORS: env var POMODORO_CORS_ORIGINS overrides config, defaults to localhost
+    let origins_str = std::env::var("POMODORO_CORS_ORIGINS").ok();
+    let extra: Vec<HeaderValue> = origins_str.as_deref()
+        .map(|s| s.split(',').filter_map(|o| o.trim().parse().ok()).collect())
+        .unwrap_or_default();
+    let mut all_origins: Vec<HeaderValue> = vec![
+        "http://localhost:1420".parse().unwrap(),
+        "http://127.0.0.1:1420".parse().unwrap(),
+        "http://localhost:9090".parse().unwrap(),
+        "http://127.0.0.1:9090".parse().unwrap(),
+        "tauri://localhost".parse().unwrap(),
+    ];
+    all_origins.extend(extra);
+
     let cors = CorsLayer::new()
-        .allow_origin(AllowOrigin::list([
-            "http://localhost:1420".parse::<HeaderValue>().unwrap(),
-            "http://127.0.0.1:1420".parse::<HeaderValue>().unwrap(),
-            "http://localhost:9090".parse::<HeaderValue>().unwrap(),
-            "http://127.0.0.1:9090".parse::<HeaderValue>().unwrap(),
-            "tauri://localhost".parse::<HeaderValue>().unwrap(),
-        ]))
+        .allow_origin(AllowOrigin::list(all_origins))
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
         .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, header::IF_NONE_MATCH,
             axum::http::HeaderName::from_static("x-requested-with")])

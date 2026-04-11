@@ -23,6 +23,8 @@ pub struct Config {
     pub leaf_only_mode: bool,
     #[serde(default = "default_theme")]
     pub theme: String,
+    #[serde(default)]
+    pub cors_origins: Vec<String>,
 }
 
 fn default_bind_address() -> String { "127.0.0.1".to_string() }
@@ -47,6 +49,7 @@ impl Default for Config {
             estimation_mode: "hours".to_string(),
             leaf_only_mode: false,
             theme: "dark".to_string(),
+            cors_origins: vec![],
         }
     }
 }

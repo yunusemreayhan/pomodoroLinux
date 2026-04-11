@@ -3,6 +3,9 @@ import { apiCall, setToken } from "./api";
 import { invoke } from "@tauri-apps/api/core";
 import type { EngineState, Task, DayStat, Session, Config, Comment, TaskDetail, AuthResponse, TaskSprintInfo, BurnTotalEntry, TaskAssignee } from "./api";
 
+// Module-level timestamp for task staleness check
+export let _tasksLoadedAt = 0;
+
 export interface SavedServer {
   url: string;
   username: string;
@@ -272,7 +275,7 @@ export const useStore = create<Store>((set, get) => ({
       const prev = get().tasks;
       const tasksChanged = prev.length !== resp.tasks.length || resp.tasks.some((t, i) => t.id !== prev[i]?.id || t.updated_at !== prev[i]?.updated_at);
       set({ tasks: tasksChanged ? resp.tasks : prev, taskSprints: ts, taskSprintsMap, burnTotals, allAssignees });
-      (window as unknown as Record<string, number>).__tasksLoadedAt = Date.now();
+      _tasksLoadedAt = Date.now();
     } catch { /* ignore */ }
     set(s => ({ loading: { ...s.loading, tasks: false } }));
   },

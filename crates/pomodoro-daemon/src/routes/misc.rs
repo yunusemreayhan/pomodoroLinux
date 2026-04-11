@@ -93,22 +93,10 @@ pub async fn create_sse_ticket(claims: Claims) -> ApiResult<serde_json::Value> {
     // Use /dev/urandom for cryptographic randomness
     let ticket = {
         let mut buf = [0u8; 24];
-        if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
-            use std::io::Read;
-            let _ = f.read_exact(&mut buf);
-        } else {
-            // Fallback: hash multiple entropy sources
-            use std::collections::hash_map::DefaultHasher;
-            use std::hash::{Hash, Hasher};
-            let mut h = DefaultHasher::new();
-            claims.user_id.hash(&mut h);
-            std::time::SystemTime::now().hash(&mut h);
-            std::thread::current().id().hash(&mut h);
-            let v = h.finish();
-            buf[..8].copy_from_slice(&v.to_le_bytes());
-            buf[8..16].copy_from_slice(&v.wrapping_mul(6364136223846793005).to_le_bytes());
-            buf[16..24].copy_from_slice(&(v ^ 0xdeadbeefcafebabe).to_le_bytes());
-        }
+        use std::io::Read;
+        let mut f = std::fs::File::open("/dev/urandom")
+            .expect("FATAL: /dev/urandom unavailable for SSE ticket generation");
+        f.read_exact(&mut buf).expect("FATAL: failed to read /dev/urandom");
         buf.iter().map(|b| format!("{:02x}", b)).collect::<String>()
     };
     let mut tickets = sse_tickets().lock().await;

@@ -24,7 +24,7 @@ export function BurnsView({ sprintId, sprintName, tasks }: { sprintId: number; s
   useEffect(() => { load(); }, [load]);
 
   const submit = async () => {
-    if (!taskId || (!points && !hours)) return;
+    if (!taskId || taskId <= 0 || (!points && !hours)) return;
     await apiCall("POST", `/api/sprints/${sprintId}/burn`, {
       task_id: taskId,
       points: points ? parseFloat(points) : 0,

@@ -12,7 +12,9 @@ pub async fn create_room(State(engine): State<AppState>, claims: Claims, Json(re
     if req.name.len() > 200 { return Err(err(StatusCode::BAD_REQUEST, "Room name too long (max 200 chars)")); }
     let unit = req.estimation_unit.as_deref().unwrap_or("points");
     if !["points", "hours", "mandays"].contains(&unit) { return Err(err(StatusCode::BAD_REQUEST, "estimation_unit must be points, hours, or mandays")); }
-    let r = db::create_room(&engine.pool, &req.name, req.room_type.as_deref().unwrap_or("estimation"), unit, req.project.as_deref(), claims.user_id)
+    let room_type = req.room_type.as_deref().unwrap_or("estimation");
+    if room_type != "estimation" { return Err(err(StatusCode::BAD_REQUEST, "room_type must be 'estimation'")); }
+    let r = db::create_room(&engine.pool, &req.name, room_type, unit, req.project.as_deref(), claims.user_id)
         .await.map_err(internal)?;
     engine.notify(ChangeEvent::Rooms);
     Ok((StatusCode::CREATED, Json(r)))

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Timer as TimerIcon, ListTodo, BarChart3, Settings as SettingsIcon, Wifi, WifiOff, Code2, LogOut, Users, Zap, Sun, Moon, RefreshCw } from "lucide-react";
 import { useStore } from "./store/store";
+import { _tasksLoadedAt } from "./store/store";
 import { useT } from "./i18n";
 import type { EngineState } from "./store/api";
 import { apiCall } from "./store/api";
@@ -163,8 +164,8 @@ export default function App() {
         const resp = await apiCall<{ ticket: string }>("POST", "/api/timer/ticket");
         sseInstance = new EventSource(`${url}/api/timer/sse?ticket=${encodeURIComponent(resp.ticket)}`);
       } catch {
-        // Fallback to token if ticket exchange fails (e.g. older server)
-        sseInstance = new EventSource(`${url}/api/timer/sse?token=${encodeURIComponent(token)}`);
+        // Ticket exchange failed — SSE unavailable, rely on polling fallback
+        return;
       }
 
       sseInstance.addEventListener("timer", (e) => {
@@ -248,7 +249,7 @@ export default function App() {
   useEffect(() => {
     // Only reload tasks on tab switch if data is stale (>10s since last load)
     if ((activeTab === "tasks" || activeTab === "sprints") && token) {
-      const lastLoad = (window as unknown as Record<string, number>).__tasksLoadedAt ?? 0;
+      const lastLoad = _tasksLoadedAt;
       if (Date.now() - lastLoad > 10000) loadTasks();
     }
   }, [activeTab, token]);
