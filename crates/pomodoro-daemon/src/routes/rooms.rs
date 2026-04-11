@@ -14,6 +14,10 @@ pub async fn create_room(State(engine): State<AppState>, claims: Claims, Json(re
     if !["points", "hours", "mandays"].contains(&unit) { return Err(err(StatusCode::BAD_REQUEST, "estimation_unit must be points, hours, or mandays")); }
     let room_type = req.room_type.as_deref().unwrap_or("estimation");
     if room_type != "estimation" { return Err(err(StatusCode::BAD_REQUEST, "room_type must be 'estimation'")); }
+    // V2: Limit active rooms per user
+    let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM rooms WHERE creator_id = ? AND status != 'closed'")
+        .bind(claims.user_id).fetch_one(&engine.pool).await.map_err(internal)?;
+    if count >= 20 { return Err(err(StatusCode::BAD_REQUEST, "Too many active rooms (max 20)")); }
     let r = db::create_room(&engine.pool, &req.name, room_type, unit, req.project.as_deref(), claims.user_id)
         .await.map_err(internal)?;
     engine.notify(ChangeEvent::Rooms);
