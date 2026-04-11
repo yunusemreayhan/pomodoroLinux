@@ -121,6 +121,9 @@ pub fn build_router(engine: Arc<engine::Engine>) -> Router {
         .route("/api/webhooks/{id}", delete(routes::delete_webhook))
         .route("/api/templates", get(routes::list_templates).post(routes::create_template))
         .route("/api/templates/{id}", delete(routes::delete_template))
+        .route("/api/tasks/{id}/attachments", get(routes::list_attachments).post(routes::upload_attachment))
+        .route("/api/attachments/{id}/download", get(routes::download_attachment))
+        .route("/api/attachments/{id}", delete(routes::delete_attachment))
         .route("/api/timer/sse", get(routes::sse_timer))
         .route("/api/timer/ticket", axum::routing::post(routes::create_sse_ticket))
         .layer(axum::extract::DefaultBodyLimit::max(2 * 1024 * 1024)) // 2MB max request body

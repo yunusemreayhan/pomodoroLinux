@@ -321,6 +321,17 @@ async fn migrate(pool: &Pool) -> Result<()> {
     // Migrations for existing DBs
     sqlx::query("ALTER TABLE sprints ADD COLUMN retro_notes TEXT").execute(pool).await.ok();
 
+    sqlx::query("CREATE TABLE IF NOT EXISTS task_attachments (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id     INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+        user_id     INTEGER NOT NULL REFERENCES users(id),
+        filename    TEXT NOT NULL,
+        mime_type   TEXT NOT NULL DEFAULT 'application/octet-stream',
+        size_bytes  INTEGER NOT NULL,
+        storage_key TEXT NOT NULL,
+        created_at  TEXT NOT NULL
+    )").execute(pool).await?;
+
     Ok(())
 }
 
@@ -358,3 +369,5 @@ mod webhooks;
 pub use webhooks::*;
 mod templates;
 pub use templates::*;
+mod attachments;
+pub use attachments::*;

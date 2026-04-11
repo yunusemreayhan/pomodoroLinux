@@ -1810,3 +1810,96 @@ async fn test_room_ws_auth() {
     // Members include creator
     assert!(state["members"].as_array().unwrap().len() >= 1);
 }
+
+#[tokio::test]
+async fn test_attachments_crud() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    // Create a task
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"WithAttachment"})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+
+    // Upload an attachment
+    let resp = app.clone().oneshot(
+        axum::http::Request::builder()
+            .method("POST")
+            .uri(format!("/api/tasks/{}/attachments", tid))
+            .header("authorization", format!("Bearer {}", tok))
+            .header("content-type", "text/plain")
+            .header("x-filename", "test.txt")
+            .body(axum::body::Body::from("hello world"))
+            .unwrap()
+    ).await.unwrap();
+    assert_eq!(resp.status(), 201);
+    let att = body_json(resp).await;
+    let att_id = att["id"].as_i64().unwrap();
+    assert_eq!(att["filename"], "test.txt");
+    assert_eq!(att["mime_type"], "text/plain");
+    assert_eq!(att["size_bytes"], 11);
+
+    // List attachments
+    let resp = app.clone().oneshot(auth_req("GET", &format!("/api/tasks/{}/attachments", tid), &tok, None)).await.unwrap();
+    let list = body_json(resp).await;
+    assert_eq!(list.as_array().unwrap().len(), 1);
+
+    // Download attachment
+    let resp = app.clone().oneshot(auth_req("GET", &format!("/api/attachments/{}/download", att_id), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+    assert_eq!(&bytes[..], b"hello world");
+
+    // Delete attachment
+    let resp = app.clone().oneshot(auth_req("DELETE", &format!("/api/attachments/{}", att_id), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 204);
+
+    // List should be empty now
+    let resp = app.clone().oneshot(auth_req("GET", &format!("/api/tasks/{}/attachments", tid), &tok, None)).await.unwrap();
+    let list = body_json(resp).await;
+    assert_eq!(list.as_array().unwrap().len(), 0);
+}
+
+#[tokio::test]
+async fn test_attachment_empty_rejected() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"T"})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+
+    // Empty body should be rejected
+    let resp = app.clone().oneshot(
+        axum::http::Request::builder()
+            .method("POST")
+            .uri(format!("/api/tasks/{}/attachments", tid))
+            .header("authorization", format!("Bearer {}", tok))
+            .header("content-type", "text/plain")
+            .body(axum::body::Body::empty())
+            .unwrap()
+    ).await.unwrap();
+    assert_eq!(resp.status(), 400);
+}
+
+#[tokio::test]
+async fn test_attachment_filename_sanitized() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"T"})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+
+    // Filename with path traversal should be sanitized
+    let resp = app.clone().oneshot(
+        axum::http::Request::builder()
+            .method("POST")
+            .uri(format!("/api/tasks/{}/attachments", tid))
+            .header("authorization", format!("Bearer {}", tok))
+            .header("content-type", "text/plain")
+            .header("x-filename", "../../../etc/passwd")
+            .body(axum::body::Body::from("test"))
+            .unwrap()
+    ).await.unwrap();
+    assert_eq!(resp.status(), 201);
+    let att = body_json(resp).await;
+    // Slashes and dots-only should be stripped, leaving "etcpasswd"
+    let filename = att["filename"].as_str().unwrap();
+    assert!(!filename.contains('/'));
+    assert!(!filename.contains(".."));
+}

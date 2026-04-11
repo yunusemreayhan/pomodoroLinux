@@ -86,3 +86,5 @@ mod webhooks;
 pub use webhooks::*;
 mod templates;
 pub use templates::*;
+mod attachments;
+pub use attachments::*;
