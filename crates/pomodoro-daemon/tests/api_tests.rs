@@ -2330,3 +2330,42 @@ async fn test_rate_limiter_no_ip_header() {
     // Should get a valid HTTP response (200 or 429), not a server error
     assert!(resp.status().as_u16() < 500);
 }
+
+// T1: per-user config isolation — one user's override doesn't affect another
+#[tokio::test]
+async fn test_per_user_config_isolation() {
+    let app = app().await;
+    let root_tok = login_root(&app).await;
+
+    // Register second user
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/register", Some(json!({"username":"configUser","password":"Pass1234"})))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/login", Some(json!({"username":"configUser","password":"Pass1234"})))).await.unwrap();
+    let user_tok = body_json(resp).await["token"].as_str().unwrap().to_string();
+
+    // Both start with same defaults
+    let resp = app.clone().oneshot(auth_req("GET", "/api/config", &root_tok, None)).await.unwrap();
+    let root_cfg = body_json(resp).await;
+    let resp = app.clone().oneshot(auth_req("GET", "/api/config", &user_tok, None)).await.unwrap();
+    let user_cfg = body_json(resp).await;
+    assert_eq!(root_cfg["work_duration_min"], user_cfg["work_duration_min"]);
+
+    // User changes their config to 15 min
+    let mut new_user_cfg = user_cfg.clone();
+    new_user_cfg["work_duration_min"] = json!(15);
+    new_user_cfg["daily_goal"] = json!(3);
+    let resp = app.clone().oneshot(auth_req("PUT", "/api/config", &user_tok, Some(new_user_cfg))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+
+    // User sees their override
+    let resp = app.clone().oneshot(auth_req("GET", "/api/config", &user_tok, None)).await.unwrap();
+    let user_cfg = body_json(resp).await;
+    assert_eq!(user_cfg["work_duration_min"], 15, "user should see their override");
+    assert_eq!(user_cfg["daily_goal"], 3);
+
+    // Root still sees the global default (unaffected by user's override)
+    let resp = app.clone().oneshot(auth_req("GET", "/api/config", &root_tok, None)).await.unwrap();
+    let root_cfg = body_json(resp).await;
+    assert_eq!(root_cfg["work_duration_min"], 25, "root should still see global default");
+    assert_eq!(root_cfg["daily_goal"], 8);
+}
