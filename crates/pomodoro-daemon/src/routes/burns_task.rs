@@ -8,6 +8,8 @@ pub async fn list_time_reports(State(engine): State<AppState>, _claims: Claims, 
 
 #[utoipa::path(post, path = "/api/tasks/{id}/time", request_body = AddTimeReportRequest, responses((status = 201, body = db::BurnEntry)), security(("bearer" = [])))]
 pub async fn add_time_report(State(engine): State<AppState>, claims: Claims, Path(id): Path<i64>, Json(req): Json<AddTimeReportRequest>) -> Result<(StatusCode, Json<db::BurnEntry>), ApiError> {
+    if req.hours <= 0.0 { return Err(err(StatusCode::BAD_REQUEST, "Hours must be positive")); }
+    if req.points.map_or(false, |p| p < 0.0) { return Err(err(StatusCode::BAD_REQUEST, "Points must be non-negative")); }
     let sprint_id = db::find_task_active_sprint(&engine.pool, id).await.unwrap_or(None);
     let b = db::log_burn(&engine.pool, sprint_id, id, None, claims.user_id, req.points.unwrap_or(0.0), req.hours, "time_report", req.description.as_deref())
         .await.map_err(internal)?;

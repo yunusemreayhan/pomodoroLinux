@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, Square, SkipForward, Coffee, MessageSquare } from "lucide-react";
 import { useStore } from "../store/store";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { CommentSection } from "./TaskDetailView";
 
 const PHASE_COLORS: Record<string, string> = {
@@ -31,7 +31,6 @@ const CIRC = 2 * Math.PI * R;
 
 export default function Timer() {
   const { engine, tasks, start, pause, resume, stop, skip, startBreak, config } = useStore();
-  const prevPhase = useRef<string | null>(null);
   const [showComment, setShowComment] = useState(false);
 
   const phase = engine?.phase ?? "Idle";
@@ -52,7 +51,6 @@ export default function Timer() {
     ? tasks.find((t) => t.id === engine.current_task_id)
     : null;
 
-  useEffect(() => { prevPhase.current = phase; }, [phase]);
 
   return (
     <div className="flex flex-col items-center justify-center gap-6 h-full px-8">
