@@ -49,7 +49,12 @@ async fn api_call(state: tauri::State<'_, Arc<AppState>>, method: String, path: 
     let text = resp.text().await.map_err(|e| e.to_string())?;
 
     if status >= 400 {
-        return Err(text);
+        // Try to extract a clean error message, don't leak raw server internals
+        let msg = serde_json::from_str::<Value>(&text)
+            .ok()
+            .and_then(|v| v.get("error").and_then(|e| e.as_str().map(String::from)))
+            .unwrap_or_else(|| format!("Request failed ({})", status));
+        return Err(msg);
     }
     if text.is_empty() {
         return Ok(Value::Null);
@@ -94,7 +99,7 @@ async fn write_file(path: String, content: String) -> Result<(), String> {
     if path.contains("..") {
         return Err("Write denied: path traversal not allowed".to_string());
     }
-    std::fs::write(&path, content).map_err(|e| e.to_string())
+    tokio::fs::write(&path, content).await.map_err(|e| e.to_string())
 }
 
 fn auth_key() -> Vec<u8> {
