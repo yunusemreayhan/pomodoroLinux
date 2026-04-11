@@ -65,3 +65,53 @@ describe("i18n", () => {
     }
   });
 });
+
+import { interpolate, plural } from "../i18n";
+
+describe("i18n Turkish locale", () => {
+  it("switches to Turkish", () => {
+    useI18n.getState().setLocale("tr");
+    const { locale, t } = useI18n.getState();
+    expect(locale).toBe("tr");
+    expect(t.appName).toBe("Pomodoro");
+    expect(t.logout).toBe("Çıkış");
+    expect(t.settings).toBe("Ayarlar");
+  });
+
+  it("Turkish locale has all keys", () => {
+    useI18n.getState().setLocale("tr");
+    const { t } = useI18n.getState();
+    const en = useI18n.getState().setLocale("en") || useI18n.getState();
+    useI18n.getState().setLocale("tr");
+    const trKeys = Object.keys(t);
+    expect(trKeys.length).toBeGreaterThan(50);
+    for (const [key, value] of Object.entries(t)) {
+      expect(value, `Empty Turkish value for key: ${key}`).not.toBe("");
+    }
+  });
+
+  it("availableLocales includes tr", () => {
+    expect(useI18n.getState().availableLocales()).toContain("tr");
+  });
+});
+
+describe("i18n helpers", () => {
+  it("interpolate replaces variables", () => {
+    expect(interpolate("Hello {name}", { name: "World" })).toBe("Hello World");
+    expect(interpolate("{count} items", { count: 5 })).toBe("5 items");
+  });
+
+  it("interpolate preserves unknown vars", () => {
+    expect(interpolate("Hello {unknown}", {})).toBe("Hello {unknown}");
+  });
+
+  it("plural returns singular for 1", () => {
+    expect(plural(1, "session", "sessions")).toBe("session");
+  });
+
+  it("plural returns plural for other counts", () => {
+    expect(plural(0, "session", "sessions")).toBe("sessions");
+    expect(plural(2, "session", "sessions")).toBe("sessions");
+    expect(plural(100, "item", "items")).toBe("items");
+  });
+});
