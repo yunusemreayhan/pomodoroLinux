@@ -159,3 +159,20 @@ pub fn validate_task_status(s: &str) -> Result<(), ApiError> {
 pub fn validate_sprint_status(s: &str) -> Result<(), ApiError> {
     if !VALID_SPRINT_STATUSES.contains(&s) { Err(err(StatusCode::BAD_REQUEST, format!("Invalid sprint status '{}'. Must be one of: {}", s, VALID_SPRINT_STATUSES.join(", ")))) } else { Ok(()) }
 }
+
+pub fn validate_username(u: &str) -> Result<(), ApiError> {
+    if u.trim().is_empty() { return Err(err(StatusCode::BAD_REQUEST, "Username cannot be empty")); }
+    if u.len() > 32 { return Err(err(StatusCode::BAD_REQUEST, "Username too long (max 32 chars)")); }
+    if !u.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+        return Err(err(StatusCode::BAD_REQUEST, "Username must be alphanumeric (underscores and hyphens allowed)"));
+    }
+    Ok(())
+}
+
+pub fn validate_password(p: &str) -> Result<(), ApiError> {
+    if p.len() < 8 { return Err(err(StatusCode::BAD_REQUEST, "Password must be at least 8 characters")); }
+    if p.len() > 128 { return Err(err(StatusCode::BAD_REQUEST, "Password too long (max 128 chars)")); }
+    if !p.chars().any(|c| c.is_uppercase()) { return Err(err(StatusCode::BAD_REQUEST, "Password must contain an uppercase letter")); }
+    if !p.chars().any(|c| c.is_ascii_digit()) { return Err(err(StatusCode::BAD_REQUEST, "Password must contain a digit")); }
+    Ok(())
+}

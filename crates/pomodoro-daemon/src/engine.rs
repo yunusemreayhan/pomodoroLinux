@@ -171,8 +171,10 @@ impl Engine {
 
     pub async fn pause(&self, user_id: i64) -> anyhow::Result<EngineState> {
         let mut states = self.states.lock().await;
-        let config = self.config.lock().await.clone();
-        let state = states.entry(user_id).or_insert_with(|| Self::idle_state(user_id, &config));
+        let state = match states.get_mut(&user_id) {
+            Some(s) => s,
+            None => return Ok(Self::idle_state(user_id, &*self.config.lock().await)),
+        };
         if state.status == TimerStatus::Running {
             state.status = TimerStatus::Paused;
         }
@@ -183,8 +185,10 @@ impl Engine {
 
     pub async fn resume(&self, user_id: i64) -> anyhow::Result<EngineState> {
         let mut states = self.states.lock().await;
-        let config = self.config.lock().await.clone();
-        let state = states.entry(user_id).or_insert_with(|| Self::idle_state(user_id, &config));
+        let state = match states.get_mut(&user_id) {
+            Some(s) => s,
+            None => return Ok(Self::idle_state(user_id, &*self.config.lock().await)),
+        };
         if state.status == TimerStatus::Paused {
             state.status = TimerStatus::Running;
         }
@@ -195,8 +199,10 @@ impl Engine {
 
     pub async fn stop(&self, user_id: i64) -> anyhow::Result<EngineState> {
         let mut states = self.states.lock().await;
-        let config = self.config.lock().await.clone();
-        let state = states.entry(user_id).or_insert_with(|| Self::idle_state(user_id, &config));
+        let state = match states.get_mut(&user_id) {
+            Some(s) => s,
+            None => return Ok(Self::idle_state(user_id, &*self.config.lock().await)),
+        };
         Self::stop_session(&self.pool, state, "interrupted").await;
         let preserved = (state.session_count, state.daily_completed, state.daily_goal, state.duration_s);
         *state = EngineState {

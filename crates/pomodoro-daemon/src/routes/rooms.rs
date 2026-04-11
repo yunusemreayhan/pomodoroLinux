@@ -105,13 +105,14 @@ pub async fn accept_estimate(State(engine): State<AppState>, claims: Claims, Pat
     let room = db::get_room(&engine.pool, id).await.map_err(internal)?;
     let task_id = room.current_task_id.ok_or_else(|| err(StatusCode::BAD_REQUEST, "No active vote"))?;
     let task = db::accept_estimate(&engine.pool, id, task_id, req.value, &room.estimation_unit).await.map_err(internal)?;
-    // Auto-advance: find next unestimated leaf task
+    // Auto-advance: find next unestimated leaf task (O(n) with pre-computed set)
     let state = db::get_room_state(&engine.pool, id).await.map_err(internal)?;
     let all_tasks = &state.tasks;
     let voted_task_ids: std::collections::HashSet<i64> = state.vote_history.iter().map(|v| v.task_id).collect();
+    let has_children: std::collections::HashSet<i64> = all_tasks.iter().filter_map(|t| t.parent_id).collect();
     let next = all_tasks.iter()
         .filter(|t| t.id != task_id && t.status != "estimated" && !voted_task_ids.contains(&t.id))
-        .filter(|t| !all_tasks.iter().any(|c| c.parent_id == Some(t.id))) // leaf only
+        .filter(|t| !has_children.contains(&t.id)) // leaf only
         .next();
     if let Some(next_task) = next { db::start_voting(&engine.pool, id, next_task.id).await.map_err(internal)?; }
     else { db::set_room_status(&engine.pool, id, "lobby").await.map_err(internal)?; }

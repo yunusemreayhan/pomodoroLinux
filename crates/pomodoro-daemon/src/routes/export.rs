@@ -74,7 +74,7 @@ pub async fn export_sessions(State(engine): State<AppState>, claims: Claims, Que
 }
 
 fn escape_csv(s: &str) -> String {
-    if s.contains(',') || s.contains('"') || s.contains('\n') {
+    if s.contains(',') || s.contains('"') || s.contains('\n') || s.contains('\r') {
         format!("\"{}\"", s.replace('"', "\"\""))
     } else {
         s.to_string()

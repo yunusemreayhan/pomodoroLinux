@@ -1,9 +1,7 @@
 use super::*;
 
 fn valid_date(s: &str) -> bool {
-    // Accept YYYY-MM-DD format
-    s.len() == 10 && s.as_bytes().get(4) == Some(&b'-') && s.as_bytes().get(7) == Some(&b'-')
-        && s[..4].parse::<u16>().is_ok() && s[5..7].parse::<u8>().is_ok() && s[8..10].parse::<u8>().is_ok()
+    chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok()
 }
 
 

@@ -6,6 +6,11 @@ pub async fn log_burn(State(engine): State<AppState>, claims: Claims, Path(id): 
     let pts = req.points.unwrap_or(0.0);
     let hrs = req.hours.unwrap_or(0.0);
     if pts < 0.0 || hrs < 0.0 { return Err(err(StatusCode::BAD_REQUEST, "Points and hours must be non-negative")); }
+    // Verify task belongs to this sprint
+    let sprint_tasks = db::get_sprint_task_entries(&engine.pool, id).await.map_err(internal)?;
+    if !sprint_tasks.iter().any(|st| st.task_id == req.task_id) {
+        return Err(err(StatusCode::BAD_REQUEST, "Task does not belong to this sprint"));
+    }
     let b = db::log_burn(&engine.pool, Some(id), req.task_id, None, claims.user_id, pts, hrs, "manual", req.note.as_deref())
         .await.map_err(internal)?;
     engine.notify(ChangeEvent::Sprints);

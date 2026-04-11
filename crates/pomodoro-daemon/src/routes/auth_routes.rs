@@ -4,15 +4,8 @@ use super::*;
 #[utoipa::path(post, path = "/api/auth/register", request_body = RegisterRequest, responses((status = 200, body = AuthResponse)))]
 pub async fn register(headers: axum::http::HeaderMap, State(engine): State<AppState>, Json(req): Json<RegisterRequest>) -> ApiResult<AuthResponse> {
     check_auth_rate_limit(&headers)?;
-    if req.username.trim().is_empty() { return Err(err(StatusCode::BAD_REQUEST, "Username cannot be empty")); }
-    if req.username.len() > 32 { return Err(err(StatusCode::BAD_REQUEST, "Username too long (max 32 chars)")); }
-    if !req.username.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
-        return Err(err(StatusCode::BAD_REQUEST, "Username must be alphanumeric (underscores and hyphens allowed)"));
-    }
-    if req.password.len() < 8 { return Err(err(StatusCode::BAD_REQUEST, "Password must be at least 8 characters")); }
-    if req.password.len() > 128 { return Err(err(StatusCode::BAD_REQUEST, "Password too long (max 128 chars)")); }
-    if !req.password.chars().any(|c| c.is_uppercase()) { return Err(err(StatusCode::BAD_REQUEST, "Password must contain an uppercase letter")); }
-    if !req.password.chars().any(|c| c.is_ascii_digit()) { return Err(err(StatusCode::BAD_REQUEST, "Password must contain a digit")); }
+    validate_username(&req.username)?;
+    validate_password(&req.password)?;
     let pw = req.password.clone();
     let hash = tokio::task::spawn_blocking(move || bcrypt::hash(&pw, 12))
         .await.map_err(internal)?.map_err(internal)?;
