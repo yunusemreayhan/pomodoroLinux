@@ -13,6 +13,31 @@ fn search_clause() -> &'static str {
     else { " AND (t.title LIKE ? OR t.tags LIKE ? OR t.description LIKE ?)" }
 }
 
+// P3: Populate temp table for large ID sets to avoid SQLite bind parameter limit (999)
+async fn populate_team_scope_table(pool: &Pool, ids: &[i64]) -> Result<()> {
+    sqlx::query("CREATE TEMP TABLE IF NOT EXISTS _team_scope (id INTEGER PRIMARY KEY)").execute(pool).await?;
+    sqlx::query("DELETE FROM _team_scope").execute(pool).await?;
+    for chunk in ids.chunks(400) {
+        let ph: String = chunk.iter().map(|_| "(?)").collect::<Vec<_>>().join(",");
+        let sql = format!("INSERT OR IGNORE INTO _team_scope (id) VALUES {}", ph);
+        let mut q = sqlx::query(&sql);
+        for id in chunk { q = q.bind(id); }
+        q.execute(pool).await?;
+    }
+    Ok(())
+}
+
+fn append_team_scope_filter(q: &mut String, ids: &[i64]) -> bool {
+    if ids.len() > 500 {
+        q.push_str(" AND t.id IN (SELECT id FROM _team_scope)");
+        true
+    } else {
+        let ph: String = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        q.push_str(&format!(" AND t.id IN ({})", ph));
+        false
+    }
+}
+
 pub const TASK_SELECT: &str = "SELECT t.id, t.parent_id, t.user_id, u.username as user, t.title, t.description, t.project, t.tags, t.priority, t.estimated, t.actual, t.estimated_hours, t.remaining_points, t.due_date, t.status, t.sort_order, t.created_at, t.updated_at, COALESCE(ac.cnt, 0) as attachment_count, t.deleted_at, t.work_duration_minutes FROM tasks t JOIN users u ON t.user_id = u.id LEFT JOIN (SELECT task_id, COUNT(*) as cnt FROM task_attachments GROUP BY task_id) ac ON ac.task_id = t.id";
 
 pub async fn create_task(pool: &Pool, user_id: i64, parent_id: Option<i64>, title: &str, description: Option<&str>, project: Option<&str>, tags: Option<&str>, priority: i64, estimated: i64, estimated_hours: f64, remaining_points: f64, due_date: Option<&str>) -> Result<Task> {
@@ -76,10 +101,10 @@ pub async fn list_tasks_paged(pool: &Pool, f: TaskFilter<'_>, limit: i64, offset
     if f.due_before.is_some() { q.push_str(" AND t.due_date IS NOT NULL AND t.due_date <= ?"); }
     if f.due_after.is_some() { q.push_str(" AND t.due_date IS NOT NULL AND t.due_date >= ?"); }
     if f.user_id.is_some() { q.push_str(" AND t.user_id = ?"); }
-    if let Some(ref ids) = team_scope {
-        let ph: String = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-        q.push_str(&format!(" AND t.id IN ({})", ph));
-    }
+    let used_temp = if let Some(ref ids) = team_scope {
+        if ids.len() > 500 { populate_team_scope_table(pool, ids).await?; }
+        append_team_scope_filter(&mut q, ids)
+    } else { false };
     q.push_str(" ORDER BY t.sort_order ASC, t.id ASC LIMIT ? OFFSET ?");
 
     let mut query = sqlx::query_as::<_, Task>(&q);
@@ -95,7 +120,7 @@ pub async fn list_tasks_paged(pool: &Pool, f: TaskFilter<'_>, limit: i64, offset
     if let Some(d) = f.due_before { query = query.bind(d); }
     if let Some(d) = f.due_after { query = query.bind(d); }
     if let Some(uid) = f.user_id { query = query.bind(uid); }
-    if let Some(ref ids) = team_scope { for id in ids { query = query.bind(id); } }
+    if let Some(ref ids) = team_scope { if !used_temp { for id in ids { query = query.bind(id); } } }
     query = query.bind(limit).bind(offset);
     Ok(query.fetch_all(pool).await?)
 }
@@ -159,10 +184,10 @@ pub async fn count_tasks(pool: &Pool, f: TaskFilter<'_>) -> Result<i64> {
     if f.due_before.is_some() { q.push_str(" AND t.due_date IS NOT NULL AND t.due_date <= ?"); }
     if f.due_after.is_some() { q.push_str(" AND t.due_date IS NOT NULL AND t.due_date >= ?"); }
     if f.user_id.is_some() { q.push_str(" AND t.user_id = ?"); }
-    if let Some(ref ids) = team_scope {
-        let ph: String = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-        q.push_str(&format!(" AND t.id IN ({})", ph));
-    }
+    let used_temp = if let Some(ref ids) = team_scope {
+        if ids.len() > 500 { populate_team_scope_table(pool, ids).await?; }
+        append_team_scope_filter(&mut q, ids)
+    } else { false };
     let mut query = sqlx::query_as::<_, (i64,)>(&q);
     if let Some(a) = f.assignee { query = query.bind(a); }
     if let Some(s) = f.status { query = query.bind(s); }
@@ -175,7 +200,7 @@ pub async fn count_tasks(pool: &Pool, f: TaskFilter<'_>) -> Result<i64> {
     if let Some(d) = f.due_before { query = query.bind(d); }
     if let Some(d) = f.due_after { query = query.bind(d); }
     if let Some(uid) = f.user_id { query = query.bind(uid); }
-    if let Some(ref ids) = team_scope { for id in ids { query = query.bind(id); } }
+    if let Some(ref ids) = team_scope { if !used_temp { for id in ids { query = query.bind(id); } } }
     let (count,) = query.fetch_one(pool).await?;
     Ok(count)
 }
