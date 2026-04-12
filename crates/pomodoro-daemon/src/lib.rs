@@ -85,6 +85,8 @@ pub fn build_router(engine: Arc<engine::Engine>) -> Router {
         .route("/api/analytics/focus-score", get(routes::focus_score))
         .route("/api/achievements", get(routes::list_achievements))
         .route("/api/achievements/check", post(routes::check_achievements))
+        .route("/api/leaderboard", get(routes::leaderboard))
+        .route("/api/suggestions/priorities", get(routes::priority_suggestions))
         .route("/api/config", get(routes::get_config).put(routes::update_config))
         .route("/api/profile", put(routes::update_profile))
         .route("/api/profile/notifications", get(routes::get_notif_prefs).put(routes::update_notif_prefs))

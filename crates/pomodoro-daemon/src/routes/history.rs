@@ -193,3 +193,56 @@ async fn try_unlock(pool: &db::Pool, user_id: i64, typ: &str, now: &str, newly: 
         }
     }
 }
+
+// F23: Focus leaderboard — weekly/monthly team stats
+#[derive(Deserialize)]
+pub struct LeaderboardQuery { pub period: Option<String> }
+
+#[utoipa::path(get, path = "/api/leaderboard", responses((status = 200)), security(("bearer" = [])))]
+pub async fn leaderboard(State(engine): State<AppState>, _claims: Claims, Query(q): Query<LeaderboardQuery>) -> ApiResult<Vec<serde_json::Value>> {
+    let days = match q.period.as_deref() { Some("month") => 30, Some("year") => 365, _ => 7 };
+    let rows: Vec<(String, f64, i64)> = sqlx::query_as(
+        "SELECT u.username, COALESCE(SUM(s.duration_s),0)/3600.0, COUNT(s.id) \
+         FROM users u LEFT JOIN sessions s ON s.user_id = u.id AND s.status = 'completed' AND s.started_at >= date('now', ?) \
+         GROUP BY u.id ORDER BY SUM(s.duration_s) DESC")
+        .bind(format!("-{} days", days)).fetch_all(&engine.pool).await.map_err(internal)?;
+    Ok(Json(rows.into_iter().map(|(u, h, s)| serde_json::json!({"username": u, "hours": (h * 100.0).round() / 100.0, "sessions": s})).collect()))
+}
+
+// F21: Auto-prioritization suggestions
+#[utoipa::path(get, path = "/api/suggestions/priorities", responses((status = 200)), security(("bearer" = [])))]
+pub async fn priority_suggestions(State(engine): State<AppState>, claims: Claims) -> ApiResult<Vec<serde_json::Value>> {
+    let today = chrono::Utc::now().naive_utc().format("%Y-%m-%d").to_string();
+    let rows: Vec<(i64, String, i64, Option<String>, String)> = sqlx::query_as(
+        "SELECT id, title, priority, due_date, updated_at FROM tasks WHERE user_id = ? AND status IN ('backlog','active','in_progress') AND deleted_at IS NULL")
+        .bind(claims.user_id).fetch_all(&engine.pool).await.map_err(internal)?;
+
+    let mut suggestions = Vec::new();
+    for (id, title, priority, due_date, updated_at) in &rows {
+        let mut suggested = *priority;
+        let mut reasons = Vec::new();
+
+        // Due date approaching
+        if let Some(due) = due_date {
+            if let (Ok(d), Ok(t)) = (chrono::NaiveDate::parse_from_str(due, "%Y-%m-%d"), chrono::NaiveDate::parse_from_str(&today, "%Y-%m-%d")) {
+                let days_left = (d - t).num_days();
+                if days_left < 0 { suggested = 5; reasons.push(format!("Overdue by {} days", -days_left)); }
+                else if days_left <= 1 { suggested = suggested.max(5); reasons.push("Due tomorrow or today".into()); }
+                else if days_left <= 3 { suggested = suggested.max(4); reasons.push(format!("Due in {} days", days_left)); }
+            }
+        }
+
+        // Stale task (not updated in 14+ days)
+        if let Ok(updated) = chrono::NaiveDateTime::parse_from_str(updated_at, "%Y-%m-%dT%H:%M:%S%.f")
+            .or_else(|_| chrono::NaiveDateTime::parse_from_str(updated_at, "%Y-%m-%dT%H:%M:%S")) {
+            let days_stale = (chrono::Utc::now().naive_utc() - updated).num_days();
+            if days_stale > 14 && *priority < 4 { suggested = suggested.max(3); reasons.push(format!("Stale ({} days)", days_stale)); }
+        }
+
+        if suggested != *priority && !reasons.is_empty() {
+            suggestions.push(serde_json::json!({"task_id": id, "title": title, "current_priority": priority, "suggested_priority": suggested, "reasons": reasons}));
+        }
+    }
+    suggestions.sort_by(|a, b| b["suggested_priority"].as_i64().cmp(&a["suggested_priority"].as_i64()));
+    Ok(Json(suggestions))
+}
