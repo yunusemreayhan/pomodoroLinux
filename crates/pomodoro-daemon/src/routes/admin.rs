@@ -59,3 +59,54 @@ pub async fn create_backup(State(engine): State<AppState>, claims: Claims) -> Re
         })).unwrap()))
         .map_err(|e| internal(e.to_string()))?)
 }
+
+// O3: List available backups
+#[utoipa::path(get, path = "/api/admin/backups", responses((status = 200)), security(("bearer" = [])))]
+pub async fn list_backups(_state: State<AppState>, claims: Claims) -> ApiResult<Vec<serde_json::Value>> {
+    if claims.role != "root" { return Err(err(StatusCode::FORBIDDEN, "Root only")); }
+    let backup_dir = db::db_path().parent().unwrap_or(std::path::Path::new("/tmp")).join("backups");
+    let mut backups = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&backup_dir) {
+        for e in entries.filter_map(|e| e.ok()) {
+            let name = e.file_name().to_string_lossy().to_string();
+            if name.starts_with("pomodoro_") && name.ends_with(".db") {
+                let size = e.metadata().map(|m| m.len()).unwrap_or(0);
+                backups.push(serde_json::json!({"filename": name, "size_bytes": size}));
+            }
+        }
+    }
+    backups.sort_by(|a, b| b["filename"].as_str().cmp(&a["filename"].as_str()));
+    Ok(Json(backups))
+}
+
+// O3: Restore from backup
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct RestoreRequest { pub filename: String }
+
+#[utoipa::path(post, path = "/api/admin/restore", responses((status = 200)), security(("bearer" = [])))]
+pub async fn restore_backup(State(engine): State<AppState>, claims: Claims, Json(req): Json<RestoreRequest>) -> Result<axum::response::Response, ApiError> {
+    if claims.role != "root" { return Err(err(StatusCode::FORBIDDEN, "Root only")); }
+    // Validate filename — must be alphanumeric + underscore + .db only
+    if !req.filename.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '.') || !req.filename.ends_with(".db") {
+        return Err(err(StatusCode::BAD_REQUEST, "Invalid backup filename"));
+    }
+    let backup_dir = db::db_path().parent().unwrap_or(std::path::Path::new("/tmp")).join("backups");
+    let backup_path = backup_dir.join(&req.filename);
+    if !backup_path.exists() { return Err(err(StatusCode::NOT_FOUND, "Backup not found")); }
+    // Create a safety backup before restoring
+    let safety = backup_dir.join(format!("pre_restore_{}.db", chrono::Utc::now().format("%Y%m%d_%H%M%S")));
+    let safety_str = safety.display().to_string().replace('\'', "''");
+    sqlx::query(&format!("VACUUM INTO '{}'", safety_str)).execute(&engine.pool).await.map_err(|e| internal(format!("Safety backup failed: {}", e)))?;
+    // Restore: copy backup over current DB
+    let db_path = db::db_path();
+    std::fs::copy(&backup_path, &db_path).map_err(|e| internal(format!("Restore failed: {}", e)))?;
+    Ok(axum::response::Response::builder()
+        .status(StatusCode::OK)
+        .header("content-type", "application/json")
+        .body(axum::body::Body::from(serde_json::to_vec(&serde_json::json!({
+            "restored_from": req.filename,
+            "safety_backup": safety.display().to_string(),
+            "note": "Restart the server to use the restored database"
+        })).unwrap()))
+        .map_err(|e| internal(e.to_string()))?)
+}

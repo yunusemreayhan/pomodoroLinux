@@ -10,6 +10,8 @@ export function BoardView({ board, reload }: { board: SprintBoard; reload: () =>
     await apiCall("PUT", `/api/tasks/${taskId}`, { status });
     reload();
   };
+  // U2: Touch drag state
+  const [touchDrag, setTouchDrag] = useState<{ id: number; startX: number } | null>(null);
 
   const WIP_LIMIT = 5;
   const Column = useCallback(({ title, tasks, color, status }: { title: string; tasks: Task[]; color: string; status: string }) => (
@@ -31,6 +33,16 @@ export function BoardView({ board, reload }: { board: SprintBoard; reload: () =>
             }}
             onDragStart={e => { e.dataTransfer.setData("text/plain", String(t.id)); (e.target as HTMLElement).style.opacity = "0.4"; }}
             onDragEnd={e => { (e.target as HTMLElement).style.opacity = "1"; }}
+            onTouchStart={e => setTouchDrag({ id: t.id, startX: e.touches[0].clientX })}
+            onTouchEnd={e => {
+              if (!touchDrag || touchDrag.id !== t.id) return;
+              const dx = e.changedTouches[0].clientX - touchDrag.startX;
+              const statusOrder = ["backlog", "in_progress", "completed"];
+              const curIdx = statusOrder.indexOf(status);
+              if (dx > 60 && curIdx < 2) changeStatus(t.id, statusOrder[curIdx + 1]);
+              else if (dx < -60 && curIdx > 0) changeStatus(t.id, statusOrder[curIdx - 1]);
+              setTouchDrag(null);
+            }}
             className="bg-[var(--color-surface)] p-2 rounded border border-white/5 group cursor-grab active:cursor-grabbing">
             <div className="text-xs text-white/90 truncate">{t.title}</div>
             <div className="text-[10px] text-white/30 flex gap-1 mt-1">

@@ -4886,3 +4886,31 @@ async fn test_webhook_url_length() {
     let resp = app.clone().oneshot(auth_req("POST", "/api/webhooks", &tok, Some(json!({"url": long_url})))).await.unwrap();
     assert_eq!(resp.status(), 400);
 }
+
+// ============================================================
+// v11 T8: Auto-archive completed tasks
+// ============================================================
+
+#[tokio::test]
+async fn test_auto_archive() {
+    // Create pool directly so we can run raw SQL
+    let pool = pomodoro_daemon::db::connect_memory().await.unwrap();
+    let config = pomodoro_daemon::config::Config::default();
+    let engine = Arc::new(pomodoro_daemon::engine::Engine::new(pool.clone(), config).await);
+    let app = pomodoro_daemon::build_router(engine);
+    let tok = login_root(&app).await;
+    // Create and complete a task
+    let tid = body_json(app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"ArchiveMe"})))).await.unwrap()).await["id"].as_i64().unwrap();
+    app.clone().oneshot(auth_req("PUT", &format!("/api/tasks/{}", tid), &tok, Some(json!({"status":"completed"})))).await.unwrap();
+    // Backdate updated_at to simulate old completion
+    sqlx::query("UPDATE tasks SET updated_at = '2020-01-01T00:00:00' WHERE id = ?").bind(tid).execute(&pool).await.unwrap();
+    // Run archive logic (same SQL as main.rs auto-archive)
+    let cutoff = "2025-01-01T00:00:00";
+    let result = sqlx::query("UPDATE tasks SET status = 'archived', updated_at = ? WHERE status = 'completed' AND updated_at < ? AND deleted_at IS NULL")
+        .bind("2025-01-01T00:00:01").bind(cutoff).execute(&pool).await.unwrap();
+    assert!(result.rows_affected() >= 1);
+    // Verify archived via API
+    let resp = app.clone().oneshot(auth_req("GET", &format!("/api/tasks/{}", tid), &tok, None)).await.unwrap();
+    let task = body_json(resp).await;
+    assert_eq!(task["task"]["status"], "archived");
+}
