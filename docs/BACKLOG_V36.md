@@ -111,30 +111,30 @@ Calls `get_day_stats` (1 query), then 2 more queries for sprint count and estima
 
 | ID | Severity | Category | Status |
 |----|----------|----------|--------|
-| V36-1 | Medium | Security | |
-| V36-2 | Medium | Security | |
-| V36-3 | Medium | Bug | |
-| V36-4 | Medium | Bug | |
-| V36-5 | Medium | Bug | |
-| V36-6 | Low | Bug | |
-| V36-7 | Low | Bug | |
-| V36-8 | Low | Bug | |
-| V36-9 | Low | Bug | |
-| V36-10 | Low | Bug | |
-| V36-11 | Low | Bug | |
-| V36-12 | Low | Security | |
-| V36-13 | Low | Code quality | |
-| V36-14 | Low | Performance | |
-| V36-15 | Low | Bug | |
-| V36-16 | Low | UX | |
-| V36-17 | Low | Code quality | |
-| V36-18 | Low | Bug | |
-| V36-19 | Low | Bug | |
-| V36-20 | Low | UX | |
-| V36-21 | Low | Code quality | |
-| V36-22 | Low | Bug | |
-| V36-23 | Low | Bug | |
-| V36-24 | Low | Code quality | |
-| V36-25 | Low | Performance | |
+| V36-1 | Medium | Security | FIXED |
+| V36-2 | Medium | Security | FIXED |
+| V36-3 | Medium | Bug | FIXED |
+| V36-4 | Medium | Bug | FIXED |
+| V36-5 | Medium | Bug | FIXED |
+| V36-6 | Low | Bug | FIXED |
+| V36-7 | Low | Bug | FIXED |
+| V36-8 | Low | Bug | FIXED |
+| V36-9 | Low | Bug | FIXED |
+| V36-10 | Low | Bug | FIXED |
+| V36-11 | Low | Bug | WON'T FIX — WebSocket endpoints can't be documented in OpenAPI |
+| V36-12 | Low | Security | FIXED |
+| V36-13 | Low | Code quality | WON'T FIX — ad-hoc JSON is acceptable for internal endpoints |
+| V36-14 | Low | Performance | WON'T FIX — correlated subquery is fine for typical user counts |
+| V36-15 | Low | Bug | FIXED |
+| V36-16 | Low | UX | FIXED |
+| V36-17 | Low | Code quality | FIXED |
+| V36-18 | Low | Bug | FIXED |
+| V36-19 | Low | Bug | FIXED |
+| V36-20 | Low | UX | WON'T FIX — sidebar notification dropdown position is acceptable |
+| V36-21 | Low | Code quality | WON'T FIX — iCal line folding not critical for most calendar apps |
+| V36-22 | Low | Bug | WON'T FIX — pool already closed, process::exit is intentional |
+| V36-23 | Low | Bug | WON'T FIX — UTC midnight reset is standard for server-side |
+| V36-24 | Low | Code quality | WON'T FIX — inline SQL in routes is acceptable for one-off queries |
+| V36-25 | Low | Performance | WON'T FIX — 4 queries is acceptable for infrequent achievement checks |
 
-**Total: 25 items** — 5 medium, 20 low
+**Total: 25 items** — 15 fixed, 10 won't fix
