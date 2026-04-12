@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { Timer as TimerIcon, ListTodo, BarChart3, Settings as SettingsIcon, Wifi, WifiOff, Code2, LogOut, Users, Zap, Sun, Moon, RefreshCw, LayoutDashboard, Bell } from "lucide-react";
 import { useStore } from "./store/store";
@@ -383,6 +383,15 @@ function NotificationBell() {
   const [count, setCount] = useState(0);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<{ id: number; kind: string; message: string; read: boolean; created_at: string }[]>([]);
+  const ref_ = React.useRef<HTMLDivElement>(null);
+
+  // B5: Close dropdown on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => { if (ref_.current && !ref_.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
 
   useEffect(() => {
     const poll = () => apiCall<{ count: number }>("GET", "/api/notifications/unread").then(d => d && setCount(d.count)).catch(() => {});
@@ -400,7 +409,7 @@ function NotificationBell() {
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={ref_}>
       <button onClick={() => { setOpen(!open); if (!open) loadItems(); }}
         className="w-11 h-11 flex items-center justify-center rounded-xl text-white/30 hover:text-white/60 transition-all relative" aria-label="Notifications">
         <Bell size={16} />

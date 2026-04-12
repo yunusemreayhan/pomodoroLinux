@@ -17,6 +17,12 @@ pub async fn list_rooms(pool: &Pool) -> Result<Vec<Room>> {
     Ok(sqlx::query_as::<_, Room>(&format!("{} ORDER BY r.created_at DESC LIMIT 200", ROOM_SELECT)).fetch_all(pool).await?)
 }
 
+// B4: Use ROOM_SELECT constant for user-filtered room list
+pub async fn list_user_rooms(pool: &Pool, user_id: i64) -> Result<Vec<Room>> {
+    Ok(sqlx::query_as::<_, Room>(&format!("{} JOIN room_members rm ON rm.room_id = r.id WHERE rm.user_id = ? ORDER BY r.id DESC", ROOM_SELECT))
+        .bind(user_id).fetch_all(pool).await?)
+}
+
 pub async fn get_room(pool: &Pool, id: i64) -> Result<Room> {
     Ok(sqlx::query_as::<_, Room>(&format!("{} WHERE r.id = ?", ROOM_SELECT)).bind(id).fetch_one(pool).await?)
 }

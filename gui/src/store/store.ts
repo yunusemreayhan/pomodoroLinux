@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { apiCall, setToken } from "./api";
 import { invoke } from "@tauri-apps/api/core";
-import type { EngineState, Task, DayStat, Session, Config, Comment, TaskDetail, AuthResponse, TaskSprintInfo, BurnTotalEntry, TaskAssignee } from "./api";
+import type { EngineState, Task, DayStat, Session, Config, Comment, TaskDetail, AuthResponse, TaskSprintInfo, BurnTotalEntry, TaskAssignee, Sprint } from "./api";
 
 // Task load timestamp tracked in store
 
@@ -35,6 +35,7 @@ interface Store {
   // --- History & Stats ---
   stats: DayStat[];
   history: Session[];
+  sprints: Sprint[];
 
   // --- Config & UI State ---
   config: Config | null;
@@ -77,6 +78,7 @@ interface Store {
   // --- Data Loading ---
   loadStats: () => Promise<void>;
   loadHistory: () => Promise<void>;
+  loadSprints: () => Promise<void>;
   loadConfig: () => Promise<void>;
   updateConfig: (cfg: Config) => Promise<void>;
 
@@ -111,6 +113,7 @@ export const useStore = create<Store>((set, get) => ({
   taskLabelsMap: new Map(),
   stats: [],
   history: [],
+  sprints: [],
   config: null,
   connected: false,
   loading: { tasks: false, history: false, stats: false, config: false },
@@ -382,6 +385,13 @@ export const useStore = create<Store>((set, get) => ({
       const history = await apiCall<Session[]>("GET", "/api/history");
       set(s => ({ history, loading: { ...s.loading, history: false } }));
     } catch { set(s => ({ loading: { ...s.loading, history: false } })); }
+  },
+
+  // B7: Load sprints into store for Dashboard widgets
+  loadSprints: async () => {
+    if (!get().token) return;
+    const sprints = await apiCall<Sprint[]>("GET", "/api/sprints").catch(() => [] as Sprint[]);
+    set({ sprints });
   },
 
   loadConfig: async () => {

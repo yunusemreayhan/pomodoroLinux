@@ -3,14 +3,11 @@ use super::*;
 
 #[utoipa::path(get, path = "/api/rooms", responses((status = 200, body = Vec<db::Room>)), security(("bearer" = [])))]
 pub async fn list_rooms(State(engine): State<AppState>, claims: Claims) -> ApiResult<Vec<db::Room>> {
-    // B5: Non-root users only see rooms they're a member of
+    // B4: Non-root users only see rooms they're a member of — use db function
     if claims.role == "root" {
         db::list_rooms(&engine.pool).await.map(Json).map_err(internal)
     } else {
-        let sql = format!("{} JOIN room_members rm ON rm.room_id = r.id WHERE rm.user_id = ? ORDER BY r.id DESC", "SELECT r.id, r.name, r.room_type, r.estimation_unit, r.project, r.creator_id, u.username as creator, r.status, r.current_task_id, r.created_at FROM rooms r JOIN users u ON r.creator_id = u.id");
-        let rooms: Vec<db::Room> = sqlx::query_as(&sql)
-            .bind(claims.user_id).fetch_all(&engine.pool).await.map_err(internal)?;
-        Ok(Json(rooms))
+        db::list_user_rooms(&engine.pool, claims.user_id).await.map(Json).map_err(internal)
     }
 }
 

@@ -190,6 +190,10 @@ async fn main() -> Result<()> {
             if let Err(e) = db::snapshot_all_epic_groups(&engine_snap.pool).await {
                 tracing::error!("Epic snapshot error: {}", e);
             }
+            // B8: Cleanup old notifications hourly
+            if let Err(e) = db::cleanup_notifications(&engine_snap.pool).await {
+                tracing::error!("Notification cleanup error: {}", e);
+            }
             engine_snap.heartbeat("snapshot").await;
         }
     });

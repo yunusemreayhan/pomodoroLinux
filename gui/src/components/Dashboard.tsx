@@ -4,12 +4,14 @@ import { apiCall } from "../store/api";
 import type { SprintBoard } from "../store/api";
 
 export default function Dashboard() {
-  const { tasks, stats, sprints } = useStore();
+  const { tasks, stats, sprints, loadSprints } = useStore();
   const [activity, setActivity] = useState<{ action: string; entity_type: string; detail: string | null; created_at: string }[]>([]);
 
   // B2: Recompute today every minute to handle midnight rollover
   const [today, setToday] = useState(() => new Date().toISOString().slice(0, 10));
   useEffect(() => { const id = setInterval(() => setToday(new Date().toISOString().slice(0, 10)), 60000); return () => clearInterval(id); }, []);
+  // B7: Load sprints for Dashboard widgets
+  useEffect(() => { loadSprints(); }, [loadSprints]);
   useEffect(() => { apiCall<typeof activity>("GET", "/api/audit?limit=10").then(d => d && setActivity(d)).catch(() => {}); }, []);
   // B6: Refresh activity when tasks change
   useEffect(() => {
@@ -185,12 +187,13 @@ function StandupView({ today, tasks }: { today: string; tasks: import("../store/
     const map: Record<string, { done: string[]; wip: string[]; blocked: string[] }> = {};
     for (const t of tasks) {
       if (!map[t.user]) map[t.user] = { done: [], wip: [], blocked: [] };
-      if (t.status === "completed" && t.updated_at.startsWith(yesterday)) map[t.user].done.push(t.title);
+      // B6: Use both yesterday and today for "done" — updated_at is approximate but status must be completed
+      if (t.status === "completed" && (t.updated_at.startsWith(yesterday) || t.updated_at.startsWith(today))) map[t.user].done.push(t.title);
       if (t.status === "in_progress" || t.status === "active") map[t.user].wip.push(t.title);
       if (t.status === "blocked") map[t.user].blocked.push(t.title);
     }
     return Object.entries(map).filter(([, v]) => v.done.length + v.wip.length + v.blocked.length > 0);
-  }, [tasks, yesterday]);
+  }, [tasks, yesterday, today]);
   if (byUser.length === 0) return null;
   return (
     <div className="glass p-3 rounded-lg">

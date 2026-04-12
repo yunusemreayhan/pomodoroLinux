@@ -23,16 +23,20 @@ fn valid_date(s: &str) -> bool {
 pub struct SearchQuery { pub q: String, pub limit: Option<i64> }
 
 #[utoipa::path(get, path = "/api/tasks/search", responses((status = 200)), security(("bearer" = [])))]
-pub async fn search_tasks(State(engine): State<AppState>, _claims: Claims, Query(q): Query<SearchQuery>) -> ApiResult<Vec<serde_json::Value>> {
+pub async fn search_tasks(State(engine): State<AppState>, claims: Claims, Query(q): Query<SearchQuery>) -> ApiResult<Vec<serde_json::Value>> {
     if q.q.trim().is_empty() { return Ok(Json(vec![])); }
     let limit = q.limit.unwrap_or(20).min(100);
-    let results = db::search_tasks_fts(&engine.pool, &q.q, limit).await.map_err(internal)?;
+    // B2: Non-root users only see their own tasks
+    let user_id = if claims.role == "root" { None } else { Some(claims.user_id) };
+    let results = db::search_tasks_fts(&engine.pool, &q.q, limit, user_id).await.map_err(internal)?;
     Ok(Json(results.into_iter().map(|(id, title, snippet)| serde_json::json!({"id": id, "title": title, "snippet": snippet})).collect()))
 }
 
 // F4: Task time tracking summary
 #[utoipa::path(get, path = "/api/tasks/{id}/time-summary", responses((status = 200)), security(("bearer" = [])))]
-pub async fn get_task_time_summary(State(engine): State<AppState>, _claims: Claims, Path(id): Path<i64>) -> ApiResult<serde_json::Value> {
+pub async fn get_task_time_summary(State(engine): State<AppState>, claims: Claims, Path(id): Path<i64>) -> ApiResult<serde_json::Value> {
+    // B3: Verify task exists
+    db::get_task(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
     let rows: Vec<(String, f64, i64)> = sqlx::query_as(
         "SELECT u.username, COALESCE(SUM(s.duration_s),0)/3600.0, COUNT(s.id) \
          FROM sessions s JOIN users u ON s.user_id = u.id \

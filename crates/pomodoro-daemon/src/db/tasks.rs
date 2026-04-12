@@ -183,20 +183,31 @@ pub async fn count_tasks(pool: &Pool, f: TaskFilter<'_>) -> Result<i64> {
     Ok(count)
 }
 // F1: FTS5 search with snippets
-pub async fn search_tasks_fts(pool: &Pool, query: &str, limit: i64) -> Result<Vec<(i64, String, String)>> {
+// B2: Added user_id filter — non-root users only see their own tasks
+pub async fn search_tasks_fts(pool: &Pool, query: &str, limit: i64, user_id: Option<i64>) -> Result<Vec<(i64, String, String)>> {
     if !fts5_ok() {
-        // LIKE fallback — no snippets
         let like = format!("%{}%", query);
-        let rows: Vec<(i64, String, String)> = sqlx::query_as(
-            "SELECT id, title, COALESCE(SUBSTR(description, 1, 200), '') FROM tasks WHERE deleted_at IS NULL AND (title LIKE ? OR description LIKE ? OR tags LIKE ?) LIMIT ?")
-            .bind(&like).bind(&like).bind(&like).bind(limit).fetch_all(pool).await?;
-        return Ok(rows);
+        let (sql, needs_uid) = if user_id.is_some() {
+            ("SELECT id, title, COALESCE(SUBSTR(description, 1, 200), '') FROM tasks WHERE deleted_at IS NULL AND user_id = ? AND (title LIKE ? OR description LIKE ? OR tags LIKE ?) LIMIT ?".to_string(), true)
+        } else {
+            ("SELECT id, title, COALESCE(SUBSTR(description, 1, 200), '') FROM tasks WHERE deleted_at IS NULL AND (title LIKE ? OR description LIKE ? OR tags LIKE ?) LIMIT ?".to_string(), false)
+        };
+        let mut q = sqlx::query_as::<_, (i64, String, String)>(&sql);
+        if needs_uid { q = q.bind(user_id.unwrap()); }
+        q = q.bind(&like).bind(&like).bind(&like).bind(limit);
+        return Ok(q.fetch_all(pool).await?);
     }
     let fts = format!("\"{}\"", query.replace('"', "\"\""));
-    let rows: Vec<(i64, String, String)> = sqlx::query_as(
-        "SELECT rowid, snippet(tasks_fts, 0, '<mark>', '</mark>', '...', 32), snippet(tasks_fts, 1, '<mark>', '</mark>', '...', 48) FROM tasks_fts WHERE tasks_fts MATCH ? ORDER BY rank LIMIT ?")
-        .bind(&fts).bind(limit).fetch_all(pool).await?;
-    Ok(rows)
+    let (sql, needs_uid) = if user_id.is_some() {
+        ("SELECT f.rowid, snippet(tasks_fts, 0, '<mark>', '</mark>', '...', 32), snippet(tasks_fts, 1, '<mark>', '</mark>', '...', 48) FROM tasks_fts f JOIN tasks t ON t.id = f.rowid WHERE tasks_fts MATCH ? AND t.user_id = ? ORDER BY rank LIMIT ?".to_string(), true)
+    } else {
+        ("SELECT rowid, snippet(tasks_fts, 0, '<mark>', '</mark>', '...', 32), snippet(tasks_fts, 1, '<mark>', '</mark>', '...', 48) FROM tasks_fts WHERE tasks_fts MATCH ? ORDER BY rank LIMIT ?".to_string(), false)
+    };
+    let mut q = sqlx::query_as::<_, (i64, String, String)>(&sql);
+    q = q.bind(&fts);
+    if needs_uid { q = q.bind(user_id.unwrap()); }
+    q = q.bind(limit);
+    Ok(q.fetch_all(pool).await?)
 }
 
 pub async fn restore_task(pool: &Pool, id: i64) -> Result<()> {
