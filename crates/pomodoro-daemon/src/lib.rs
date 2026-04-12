@@ -214,9 +214,11 @@ async fn api_rate_limit(
         return next.run(req).await.into_response();
     }
     let ip = routes::extract_ip(req.headers());
-    let limiter = routes::api_limiter();
-    if !limiter.check_and_record(&ip) {
-        return (axum::http::StatusCode::TOO_MANY_REQUESTS, "Rate limit exceeded").into_response();
+    if std::env::var("POMODORO_NO_RATE_LIMIT").is_err() {
+        let limiter = routes::api_limiter();
+        if !limiter.check_and_record(&ip) {
+            return (axum::http::StatusCode::TOO_MANY_REQUESTS, "Rate limit exceeded").into_response();
+        }
     }
     next.run(req).await.into_response()
 }
