@@ -30,6 +30,7 @@ interface Store {
   taskSprintsMap: Map<number, TaskSprintInfo[]>;
   burnTotals: Map<number, BurnTotalEntry>;
   allAssignees: Map<number, string[]>;
+  taskLabelsMap: Map<number, { name: string; color: string }[]>;
 
   // --- History & Stats ---
   stats: DayStat[];
@@ -107,6 +108,7 @@ export const useStore = create<Store>((set, get) => ({
   taskSprintsMap: new Map(),
   burnTotals: new Map(),
   allAssignees: new Map(),
+  taskLabelsMap: new Map(),
   stats: [],
   history: [],
   config: null,
@@ -266,7 +268,7 @@ export const useStore = create<Store>((set, get) => ({
     if (!get().token) return;
     set(s => ({ loading: { ...s.loading, tasks: true } }));
     try {
-      const resp = await apiCall<{ tasks: Task[]; task_sprints: TaskSprintInfo[]; burn_totals: BurnTotalEntry[]; assignees: TaskAssignee[] }>("GET", "/api/tasks/full");
+      const resp = await apiCall<{ tasks: Task[]; task_sprints: TaskSprintInfo[]; burn_totals: BurnTotalEntry[]; assignees: TaskAssignee[]; labels?: { task_id: number; name: string; color: string }[] }>("GET", "/api/tasks/full");
       const burnTotals = new Map<number, BurnTotalEntry>();
       for (const bt of resp.burn_totals) burnTotals.set(bt.task_id, bt);
       const allAssignees = new Map<number, string[]>();
@@ -274,6 +276,13 @@ export const useStore = create<Store>((set, get) => ({
         const list = allAssignees.get(a.task_id) || [];
         list.push(a.username);
         allAssignees.set(a.task_id, list);
+      }
+      // B7: Parse labels from /api/tasks/full to avoid N+1 calls
+      const taskLabelsMap = new Map<number, { name: string; color: string }[]>();
+      for (const l of resp.labels || []) {
+        const list = taskLabelsMap.get(l.task_id) || [];
+        list.push({ name: l.name, color: l.color });
+        taskLabelsMap.set(l.task_id, list);
       }
       const ts = resp.task_sprints || [];
       const taskSprintsMap = new Map<number, TaskSprintInfo[]>();
@@ -299,7 +308,7 @@ export const useStore = create<Store>((set, get) => ({
           }
         }
       }
-      set({ tasks: tasksChanged ? resp.tasks : prev, taskSprints: ts, taskSprintsMap, burnTotals, allAssignees, tasksLoadedAt: Date.now() });
+      set({ tasks: tasksChanged ? resp.tasks : prev, taskSprints: ts, taskSprintsMap, burnTotals, allAssignees, taskLabelsMap, tasksLoadedAt: Date.now() });
     } catch { /* ignore */ }
     set(s => ({ loading: { ...s.loading, tasks: false } }));
   },

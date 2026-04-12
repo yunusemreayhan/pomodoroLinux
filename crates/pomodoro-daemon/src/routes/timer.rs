@@ -7,24 +7,28 @@ pub async fn get_state(State(engine): State<AppState>, claims: Claims) -> ApiRes
 }
 
 // F12: List active timers for all users (team visibility)
+// B1: Collect state snapshot under lock, then query DB without holding mutex
 #[utoipa::path(get, path = "/api/timer/active", responses((status = 200)), security(("bearer" = [])))]
 pub async fn get_active_timers(State(engine): State<AppState>, _claims: Claims) -> ApiResult<Vec<serde_json::Value>> {
-    let states = engine.states.lock().await;
+    let snapshot: Vec<_> = {
+        let states = engine.states.lock().await;
+        states.iter().filter(|(_, s)| s.status != crate::engine::TimerStatus::Idle)
+            .map(|(uid, s)| (*uid, s.phase, s.status, s.current_task_id, s.elapsed_s, s.duration_s))
+            .collect()
+    }; // lock dropped here
     let mut active = Vec::new();
-    for (uid, s) in states.iter() {
-        if s.status != crate::engine::TimerStatus::Idle {
-            let username: Option<(String,)> = sqlx::query_as("SELECT username FROM users WHERE id = ?")
-                .bind(uid).fetch_optional(&engine.pool).await.unwrap_or(None);
-            let task_title: Option<(String,)> = if let Some(tid) = s.current_task_id {
-                sqlx::query_as("SELECT title FROM tasks WHERE id = ?").bind(tid).fetch_optional(&engine.pool).await.unwrap_or(None)
-            } else { None };
-            active.push(serde_json::json!({
-                "username": username.map(|u| u.0).unwrap_or_default(),
-                "phase": s.phase, "status": s.status,
-                "task": task_title.map(|t| t.0),
-                "elapsed_s": s.elapsed_s, "duration_s": s.duration_s,
-            }));
-        }
+    for (uid, phase, status, task_id, elapsed_s, duration_s) in &snapshot {
+        let username: Option<(String,)> = sqlx::query_as("SELECT username FROM users WHERE id = ?")
+            .bind(uid).fetch_optional(&engine.pool).await.unwrap_or(None);
+        let task_title: Option<(String,)> = if let Some(tid) = task_id {
+            sqlx::query_as("SELECT title FROM tasks WHERE id = ?").bind(tid).fetch_optional(&engine.pool).await.unwrap_or(None)
+        } else { None };
+        active.push(serde_json::json!({
+            "username": username.map(|u| u.0).unwrap_or_default(),
+            "phase": phase, "status": status,
+            "task": task_title.map(|t| t.0),
+            "elapsed_s": elapsed_s, "duration_s": duration_s,
+        }));
     }
     Ok(Json(active))
 }

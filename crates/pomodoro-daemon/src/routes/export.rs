@@ -153,7 +153,7 @@ pub async fn import_tasks_json(State(engine): State<AppState>, claims: Claims, J
         if depth > 20 { return Err("Max nesting depth (20) exceeded".to_string()); }
         for t in tasks {
             if t.title.trim().is_empty() { return Err("Title cannot be empty".to_string()); }
-            if t.title.len() > 500 { return Err(format!("Title too long: {}", &t.title[..50])); }
+            if t.title.len() > 500 { return Err(format!("Title too long: {}", t.title.chars().take(50).collect::<String>())); }
             let task = db::create_task(pool, user_id, parent_id, &t.title, t.description.as_deref(), t.project.as_deref(), None, t.priority.unwrap_or(3).clamp(1, 5), t.estimated.unwrap_or(0), 0.0, 0.0, None)
                 .await.map_err(|e| e.to_string())?;
             *created += 1;
