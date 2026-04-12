@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { apiCall } from "../store/api";
 import { useStore } from "../store/store";
+import { useT } from "../i18n";
 
 interface Team { id: number; name: string }
 interface TeamDetail { team: Team; members: { user_id: number; username: string; role: string }[]; root_task_ids: number[] }
 
 export default function TeamManager() {
+  const t = useT();
   const [teams, setTeams] = useState<Team[]>([]);
   const [selected, setSelected] = useState<TeamDetail | null>(null);
   const [creating, setCreating] = useState(false);
@@ -31,8 +33,8 @@ export default function TeamManager() {
   return (
     <div className="glass p-6 rounded-2xl space-y-4">
       <div className="flex items-center gap-2">
-        <h3 className="text-sm font-semibold text-white flex-1">Teams</h3>
-        <button onClick={() => setCreating(true)} className="text-xs text-[var(--color-accent)]">+ New Team</button>
+        <h3 className="text-sm font-semibold text-white flex-1">{t.teams}</h3>
+        <button onClick={() => setCreating(true)} className="text-xs text-[var(--color-accent)]">+ {t.newTeam}</button>
       </div>
       {creating && (
         <div className="flex gap-2">

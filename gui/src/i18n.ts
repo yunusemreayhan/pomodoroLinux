@@ -229,6 +229,21 @@ export interface Locale {
   noActivityRecorded: string;
   noRootTasks: string;
   noMatchingTasks: string;
+
+  // I1-I5: Additional i18n keys
+  somethingWentWrong: string;
+  reload: string;
+  epicBurndown: string;
+  rootTasksInGroup: string;
+  noRootTasksAdded: string;
+  snapshotNow: string;
+  deleteTeam: string;
+  addMember: string;
+  filterAll: string;
+  filterTasks: string;
+  filterUsers: string;
+  filterSprints: string;
+  filterRooms: string;
 }
 
 import en from "./locales/en";

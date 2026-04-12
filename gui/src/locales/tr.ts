@@ -188,5 +188,18 @@ const tr: Locale = {
   noBurnsLogged: "Burn kaydı yok",
   velocityTrend: "Hız Trendi",
   noMatchingTasks: "Eşleşen görev yok",
+  somethingWentWrong: "Bir şeyler ters gitti",
+  reload: "Yeniden yükle",
+  epicBurndown: "Epik Burndown",
+  rootTasksInGroup: "Gruptaki kök görevler",
+  noRootTasksAdded: "Henüz kök görev eklenmedi",
+  snapshotNow: "Şimdi anlık görüntü al",
+  deleteTeam: "Takımı sil",
+  addMember: "Üye ekle",
+  filterAll: "Tümü",
+  filterTasks: "Görevler",
+  filterUsers: "Kullanıcılar",
+  filterSprints: "Sprintler",
+  filterRooms: "Odalar",
 };
 export default tr;

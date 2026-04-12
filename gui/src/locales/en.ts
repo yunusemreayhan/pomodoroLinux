@@ -207,5 +207,19 @@ const en: Locale = {
   noBurnsLogged: "No burns logged",
   velocityTrend: "Velocity Trend",
   noMatchingTasks: "No matching tasks",
+  // I1-I5
+  somethingWentWrong: "Something went wrong",
+  reload: "Reload",
+  epicBurndown: "Epic Burndown",
+  rootTasksInGroup: "Root tasks in group",
+  noRootTasksAdded: "No root tasks added yet",
+  snapshotNow: "Snapshot now",
+  deleteTeam: "Delete team",
+  addMember: "Add member",
+  filterAll: "All",
+  filterTasks: "Tasks",
+  filterUsers: "Users",
+  filterSprints: "Sprints",
+  filterRooms: "Rooms",
 };
 export default en;

@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import { apiCall } from "../store/api";
 import { useStore } from "../store/store";
 import { matchSearch } from "../utils";
+import { useT } from "../i18n";
 import type { EpicGroup, EpicGroupDetail } from "../store/api";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 export default function EpicBurndown() {
+  const t = useT();
   const [groups, setGroups] = useState<EpicGroup[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [detail, setDetail] = useState<EpicGroupDetail | null>(null);
@@ -62,7 +64,7 @@ export default function EpicBurndown() {
 
   if (!open) return (
     <button onClick={() => setOpen(true)} className="w-full text-left text-xs text-white/30 hover:text-white/50 py-1 px-2">
-      ▶ Epic Burndown
+      ▶ {t.epicBurndown}
     </button>
   );
 
@@ -78,7 +80,7 @@ export default function EpicBurndown() {
   return (
     <div className="bg-[var(--color-surface)] p-3 rounded-lg border border-white/5 space-y-3">
       <div className="flex items-center gap-2">
-        <span className="text-xs font-medium text-white/60 flex-1">Epic Burndown</span>
+        <span className="text-xs font-medium text-white/60 flex-1">{t.epicBurndown}</span>
         <button onClick={() => setCreating(true)} className="text-xs text-[var(--color-accent)]">+ New</button>
         <button onClick={() => setOpen(false)} className="text-xs text-white/30 hover:text-white/50">▼ Hide</button>
       </div>

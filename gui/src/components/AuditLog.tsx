@@ -36,11 +36,11 @@ export default function AuditLog() {
         <select value={filter} onChange={e => setFilter(e.target.value)}
           className="text-xs px-2 py-1 rounded bg-[var(--color-surface)] border border-white/10 text-[var(--color-text)]"
           aria-label="Filter by entity type">
-          <option value="">All</option>
-          <option value="task">Tasks</option>
-          <option value="user">Users</option>
-          <option value="sprint">Sprints</option>
-          <option value="room">Rooms</option>
+          <option value="">{t.filterAll}</option>
+          <option value="task">{t.filterTasks}</option>
+          <option value="user">{t.filterUsers}</option>
+          <option value="sprint">{t.filterSprints}</option>
+          <option value="room">{t.filterRooms}</option>
         </select>
       </div>
       <div className="space-y-1 max-h-96 overflow-y-auto" role="table" aria-label="Audit log entries">

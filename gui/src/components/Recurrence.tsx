@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { apiCall } from "../store/api";
 import { useStore } from "../store/store";
+import { useT } from "../i18n";
 
 interface Recurrence {
   task_id: number;
@@ -12,6 +13,7 @@ interface Recurrence {
 const PATTERNS = ["daily", "weekly", "biweekly", "monthly"];
 
 export function TaskRecurrence({ taskId }: { taskId: number }) {
+  const t = useT();
   const [rec, setRec] = useState<Recurrence | null>(null);
   const [editing, setEditing] = useState(false);
   const [pattern, setPattern] = useState("daily");
@@ -37,7 +39,7 @@ export function TaskRecurrence({ taskId }: { taskId: number }) {
   if (!editing && !rec) {
     return (
       <button onClick={() => { setEditing(true); setNextDue(new Date().toISOString().slice(0, 10)); }}
-        className="text-xs text-[var(--color-accent)] hover:underline">🔄 Add recurrence</button>
+        className="text-xs text-[var(--color-accent)] hover:underline">🔄 {t.addRecurrence}</button>
     );
   }
 
@@ -45,8 +47,8 @@ export function TaskRecurrence({ taskId }: { taskId: number }) {
     return (
       <div className="flex items-center gap-2 text-xs text-[var(--color-dim)]">
         <span>🔄 {rec.pattern} — next: {rec.next_due}</span>
-        <button onClick={() => setEditing(true)} className="text-[var(--color-accent)]">edit</button>
-        <button onClick={remove} className="text-[var(--color-danger)]">remove</button>
+        <button onClick={() => setEditing(true)} className="text-[var(--color-accent)]">{t.edit}</button>
+        <button onClick={remove} className="text-[var(--color-danger)]">{t.remove}</button>
       </div>
     );
   }
@@ -60,8 +62,8 @@ export function TaskRecurrence({ taskId }: { taskId: number }) {
       </select>
       <input type="date" value={nextDue} onChange={e => setNextDue(e.target.value)} aria-label="Next due date"
         className="text-xs px-2 py-1 rounded bg-[var(--color-surface)] border border-white/10 text-[var(--color-text)]" />
-      <button onClick={save} className="text-xs px-2 py-1 rounded bg-[var(--color-accent)] text-white">Save</button>
-      <button onClick={() => setEditing(false)} className="text-xs text-[var(--color-dim)]">Cancel</button>
+      <button onClick={save} className="text-xs px-2 py-1 rounded bg-[var(--color-accent)] text-white">{t.save}</button>
+      <button onClick={() => setEditing(false)} className="text-xs text-[var(--color-dim)]">{t.cancel}</button>
     </div>
   );
 }
