@@ -242,9 +242,11 @@ function SprintView({ id, onBack }: { id: number; onBack: () => void }) {
         {s.status === "planning" && <button onClick={start} className="flex items-center gap-1 px-2 py-1 bg-green-600 text-white text-xs rounded"><Play size={12} />Start</button>}
         {s.status === "active" && <button onClick={complete} className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white text-xs rounded"><CheckCircle size={12} />Complete</button>}
         {s.status === "active" && <button onClick={snapshot} className="px-2 py-1 bg-white/10 text-white/60 text-xs rounded">📸 Snapshot</button>}
-        <button onClick={() => {
+        <button onClick={async () => {
           const tasks = detail?.tasks || [];
           const done = tasks.filter(t => t.status === "completed" || t.status === "done");
+          // V31-18: Fetch burn summary for export
+          const burns = await apiCall<{date:string;username:string;points:number;hours:number;count:number}[]>("GET", `/api/sprints/${id}/burn-summary`).catch(() => []);
           const md = [
             `# Sprint Report: ${s.name}`,
             s.goal ? `**Goal:** ${s.goal}` : "",
@@ -253,6 +255,7 @@ function SprintView({ id, onBack }: { id: number; onBack: () => void }) {
             `- Points: ${done.reduce((a, t) => a + t.remaining_points, 0)}/${tasks.reduce((a, t) => a + t.remaining_points, 0)}`,
             `- Hours: ${done.reduce((a, t) => a + t.estimated_hours, 0).toFixed(1)}/${tasks.reduce((a, t) => a + t.estimated_hours, 0).toFixed(1)}`,
             `\n## Tasks`, ...tasks.map(t => `- [${t.status === "completed" ? "x" : " "}] ${t.title} (${t.remaining_points}pt, ${t.estimated_hours}h) — ${t.user}`),
+            burns && burns.length > 0 ? `\n## Time Log\n| Date | User | Points | Hours |\n|------|------|--------|-------|\n${burns.map(b => `| ${b.date} | ${b.username} | ${b.points} | ${b.hours.toFixed(1)} |`).join("\n")}` : "",
             s.retro_notes ? `\n## Retrospective\n${s.retro_notes}` : "",
           ].filter(Boolean).join("\n");
           const blob = new Blob([md], { type: "text/markdown" });

@@ -17,6 +17,13 @@ pub async fn create_notification(pool: &Pool, user_id: i64, kind: &str, message:
     let disabled: Option<(bool,)> = sqlx::query_as("SELECT enabled FROM notification_prefs WHERE user_id = ? AND event_type = ?")
         .bind(user_id).bind(kind).fetch_optional(pool).await?;
     if let Some((false,)) = disabled { return Ok(()); }
+    // V31-6: Cap at 500 unread notifications per user — trim oldest if exceeded
+    let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND read = 0")
+        .bind(user_id).fetch_one(pool).await?;
+    if count >= 500 {
+        sqlx::query("DELETE FROM notifications WHERE user_id = ? AND id IN (SELECT id FROM notifications WHERE user_id = ? AND read = 0 ORDER BY created_at ASC LIMIT 50)")
+            .bind(user_id).bind(user_id).execute(pool).await?;
+    }
     sqlx::query("INSERT INTO notifications (user_id, kind, message, entity_type, entity_id, created_at) VALUES (?, ?, ?, ?, ?, ?)")
         .bind(user_id).bind(kind).bind(message).bind(entity_type).bind(entity_id).bind(&now_str())
         .execute(pool).await?;

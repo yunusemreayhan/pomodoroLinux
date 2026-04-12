@@ -32,6 +32,12 @@ pub async fn delete_label(pool: &Pool, id: i64) -> Result<()> {
     Ok(())
 }
 
+pub async fn update_label(pool: &Pool, id: i64, name: &str, color: &str) -> Result<Label> {
+    sqlx::query("UPDATE labels SET name = ?, color = ? WHERE id = ?")
+        .bind(name).bind(color).bind(id).execute(pool).await?;
+    Ok(sqlx::query_as::<_, Label>("SELECT * FROM labels WHERE id = ?").bind(id).fetch_one(pool).await?)
+}
+
 pub async fn add_task_label(pool: &Pool, task_id: i64, label_id: i64) -> Result<()> {
     sqlx::query("INSERT OR IGNORE INTO task_labels (task_id, label_id) VALUES (?, ?)")
         .bind(task_id).bind(label_id).execute(pool).await?;

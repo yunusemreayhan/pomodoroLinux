@@ -168,7 +168,7 @@ pub fn build_router(engine: Arc<engine::Engine>) -> Router {
         .route("/api/import/tasks/json", post(routes::import_tasks_json))
         .route("/api/audit", get(routes::list_audit))
         .route("/api/labels", get(routes::list_labels).post(routes::create_label))
-        .route("/api/labels/{id}", delete(routes::delete_label))
+        .route("/api/labels/{id}", put(routes::update_label).delete(routes::delete_label))
         .route("/api/tasks/{id}/labels/{label_id}", axum::routing::put(routes::add_task_label).delete(routes::remove_task_label))
         .route("/api/tasks/{id}/labels", get(routes::get_task_labels))
         .route("/api/tasks/{id}/recurrence", get(routes::get_recurrence).put(routes::set_recurrence).delete(routes::remove_recurrence))

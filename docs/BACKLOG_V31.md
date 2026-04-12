@@ -156,28 +156,27 @@ are defined in code but not in the OpenAPI spec or CHANGELOG.
 
 | ID | Severity | Category | Status |
 |----|----------|----------|--------|
-| V31-1 | Medium | Bug | TODO |
-| V31-2 | Low | Bug | TODO |
-| V31-3 | Low | Bug | TODO |
+| V31-1 | Medium | Bug | FIXED |
+| V31-2 | Low | Bug | FIXED |
+| V31-3 | Low | Bug | FIXED |
 | V31-4 | Low | Bug | WON'T FIX (caller validates, DB is internal) |
-| V31-5 | Low | Security | TODO |
-| V31-6 | Low | Security | TODO |
+| V31-5 | Low | Security | FIXED |
+| V31-6 | Low | Security | FIXED |
 | V31-7 | Low | Security | WON'T FIX (files served through auth API) |
 | V31-8 | Low | Performance | WON'T FIX (acceptable for typical room sizes) |
 | V31-9 | Low | Performance | WON'T FIX (runs infrequently in background) |
 | V31-10 | Low | Code quality | WON'T FIX (refactor, not a bug) |
 | V31-11 | Low | Code quality | WON'T FIX (refactor, not a bug) |
-| V31-12 | Low | Code quality | TODO |
-| V31-13 | Low | Error handling | TODO |
+| V31-12 | Low | Code quality | FIXED |
+| V31-13 | Low | Error handling | FALSE POSITIVE (already inside if-let-Ok) |
 | V31-14 | Low | Error handling | WON'T FIX (empty group is edge case) |
-| V31-15 | Low | UX | TODO |
+| V31-15 | Low | UX | FIXED |
 | V31-16 | Low | UX | WON'T FIX (minor, timestamps available in API) |
-| V31-17 | Low | UX | TODO |
-| V31-18 | Low | UX | TODO |
-| V31-19 | Medium | Accessibility | TODO |
-| V31-20 | Low | Accessibility | TODO |
-| V31-21 | Low | Documentation | TODO |
-| V31-22 | Low | Documentation | TODO |
+| V31-17 | Low | UX | FIXED |
+| V31-18 | Low | UX | FIXED |
+| V31-19 | Medium | Accessibility | FIXED |
+| V31-20 | Low | Accessibility | FIXED |
+| V31-21 | Low | Documentation | FIXED |
+| V31-22 | Low | Documentation | FIXED |
 
-**Total: 22 items** — 2 medium, 20 low
-**To fix: 14** | **Won't fix: 8** (by design, refactors, or acceptable tradeoffs)
+**Total: 22 items** — 13 fixed, 1 false positive, 8 won't fix

@@ -250,7 +250,7 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
                       disabled={submitting}
                       role="radio" aria-checked={selectedCard === c}
                       aria-label={`Vote ${c} ${room.estimation_unit}`}
-                      className={`w-14 h-20 rounded-xl flex items-center justify-center text-lg font-bold transition-all border-2 ${
+                      className={`w-14 h-20 rounded-xl flex items-center justify-center text-lg font-bold transition-all border-2 focus:ring-2 focus:ring-[var(--color-accent)] focus:ring-offset-1 focus:ring-offset-[var(--color-bg)] outline-none ${
                         selectedCard === c ? "border-[var(--color-accent)] bg-[var(--color-accent)]/20 text-[var(--color-accent)]"
                         : myVote?.voted ? "border-white/10 bg-white/5 text-white/30"
                         : "border-white/10 bg-white/5 text-white/70 hover:border-white/30"

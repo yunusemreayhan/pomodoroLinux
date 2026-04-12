@@ -113,3 +113,34 @@ npm test                       # Run 154 tests
 ### Database
 SQLite with WAL mode. 16 migrations run automatically on startup.
 Database file: `$POMODORO_DATA_DIR/pomodoro.db` (default: `~/.local/share/pomodoro/pomodoro.db`)
+
+## Webhook Event Payloads
+
+All webhook payloads are JSON with this structure:
+
+| Event | Payload |
+|-------|---------|
+| `task.created` | `{"id": 123}` |
+| `task.updated` | `{"id": 123}` or `{"ids": [1,2,3], "status": "completed", "bulk": true}` |
+| `task.deleted` | `{"id": 123}` |
+| `sprint.created` | `{"id": 1, "name": "Sprint 1"}` |
+| `sprint.started` | `{"id": 1}` |
+| `sprint.completed` | `{"id": 1}` |
+
+Webhooks include an `X-Webhook-Event` header with the event name.
+If a secret is configured, an `X-Webhook-Signature` header contains
+`sha256=<hex>` HMAC signature of the body.
+
+## Task Recurrence Patterns
+
+Set via `PUT /api/tasks/{id}/recurrence`:
+
+| Pattern | Behavior |
+|---------|----------|
+| `daily` | Creates a copy every day |
+| `weekly` | Creates a copy every 7 days |
+| `biweekly` | Creates a copy every 14 days |
+| `monthly` | Creates a copy on the same day each month (clamped to month's last day) |
+
+The `next_due` field must be `YYYY-MM-DD` format. The system creates a new
+task titled `"Original Title (YYYY-MM-DD)"` when `next_due <= today`.

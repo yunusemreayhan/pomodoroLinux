@@ -122,8 +122,13 @@ pub async fn delete_webhook(pool: &Pool, id: i64, user_id: i64) -> Result<()> {
 }
 
 pub async fn get_active_webhooks(pool: &Pool, event: &str) -> Result<Vec<Webhook>> {
-    // B11: Escape LIKE wildcards in event name
-    let escaped = event.replace('%', "\\%").replace('_', "\\_");
-    Ok(sqlx::query_as::<_, Webhook>("SELECT * FROM webhooks WHERE active = 1 AND (events = '*' OR events LIKE ? ESCAPE '\\')")
-        .bind(format!("%{}%", escaped)).fetch_all(pool).await?)
+    // V31-5: Use exact comma-delimited matching instead of LIKE
+    Ok(sqlx::query_as::<_, Webhook>(
+        "SELECT * FROM webhooks WHERE active = 1 AND (events = '*' OR events = ? OR events LIKE ? OR events LIKE ? OR events LIKE ?)"
+    )
+        .bind(event)
+        .bind(format!("{},%", event))
+        .bind(format!("%,{}", event))
+        .bind(format!("%,{},%", event))
+        .fetch_all(pool).await?)
 }

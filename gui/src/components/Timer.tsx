@@ -60,7 +60,9 @@ export default function Timer() {
   const prevSessionRef = useRef(engine?.current_session_id);
   useEffect(() => {
     if (prevPhaseRef.current === "Work" && (phase === "ShortBreak" || phase === "LongBreak")) {
-      toast("🍅 Session complete!", "success");
+      const breakType = phase === "ShortBreak" ? "short" : "long";
+      const autoStarted = status === "Running";
+      toast(autoStarted ? `🍅 Session complete! Auto-starting ${breakType} break...` : "🍅 Session complete!", "success");
       if (prevSessionRef.current) setNotePrompt({ sessionId: prevSessionRef.current });
       // BL15: Celebrate when daily goal is reached
       const dc = engine?.daily_completed ?? 0;

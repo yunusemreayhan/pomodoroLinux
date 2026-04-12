@@ -21,8 +21,9 @@ export async function apiCall<T = unknown>(method: string, path: string, body?: 
       }
     }
     if (method !== "GET") {
-      try { const parsed = JSON.parse(msg); if (parsed.error) { showErrorToast(parsed.error); throw e; } } catch {}
-      showErrorToast(msg);
+      // V31-12: Parse error JSON cleanly, show user-friendly message
+      try { const parsed = JSON.parse(msg); if (parsed.error) { showErrorToast(parsed.error); throw e; } } catch (parseErr) { if (parseErr === e) throw e; }
+      showErrorToast(msg.length > 200 ? "An error occurred" : msg);
     }
     throw e;
   }

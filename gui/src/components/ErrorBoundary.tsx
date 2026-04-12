@@ -12,7 +12,9 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
 
   render() {
     if (this.state.hasError) {
-      const t = useI18n.getState().t;
+      // V31-2: Safe i18n access — fallback to English if store not initialized
+      let t: Record<string, string>;
+      try { t = useI18n.getState().t; } catch { t = { somethingWentWrong: "Something went wrong", reload: "Reload" } as any; }
       return (
         <div className="flex items-center justify-center h-screen bg-[var(--color-bg)]" role="alert" aria-live="assertive">
           <div className="text-center p-8">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Plus, Trash2, Pencil } from "lucide-react";
 import { apiCall } from "../store/api";
 import { useStore } from "../store/store";
@@ -12,6 +12,8 @@ export default function CommentSection({ taskId, sessionId }: { taskId: number; 
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
+  // V31-3: Monotonic counter for optimistic IDs
+  const optimisticIdRef = useRef(-1);
 
   const load = useCallback(async () => {
     const c = await apiCall<Comment[]>("GET", `/api/tasks/${taskId}/comments`);
@@ -24,7 +26,7 @@ export default function CommentSection({ taskId, sessionId }: { taskId: number; 
   const handleAdd = async () => {
     if (!text.trim()) return;
     const content = text.trim();
-    const optimistic = { id: -(Date.now() % 1000000000 + Math.floor(Math.random() * 1000)), content, user: currentUser || "you", created_at: new Date().toISOString(), task_id: taskId, user_id: 0, session_id: sessionId ?? null };
+    const optimistic = { id: optimisticIdRef.current--, content, user: currentUser || "you", created_at: new Date().toISOString(), task_id: taskId, user_id: 0, session_id: sessionId ?? null };
     setComments(prev => [...prev, optimistic as any]);
     setText("");
     await addComment(taskId, content, sessionId);

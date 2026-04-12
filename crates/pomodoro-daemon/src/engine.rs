@@ -290,21 +290,24 @@ impl Engine {
         let completed_states: Vec<EngineState>;
         {
             let global_config = self.config.lock().await.clone();
-            let mut states = self.states.lock().await;
-            let mut comps = Vec::new();
 
-            // Pre-load per-user configs for active users (uses cache)
-            let user_ids: Vec<i64> = states.iter()
-                .filter(|(_, s)| s.status == TimerStatus::Running)
-                .map(|(uid, _)| *uid)
-                .collect();
-            // Release states lock briefly to fetch configs, then re-acquire
-            drop(states);
+            // V31-1: Pre-fetch configs BEFORE acquiring states lock to avoid TOCTOU.
+            // First pass: snapshot running user IDs without holding states lock long.
+            let user_ids: Vec<i64> = {
+                let states = self.states.lock().await;
+                states.iter()
+                    .filter(|(_, s)| s.status == TimerStatus::Running)
+                    .map(|(uid, _)| *uid)
+                    .collect()
+            };
             let mut user_configs = std::collections::HashMap::new();
             for uid in &user_ids {
                 user_configs.insert(*uid, self.get_user_config(*uid).await);
             }
-            states = self.states.lock().await;
+
+            // Now acquire states lock once and hold it for the entire tick phase.
+            let mut states = self.states.lock().await;
+            let mut comps = Vec::new();
 
             for uid in &user_ids {
                 let config = user_configs.get(uid).unwrap_or(&global_config);
