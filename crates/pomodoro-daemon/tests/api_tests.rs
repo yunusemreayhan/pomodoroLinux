@@ -5315,11 +5315,12 @@ async fn flow_root_can_update_others_task() {
 async fn flow_normal_user_cannot_update_others_task() {
     let app = app().await;
     let root_token = login_root(&app).await;
-    let (user_token, _) = register_user_full(&app, "dev7", "DevPass77").await;
+    let (user_token, _) = register_user_full(&app, "cantupdate7", "DevPass77").await;
     // Root creates task
     let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &root_token, Some(json!({"title":"Root task"})))).await.unwrap();
-    let tid = body_json(resp).await["id"].as_i64().unwrap();
-    // dev7 tries to update → 403
+    assert_eq!(resp.status(), 201, "Task creation should succeed");
+    let tid = body_json(resp).await["id"].as_i64().expect("task should have id");
+    // cantupdate7 tries to update → 403
     let resp = app.clone().oneshot(auth_req("PUT", &format!("/api/tasks/{}", tid), &user_token, Some(json!({"title":"Hacked"})))).await.unwrap();
     assert_eq!(resp.status(), 403);
 }

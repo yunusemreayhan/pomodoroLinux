@@ -22,7 +22,7 @@ export function TaskRecurrence({ taskId }: { taskId: number }) {
   const load = useCallback(() => apiCall<Recurrence>("GET", `/api/tasks/${taskId}/recurrence`)
     .then(r => { setRec(r); setPattern(r.pattern); setNextDue(r.next_due); })
     .catch(() => setRec(null)), [taskId]);
-  useEffect(load, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   const save = async () => {
     await apiCall("PUT", `/api/tasks/${taskId}/recurrence`, { pattern, next_due: nextDue });
@@ -58,7 +58,7 @@ export function TaskRecurrence({ taskId }: { taskId: number }) {
       <select value={pattern} onChange={e => setPattern(e.target.value)}
         className="text-xs px-2 py-1 rounded bg-[var(--color-surface)] border border-white/10 text-[var(--color-text)]"
         aria-label="Recurrence pattern">
-        {PATTERNS.map(p => <option key={p} value={p}>{(t as Record<string, string>)[p] || p}</option>)}
+        {PATTERNS.map(p => <option key={p} value={p}>{(t as unknown as Record<string, string>)[p] || p}</option>)}
       </select>
       <input type="date" value={nextDue} onChange={e => setNextDue(e.target.value)} aria-label="Next due date"
         className="text-xs px-2 py-1 rounded bg-[var(--color-surface)] border border-white/10 text-[var(--color-text)]" />

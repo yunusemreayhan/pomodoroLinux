@@ -71,7 +71,7 @@ export function TaskAttachments({ taskId }: { taskId: number }) {
   const [uploading, setUploading] = useState(false);
 
   const load = () => apiCall<Attachment[]>("GET", `/api/tasks/${taskId}/attachments`).then(setAtts).catch(() => {});
-  useEffect(load, [taskId]);
+  useEffect(() => { void load(); }, [taskId]);
 
   const upload = async (file: File) => {
     setUploading(true);

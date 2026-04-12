@@ -1,12 +1,11 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, FolderOpen } from "lucide-react";
 import { useStore } from "../store/store";
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { buildTree } from "../tree";
 import { matchSearch } from "../utils";
 import type { TreeNode } from "../tree";
 import { apiCall } from "../store/api";
-import type { Task } from "../store/api";
 import TaskDetailView from "./TaskDetailView";
 import TaskNode from "./TaskNode";
 import { SearchCtx } from "./TaskListContext";

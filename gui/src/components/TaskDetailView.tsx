@@ -1,8 +1,8 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, MessageSquare, Clock, Plus, Trash2, Users } from "lucide-react";
+import { ArrowLeft, MessageSquare, Clock, Trash2, Users } from "lucide-react";
 import { useStore } from "../store/store";
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { TaskDetail, Comment, TimeReport } from "../store/api";
+import type { TaskDetail, TimeReport } from "../store/api";
 import { TaskLabelPicker } from "./Labels";
 import { TaskDependencies } from "./Dependencies";
 import { TaskRecurrence } from "./Recurrence";
@@ -150,7 +150,7 @@ function DetailNode({ detail, depth, onRefresh, hoursMap }: { detail: TaskDetail
         {rollup.progressHours !== null && <ProgressBar label="Hours" pct={rollup.progressHours} />}
         {rollup.progressPoints !== null && <ProgressBar label="Points" pct={rollup.progressPoints} />}
         <EstimateVsActual estimated={t.estimated} actual={t.actual} unit="🍅" />
-        <EstimateVsActual estimated={t.estimated_hours} actual={rollup.totalHours} unit="h" />
+        <EstimateVsActual estimated={t.estimated_hours} actual={rollup.totalSpentHours} unit="h" />
 
         {/* Estimate vs Actual comparison */}
         {(rollup.totalEstHours > 0 || rollup.totalEstPoints > 0) && (
@@ -269,7 +269,7 @@ function DetailNode({ detail, depth, onRefresh, hoursMap }: { detail: TaskDetail
 
         {/* Dependencies */}
         <div className="mb-3">
-          <TaskDependencies taskId={t.id} allTasks={tasks} />
+          <TaskDependencies taskId={t.id} allTasks={useStore.getState().tasks} />
         </div>
 
         {/* BL6: Sprint history */}

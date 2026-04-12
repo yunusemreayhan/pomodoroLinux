@@ -8,6 +8,7 @@ function t(id: number, parent_id: number | null = null, sort_order = 0): Task {
     project: null, tags: null, priority: 3, estimated: 1, actual: 0,
     estimated_hours: 0, remaining_points: 0, due_date: null, status: "backlog",
     sort_order, created_at: "", updated_at: "", attachment_count: 0,
+    deleted_at: null, work_duration_minutes: null, estimate_optimistic: null, estimate_pessimistic: null,
   };
 }
 

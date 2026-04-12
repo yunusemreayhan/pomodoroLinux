@@ -2,7 +2,7 @@ import { useStore } from "../store/store";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Save, Shield, ShieldOff, Check, Trash2 } from "lucide-react";
-import type { Config, User, AuthResponse, Team, TeamDetail } from "../store/api";
+import type { Config, User, AuthResponse } from "../store/api";
 import { LabelManager } from "./Labels";
 import AuditLog from "./AuditLog";
 import Select from "./Select";

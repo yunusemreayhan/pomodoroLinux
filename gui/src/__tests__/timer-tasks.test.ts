@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { buildTree } from "../tree";
 import type { Task } from "../store/api";
 
@@ -8,7 +8,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     project: null, tags: null, priority: 3, estimated: 1, actual: 0,
     estimated_hours: 0, remaining_points: 0, due_date: null, status: "backlog",
     sort_order: 1, created_at: "2024-01-01", updated_at: "2024-01-01",
-    attachment_count: 0, deleted_at: null, ...overrides,
+    attachment_count: 0, deleted_at: null, work_duration_minutes: null, estimate_optimistic: null, estimate_pessimistic: null, ...overrides,
   };
 }
 
@@ -138,7 +138,6 @@ describe("Timer state machine logic", () => {
   });
 
   it("running → idle transition (stop)", () => {
-    const state = { phase: "Work", status: "Running", elapsed_s: 300, duration_s: 1500 };
     const stopped = { phase: "Idle", status: "Idle", elapsed_s: 0, duration_s: 0 };
     expect(stopped.status).toBe("Idle");
     expect(stopped.elapsed_s).toBe(0);

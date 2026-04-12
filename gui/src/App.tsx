@@ -85,7 +85,7 @@ function Sidebar() {
       {TABS.map((tab) => {
         const Icon = tab.icon;
         const active = activeTab === tab.id;
-        const label = (t as Record<string, string>)[tab.labelKey] || tab.labelKey;
+        const label = (t as unknown as Record<string, string>)[tab.labelKey] || tab.labelKey;
         return (
           <motion.button
             key={tab.id}
@@ -166,7 +166,6 @@ function Sidebar() {
 
 export default function App() {
   const { activeTab, poll, loadTasks, connected, token, toasts, dismissToast, confirmDialog, dismissConfirm, loading, focusMode } = useStore();
-  const timerRunning = useStore(s => s.engine?.status === "Running");
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [offline, setOffline] = useState(!navigator.onLine);
   const t = useT();
@@ -354,7 +353,7 @@ export default function App() {
             return (
               <button key={tab.id} onClick={() => useStore.getState().setTab(tab.id)}
                 className={`flex flex-col items-center gap-0.5 px-2 py-1 ${active ? "text-[var(--color-accent)]" : "text-white/30"}`}
-                aria-label={(t as Record<string, string>)[tab.labelKey] || tab.labelKey}
+                aria-label={(t as unknown as Record<string, string>)[tab.labelKey] || tab.labelKey}
                 aria-current={active ? "page" : undefined}>
                 <Icon size={18} />
                 <span className="text-[9px]">{tab.id[0].toUpperCase() + tab.id.slice(1)}</span>

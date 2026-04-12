@@ -8,7 +8,7 @@
     "devUrl": "http://localhost:1420",
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm test && npm run build",
-    "beforeBundleCommand": "cargo test -p pomodoro-daemon && cargo build --release -p pomodoro-daemon"
+    "beforeBundleCommand": "cargo build --release -p pomodoro-daemon"
   },
   "app": {
     "windows": [

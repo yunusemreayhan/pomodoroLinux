@@ -81,7 +81,7 @@ describe("i18n Turkish locale", () => {
   it("Turkish locale has all keys", () => {
     useI18n.getState().setLocale("tr");
     const { t } = useI18n.getState();
-    const en = useI18n.getState().setLocale("en") || useI18n.getState();
+    useI18n.getState().setLocale("en");
     useI18n.getState().setLocale("tr");
     const trKeys = Object.keys(t);
     expect(trKeys.length).toBeGreaterThan(50);

@@ -12,7 +12,7 @@ export function TemplateManager() {
   const [estimated, setEstimated] = useState(1);
 
   const load = () => apiCall<Template[]>("GET", "/api/templates").then(setTemplates).catch(() => {});
-  useEffect(load, []);
+  useEffect(() => { void load(); }, []);
 
   const create = async () => {
     if (!name.trim()) return;
@@ -77,7 +77,7 @@ export function WebhookManager() {
   const [events, setEvents] = useState("*");
 
   const load = () => apiCall<Webhook[]>("GET", "/api/webhooks").then(setHooks).catch(() => {});
-  useEffect(load, []);
+  useEffect(() => { void load(); }, []);
 
   const create = async () => {
     if (!url.trim()) return;
@@ -169,7 +169,7 @@ export function TrashView() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const load = () => { apiCall<Task[]>("GET", "/api/tasks/trash").then(setTasks).catch(() => {}).finally(() => setLoading(false)); };
-  useEffect(load, []);
+  useEffect(() => { void load(); }, []);
 
   const restore = async (id: number) => {
     await apiCall("POST", `/api/tasks/${id}/restore`);

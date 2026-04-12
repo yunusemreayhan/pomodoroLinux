@@ -1,6 +1,5 @@
 import { useMemo, useState, useCallback } from "react";
 import { useStore } from "../store/store";
-import { apiCall } from "../store/api";
 import type { Task } from "../store/api";
 
 const COLUMNS = [
@@ -11,7 +10,6 @@ const COLUMNS = [
   { id: "completed", label: "Done", color: "#10B981" },
 ] as const;
 
-type ColId = typeof COLUMNS[number]["id"];
 
 export default function KanbanBoard() {
   const { tasks, updateTask, teamScope } = useStore();

@@ -109,13 +109,13 @@ describe("store - taskSprintsMap", () => {
   it("builds taskSprintsMap from task_sprints", () => {
     useStore.setState({
       taskSprints: [
-        { task_id: 1, sprint_id: 10, sprint_name: "S1" },
-        { task_id: 1, sprint_id: 20, sprint_name: "S2" },
-        { task_id: 2, sprint_id: 10, sprint_name: "S1" },
+        { task_id: 1, sprint_id: 10, sprint_name: "S1", sprint_status: "active" },
+        { task_id: 1, sprint_id: 20, sprint_name: "S2", sprint_status: "active" },
+        { task_id: 2, sprint_id: 10, sprint_name: "S1", sprint_status: "active" },
       ],
       taskSprintsMap: new Map([
-        [1, [{ task_id: 1, sprint_id: 10, sprint_name: "S1" }, { task_id: 1, sprint_id: 20, sprint_name: "S2" }]],
-        [2, [{ task_id: 2, sprint_id: 10, sprint_name: "S1" }]],
+        [1, [{ task_id: 1, sprint_id: 10, sprint_name: "S1", sprint_status: "active" }, { task_id: 1, sprint_id: 20, sprint_name: "S2", sprint_status: "active" }]],
+        [2, [{ task_id: 2, sprint_id: 10, sprint_name: "S1", sprint_status: "active" }]],
       ]),
     });
     const map = useStore.getState().taskSprintsMap;

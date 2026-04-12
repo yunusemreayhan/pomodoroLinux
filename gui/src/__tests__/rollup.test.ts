@@ -7,7 +7,7 @@ function task(overrides: Partial<Task> = {}): Task {
     id: 1, parent_id: null, user_id: 1, user: "root", title: "T", description: null,
     project: null, tags: null, priority: 3, estimated: 1, actual: 0,
     estimated_hours: 0, remaining_points: 0, due_date: null, status: "backlog",
-    sort_order: 0, created_at: "", updated_at: "", attachment_count: 0, ...overrides,
+    sort_order: 0, created_at: "", updated_at: "", attachment_count: 0, deleted_at: null, work_duration_minutes: null, estimate_optimistic: null, estimate_pessimistic: null, ...overrides,
   };
 }
 
