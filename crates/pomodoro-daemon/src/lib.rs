@@ -151,6 +151,7 @@ pub fn build_router(engine: Arc<engine::Engine>) -> Router {
         .layer(axum::extract::DefaultBodyLimit::max(2 * 1024 * 1024)) // 2MB max request body
         .layer(cors)
         .layer(axum::middleware::from_fn(security_headers))
+        .layer(axum::middleware::from_fn(request_id_logger))
         .layer(axum::middleware::from_fn(api_rate_limit))
         .with_state(engine)
 }
@@ -161,6 +162,21 @@ async fn security_headers(req: axum::extract::Request, next: axum::middleware::N
     h.insert("x-content-type-options", "nosniff".parse().unwrap());
     h.insert("x-frame-options", "DENY".parse().unwrap());
     h.insert("referrer-policy", "strict-origin-when-cross-origin".parse().unwrap());
+    resp
+}
+
+// O2: Request ID + structured error logging
+async fn request_id_logger(req: axum::extract::Request, next: axum::middleware::Next) -> axum::response::Response {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let rid = format!("{:08x}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().subsec_nanos());
+    let method = req.method().to_string();
+    let path = req.uri().path().to_string();
+    let mut resp = next.run(req).await;
+    let status = resp.status().as_u16();
+    if status >= 400 {
+        tracing::warn!(request_id = %rid, method = %method, path = %path, status = status, "request error");
+    }
+    resp.headers_mut().insert("x-request-id", rid.parse().unwrap());
     resp
 }
 

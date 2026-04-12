@@ -204,6 +204,8 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
                 <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Estimation cards">
                   {cards.map(c => (
                     <motion.button key={c} whileHover={{ scale: 1.1, y: -8 }} whileTap={{ scale: 0.95 }}
+                      animate={selectedCard === c ? { scale: [1, 1.15, 1.05], y: -4 } : { scale: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
                       onClick={() => vote(c)}
                       disabled={submitting}
                       role="radio" aria-checked={selectedCard === c}

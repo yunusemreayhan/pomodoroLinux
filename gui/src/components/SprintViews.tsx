@@ -120,8 +120,12 @@ export function BurndownView({ stats }: { stats: SprintDailyStat[] }) {
   const [metric, setMetric] = useState<"points" | "hours" | "tasks">("points");
   if (stats.length === 0) return <div className="text-white/30 text-sm text-center py-8">No snapshots yet. Start the sprint and take a snapshot.</div>;
 
+  const fmtDate = (d: string) => {
+    const dt = new Date(d + "T00:00:00");
+    return dt.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  };
   const data = stats.map(s => ({
-    date: s.date.slice(5),
+    date: fmtDate(s.date),
     remaining: metric === "points" ? s.total_points - s.done_points
       : metric === "hours" ? s.total_hours - s.done_hours
       : s.total_tasks - s.done_tasks,

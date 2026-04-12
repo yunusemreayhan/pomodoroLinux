@@ -21,6 +21,7 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
   const [viewStack, setViewStack] = useState<number[]>([]);
   const [search, setSearch] = useState("");
   const [bulkSelected, setBulkSelected] = useState<Set<number>>(new Set());
+  const [viewMode, setViewMode] = useState<"tree" | "table">("tree");
   const [treeKey, setTreeKey] = useState(0);
   const [bulkSprints, setBulkSprints] = useState<{ id: number; name: string }[]>([]);
 
@@ -137,6 +138,8 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
         </select>
         <button onClick={() => setTreeKey(k => k + 1)} title="Expand all"
           className="shrink-0 px-2 py-1 rounded-full text-xs bg-white/5 text-white/40 hover:text-white/60">⊞</button>
+        <button onClick={() => setViewMode(v => v === "tree" ? "table" : "tree")} title={viewMode === "tree" ? "Table view" : "Tree view"}
+          className="shrink-0 px-2 py-1 rounded-full text-xs bg-white/5 text-white/40 hover:text-white/60">{viewMode === "tree" ? "☰" : "🌳"}</button>
       </div>
 
       {/* Bulk actions toolbar */}
@@ -176,7 +179,31 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
         </div>
       )}
 
-      {/* Tree */}
+      {/* Tree or Table */}
+      {viewMode === "table" ? (
+        <div className="flex-1 overflow-y-auto text-xs">
+          <table className="w-full">
+            <thead className="sticky top-0 bg-[var(--color-bg)]">
+              <tr className="text-white/30 text-left">
+                <th className="py-1 px-2">Title</th><th className="py-1 px-1">Status</th><th className="py-1 px-1">Priority</th>
+                <th className="py-1 px-1">Est</th><th className="py-1 px-1">Due</th><th className="py-1 px-1">Owner</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.flatMap(function flat(n: TreeNode): TreeNode[] { return [n, ...n.children.flatMap(flat)]; }).map(n => (
+                <tr key={n.task.id} onClick={() => setViewStack([n.task.id])} className="hover:bg-white/5 cursor-pointer border-t border-white/5">
+                  <td className="py-1 px-2 text-white/80 truncate max-w-[200px]">{n.task.title}</td>
+                  <td className="py-1 px-1 text-white/40">{n.task.status}</td>
+                  <td className="py-1 px-1 text-white/40">P{n.task.priority}</td>
+                  <td className="py-1 px-1 text-white/40">{n.task.estimated}🍅</td>
+                  <td className="py-1 px-1 text-white/40">{n.task.due_date?.slice(5) || "—"}</td>
+                  <td className="py-1 px-1 text-white/40">{n.task.user}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
       <SearchCtx.Provider value={search}>
       <div key={treeKey} className="flex-1 overflow-y-auto space-y-2 pr-1"
         onDragOver={e => e.preventDefault()}
@@ -215,6 +242,7 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
         )}
       </div>
       </SearchCtx.Provider>
+      )}
     </div>
   );
 }
