@@ -329,3 +329,27 @@ pub async fn schedule_suggestions(State(engine): State<AppState>, claims: Claims
         "task_suggestions": suggestions,
     })))
 }
+
+// F20: On-demand report generation (can be called by cron/scheduler)
+#[utoipa::path(post, path = "/api/reports/weekly-digest", responses((status = 200)), security(("bearer" = [])))]
+pub async fn weekly_digest(State(engine): State<AppState>, claims: Claims) -> ApiResult<serde_json::Value> {
+    let stats = db::get_day_stats(&engine.pool, 7, Some(claims.user_id)).await.map_err(internal)?;
+    let total_focus: f64 = stats.iter().map(|s| s.total_focus_s as f64 / 3600.0).sum();
+    let total_sessions: i64 = stats.iter().map(|s| s.completed).sum();
+
+    // Tasks completed this week
+    let (completed,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM tasks WHERE user_id = ? AND status IN ('completed','done') AND updated_at >= date('now', '-7 days') AND deleted_at IS NULL")
+        .bind(claims.user_id).fetch_one(&engine.pool).await.map_err(internal)?;
+
+    // Upcoming due dates
+    let upcoming: Vec<(String, String)> = sqlx::query_as("SELECT title, due_date FROM tasks WHERE user_id = ? AND due_date BETWEEN date('now') AND date('now', '+7 days') AND status NOT IN ('completed','done','archived') AND deleted_at IS NULL ORDER BY due_date")
+        .bind(claims.user_id).fetch_all(&engine.pool).await.map_err(internal)?;
+
+    Ok(Json(serde_json::json!({
+        "period": "last_7_days",
+        "focus_hours": (total_focus * 100.0).round() / 100.0,
+        "sessions": total_sessions,
+        "tasks_completed": completed,
+        "upcoming_due": upcoming.into_iter().map(|(t, d)| serde_json::json!({"title": t, "due_date": d})).collect::<Vec<_>>(),
+    })))
+}

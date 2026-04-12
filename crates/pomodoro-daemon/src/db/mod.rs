@@ -488,6 +488,17 @@ async fn migrate(pool: &Pool) -> Result<()> {
         sqlx::query("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (15, ?)").bind(&now_str()).execute(pool).await.ok();
     }
 
+    // Migration 16: Shared timer sessions (pair/mob programming)
+    if !applied_set.contains(&16) {
+        sqlx::query("CREATE TABLE IF NOT EXISTS session_participants (
+            session_id  INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+            user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            joined_at   TEXT NOT NULL,
+            PRIMARY KEY (session_id, user_id)
+        )").execute(pool).await.ok();
+        sqlx::query("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (16, ?)").bind(&now_str()).execute(pool).await.ok();
+    }
+
     sqlx::query("CREATE TABLE IF NOT EXISTS task_attachments (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         task_id     INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
