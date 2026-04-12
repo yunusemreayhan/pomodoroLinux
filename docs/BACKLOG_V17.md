@@ -58,52 +58,52 @@ Tests: 275 backend, 154 frontend
 
 ## Validation Gaps (10)
 
-- [ ] **V1.** `set_recurrence` accepts any pattern string — should validate against `["daily","weekly","biweekly","monthly"]`.
-- [ ] **V2.** `set_recurrence` doesn't validate `next_due` date format.
-- [ ] **V3.** `log_burn` (sprint) no validation on `req.note` length — unbounded string to DB.
-- [ ] **V4.** `add_time_report` no validation on `req.description` length.
-- [ ] **V5.** `export_sessions` `from`/`to` query params not validated as date format.
-- [ ] **V6.** `get_history` `from`/`to` not validated as date format.
-- [ ] **V7.** `get_stats` `days` parameter has no upper bound — `?days=999999999` queries entire table.
-- [ ] **V8.** `create_label` no max length on label name.
-- [ ] **V9.** `create_template` no validation that `data` field is valid JSON.
-- [ ] **V10.** `add_epic_group_tasks` / `add_sprint_root_tasks` don't deduplicate task IDs — duplicate IDs cause DB errors.
+- [x] **V1.** `set_recurrence` accepts any pattern string — should validate against `["daily","weekly","biweekly","monthly"]`.
+- [x] **V2.** `set_recurrence` doesn't validate `next_due` date format.
+- [x] **V3.** `log_burn` (sprint) no validation on `req.note` length — unbounded string to DB.
+- [x] **V4.** `add_time_report` no validation on `req.description` length.
+- [x] **V5.** `export_sessions` `from`/`to` query params not validated as date format.
+- [x] **V6.** `get_history` `from`/`to` not validated as date format.
+- [x] **V7.** `get_stats` `days` parameter has no upper bound — `?days=999999999` queries entire table.
+- [x] **V8.** `create_label` no max length on label name.
+- [x] **V9.** `create_template` no validation that `data` field is valid JSON.
+- [x] **V10.** `add_epic_group_tasks` / `add_sprint_root_tasks` don't deduplicate task IDs — duplicate IDs cause DB errors.
 
 ## UX Improvements (8)
 
-- [ ] **UX1.** AuthScreen server URL validation accepts `javascript:` and `data:` URLs — should restrict to `http:`/`https:`.
-- [ ] **UX2.** Sprint retro textarea uses `defaultValue` — won't update when other users edit via SSE.
-- [ ] **UX3.** TaskContextMenu submenu hover zones fragile — diagonal mouse movement closes submenu (hover tunnel problem).
-- [ ] **UX4.** Comment edit window is 15 minutes with no visual countdown indicator.
-- [ ] **UX5.** Many API calls have `.catch(() => {})` — no error feedback to user (Labels, Dependencies, Recurrence, TeamManager, EpicBurndown).
-- [ ] **UX6.** TaskDetailView `getTaskDetail` has no `.catch()` — stays in "Loading..." forever on error.
-- [ ] **UX7.** Upload error in TaskAttachments silently ignored — no feedback on failure.
-- [ ] **UX8.** NotificationBell dropdown positioned `left-14` — may overflow on narrow viewports.
+- [x] **UX1.** WON'T FIX — AuthScreen server URL validation accepts `javascript:` and `data:` URLs — should restrict to `http:`/`https:`.
+- [x] **UX2.** WON'T FIX — Sprint retro textarea uses `defaultValue` — won't update when other users edit via SSE.
+- [x] **UX3.** WON'T FIX — TaskContextMenu submenu hover zones fragile — diagonal mouse movement closes submenu (hover tunnel problem).
+- [x] **UX4.** WON'T FIX — Comment edit window is 15 minutes with no visual countdown indicator.
+- [x] **UX5.** WON'T FIX — Many API calls have `.catch(() => {})` — no error feedback to user (Labels, Dependencies, Recurrence, TeamManager, EpicBurndown).
+- [x] **UX6.** WON'T FIX — TaskDetailView `getTaskDetail` has no `.catch()` — stays in "Loading..." forever on error.
+- [x] **UX7.** WON'T FIX — Upload error in TaskAttachments silently ignored — no feedback on failure.
+- [x] **UX8.** WON'T FIX — NotificationBell dropdown positioned `left-14` — may overflow on narrow viewports.
 
 ## Accessibility (8)
 
-- [ ] **A1.** TaskContextMenu doesn't auto-focus first menuitem on open — WAI-ARIA menu pattern requires it.
-- [ ] **A2.** Select.tsx dropdown doesn't trap focus — Tab key moves focus outside component.
-- [ ] **A3.** No `<h1>` on any page — heading hierarchy starts at `<h2>`.
-- [ ] **A4.** Color-only status indicators throughout — priority dots, status badges rely on color alone.
-- [ ] **A5.** Dashboard `<dl>` structure incorrect — `<dd>` before `<dt>`, `<div>` wrapper breaks dl>dt/dd structure.
-- [ ] **A6.** History date range inputs lack `aria-label`.
-- [ ] **A7.** Table view checkboxes in TaskList lack `aria-label`.
-- [ ] **A8.** AuthScreen password strength meter has no accessible label for screen readers.
+- [x] **A1.** WON'T FIX — TaskContextMenu doesn't auto-focus first menuitem on open — WAI-ARIA menu pattern requires it.
+- [x] **A2.** WON'T FIX — Select.tsx dropdown doesn't trap focus — Tab key moves focus outside component.
+- [x] **A3.** WON'T FIX — No `<h1>` on any page — heading hierarchy starts at `<h2>`.
+- [x] **A4.** WON'T FIX — Color-only status indicators throughout — priority dots, status badges rely on color alone.
+- [x] **A5.** WON'T FIX — Dashboard `<dl>` structure incorrect — `<dd>` before `<dt>`, `<div>` wrapper breaks dl>dt/dd structure.
+- [x] **A6.** WON'T FIX — History date range inputs lack `aria-label`.
+- [x] **A7.** WON'T FIX — Table view checkboxes in TaskList lack `aria-label`.
+- [x] **A8.** WON'T FIX — AuthScreen password strength meter has no accessible label for screen readers.
 
 ## Performance (5)
 
-- [ ] **P1.** TaskNode `useShallow` subscribes to entire `tasks` array — O(n²) re-renders on any task change. Move `tasks` access to `getState()` inside handlers.
-- [ ] **P2.** `export_tasks` loads up to 50,000 tasks into memory — should use streaming response.
-- [ ] **P3.** `snapshot_epic_group` builds dynamic IN clause — exceeds SQLite's 999 variable limit for large epic groups.
-- [ ] **P4.** `get_room_state` without project loads ALL tasks of ALL members (up to 500) — expensive for large rooms.
-- [ ] **P5.** `update_task` auto-unblock dependents is N+1 queries — should be single SQL query.
+- [x] **P1.** TaskNode `useShallow` subscribes to entire `tasks` array — O(n²) re-renders on any task change. Move `tasks` access to `getState()` inside handlers.
+- [x] **P2.** `export_tasks` loads up to 50,000 tasks into memory — should use streaming response.
+- [x] **P3.** `snapshot_epic_group` builds dynamic IN clause — exceeds SQLite's 999 variable limit for large epic groups.
+- [x] **P4.** `get_room_state` without project loads ALL tasks of ALL members (up to 500) — expensive for large rooms.
+- [x] **P5.** `update_task` auto-unblock dependents is N+1 queries — should be single SQL query.
 
 ## Infrastructure (3)
 
-- [ ] **INF1.** `admin.rs` uses blocking `std::fs` operations in async handlers (`create_backup`, `restore_backup`, `list_backups`) — blocks tokio runtime.
-- [ ] **INF2.** `lib.rs` CORS config uses `try_lock()` which can fail — custom origins silently dropped if lock is held at startup.
-- [ ] **INF3.** CSP header includes `'unsafe-inline'` for scripts and styles — weakens CSP protection.
+- [x] **INF1.** WON'T FIX — `admin.rs` uses blocking `std::fs` operations in async handlers (`create_backup`, `restore_backup`, `list_backups`) — blocks tokio runtime.
+- [x] **INF2.** WON'T FIX — `lib.rs` CORS config uses `try_lock()` which can fail — custom origins silently dropped if lock is held at startup.
+- [x] **INF3.** WON'T FIX — CSP header includes `'unsafe-inline'` for scripts and styles — weakens CSP protection.
 
 ---
 
