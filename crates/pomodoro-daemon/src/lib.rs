@@ -72,6 +72,8 @@ pub fn build_router(engine: Arc<engine::Engine>) -> Router {
         .route("/api/tasks/{id}/watch", post(routes::watch_task).delete(routes::unwatch_task))
         .route("/api/watched", get(routes::get_watched_tasks))
         .route("/api/tasks/{id}/votes", get(routes::get_task_votes))
+        .route("/api/tasks/{id}/links", get(routes::get_task_links).post(routes::add_task_link))
+        .route("/api/integrations/github", post(routes::github_webhook))
         .route("/api/tasks/{id}/sessions", get(routes::get_task_sessions))
         .route("/api/sessions/{id}/note", put(routes::update_session_note))
         .route("/api/tasks/{id}/burn-total", get(routes::get_task_burn_total))

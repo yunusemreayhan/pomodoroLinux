@@ -183,3 +183,67 @@ pub async fn sse_timer(State(engine): State<AppState>, Query(q): Query<SseQuery>
 
 
 // --- Rooms ---
+
+// F13: Task links (GitHub/GitLab integration)
+#[utoipa::path(get, path = "/api/tasks/{id}/links", responses((status = 200)), security(("bearer" = [])))]
+pub async fn get_task_links(State(engine): State<AppState>, _claims: Claims, Path(id): Path<i64>) -> ApiResult<Vec<serde_json::Value>> {
+    let rows: Vec<(i64, String, String, String, String)> = sqlx::query_as("SELECT id, link_type, url, title, created_at FROM task_links WHERE task_id = ? ORDER BY created_at DESC")
+        .bind(id).fetch_all(&engine.pool).await.map_err(internal)?;
+    Ok(Json(rows.into_iter().map(|(id, lt, url, title, at)| serde_json::json!({"id": id, "link_type": lt, "url": url, "title": title, "created_at": at})).collect()))
+}
+
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct AddTaskLinkRequest { pub link_type: String, pub url: String, pub title: String }
+
+#[utoipa::path(post, path = "/api/tasks/{id}/links", responses((status = 201)), security(("bearer" = [])))]
+pub async fn add_task_link(State(engine): State<AppState>, claims: Claims, Path(id): Path<i64>, Json(req): Json<AddTaskLinkRequest>) -> Result<StatusCode, ApiError> {
+    let task = db::get_task(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
+    if !is_owner_or_root(task.user_id, &claims) { return Err(err(StatusCode::FORBIDDEN, "Not owner")); }
+    if req.url.len() > 2000 { return Err(err(StatusCode::BAD_REQUEST, "URL too long")); }
+    if req.title.len() > 500 { return Err(err(StatusCode::BAD_REQUEST, "Title too long")); }
+    sqlx::query("INSERT INTO task_links (task_id, link_type, url, title, created_at) VALUES (?, ?, ?, ?, ?)")
+        .bind(id).bind(&req.link_type).bind(&req.url).bind(&req.title).bind(db::now_str())
+        .execute(&engine.pool).await.map_err(internal)?;
+    Ok(StatusCode::CREATED)
+}
+
+// F13: GitHub/GitLab webhook receiver — parses push events and links commits to tasks
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct GitHubPushEvent {
+    pub commits: Option<Vec<GitHubCommit>>,
+    pub repository: Option<GitHubRepo>,
+}
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct GitHubCommit { pub id: String, pub message: String, pub url: String }
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct GitHubRepo { pub full_name: Option<String> }
+
+#[utoipa::path(post, path = "/api/integrations/github", responses((status = 200)))]
+pub async fn github_webhook(State(engine): State<AppState>, Json(payload): Json<GitHubPushEvent>) -> Result<StatusCode, ApiError> {
+    let repo = payload.repository.as_ref().and_then(|r| r.full_name.as_deref()).unwrap_or("unknown");
+    let now = db::now_str();
+    let mut linked = 0;
+    for commit in payload.commits.unwrap_or_default() {
+        // Parse task IDs from commit message: #123, task-123, TASK-123
+        let re_ids: Vec<i64> = commit.message.split_whitespace()
+            .filter_map(|w| {
+                let w = w.trim_matches(|c: char| !c.is_alphanumeric() && c != '#' && c != '-');
+                if let Some(n) = w.strip_prefix('#') { return n.parse().ok(); }
+                let lower = w.to_lowercase();
+                if let Some(n) = lower.strip_prefix("task-") { return n.parse().ok(); }
+                None
+            }).collect();
+        for task_id in re_ids {
+            // Verify task exists
+            if db::get_task(&engine.pool, task_id).await.is_ok() {
+                let title = format!("{}: {}", &commit.id[..7.min(commit.id.len())], commit.message.lines().next().unwrap_or("").chars().take(100).collect::<String>());
+                sqlx::query("INSERT INTO task_links (task_id, link_type, url, title, created_at) VALUES (?, 'commit', ?, ?, ?)")
+                    .bind(task_id).bind(&commit.url).bind(&title).bind(&now)
+                    .execute(&engine.pool).await.ok();
+                linked += 1;
+            }
+        }
+    }
+    tracing::info!("GitHub webhook from {}: linked {} commits", repo, linked);
+    Ok(StatusCode::OK)
+}

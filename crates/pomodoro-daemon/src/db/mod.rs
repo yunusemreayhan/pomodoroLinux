@@ -447,6 +447,19 @@ async fn migrate(pool: &Pool) -> Result<()> {
         sqlx::query("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (11, ?)").bind(&now_str()).execute(pool).await.ok();
     }
 
+    // Migration 12: Task links (GitHub/GitLab commits, PRs, external URLs)
+    if !applied_set.contains(&12) {
+        sqlx::query("CREATE TABLE IF NOT EXISTS task_links (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id     INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+            link_type   TEXT NOT NULL,
+            url         TEXT NOT NULL,
+            title       TEXT NOT NULL,
+            created_at  TEXT NOT NULL
+        )").execute(pool).await.ok();
+        sqlx::query("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (12, ?)").bind(&now_str()).execute(pool).await.ok();
+    }
+
     sqlx::query("CREATE TABLE IF NOT EXISTS task_attachments (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         task_id     INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
