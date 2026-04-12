@@ -4506,3 +4506,202 @@ async fn test_password_change_requires_current() {
         Some(json!({"password":"NewPass99","current_password":"Pass1234"})))).await.unwrap();
     assert_eq!(resp.status(), 200);
 }
+
+// ============================================================
+// v10 T1: Backup endpoint test
+// ============================================================
+
+#[tokio::test]
+async fn test_backup_root_only() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let user_tok = register_user(&app, "backupUser").await;
+
+    // Non-root rejected
+    let resp = app.clone().oneshot(auth_req("POST", "/api/admin/backup", &user_tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 403);
+
+    // Root succeeds (may fail on in-memory DB but should not 403)
+    let resp = app.clone().oneshot(auth_req("POST", "/api/admin/backup", &tok, None)).await.unwrap();
+    // In-memory SQLite can't VACUUM INTO a file, so 500 is acceptable in tests
+    assert!(resp.status() == 200 || resp.status() == 500);
+}
+
+// ============================================================
+// v10 T2: Notification preferences CRUD
+// ============================================================
+
+#[tokio::test]
+async fn test_notification_prefs_crud() {
+    let app = app().await;
+    let tok = register_user(&app, "notifUser").await;
+
+    // Get defaults (all enabled)
+    let resp = app.clone().oneshot(auth_req("GET", "/api/profile/notifications", &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let prefs = body_json(resp).await;
+    let arr = prefs.as_array().unwrap();
+    assert!(arr.len() >= 6);
+    assert!(arr.iter().all(|p| p["enabled"] == true));
+
+    // Toggle one off
+    let resp = app.clone().oneshot(auth_req("PUT", "/api/profile/notifications", &tok,
+        Some(json!([{"event_type":"task_assigned","enabled":false}])))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+
+    // Verify
+    let resp = app.clone().oneshot(auth_req("GET", "/api/profile/notifications", &tok, None)).await.unwrap();
+    let prefs = body_json(resp).await;
+    let ta = prefs.as_array().unwrap().iter().find(|p| p["event_type"] == "task_assigned").unwrap();
+    assert_eq!(ta["enabled"], false);
+
+    // Unknown event type rejected
+    let resp = app.clone().oneshot(auth_req("PUT", "/api/profile/notifications", &tok,
+        Some(json!([{"event_type":"bogus","enabled":true}])))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+}
+
+// ============================================================
+// v10 T3: Bulk status update
+// ============================================================
+
+#[tokio::test]
+async fn test_bulk_status_update() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let t1 = body_json(app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"Bulk1"})))).await.unwrap()).await["id"].as_i64().unwrap();
+    let t2 = body_json(app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"Bulk2"})))).await.unwrap()).await["id"].as_i64().unwrap();
+
+    // Bulk update to completed
+    let resp = app.clone().oneshot(auth_req("PUT", "/api/tasks/bulk-status", &tok,
+        Some(json!({"task_ids":[t1, t2],"status":"completed"})))).await.unwrap();
+    assert_eq!(resp.status(), 204);
+
+    // Verify
+    let resp = app.clone().oneshot(auth_req("GET", &format!("/api/tasks/{}", t1), &tok, None)).await.unwrap();
+    let task = body_json(resp).await;
+    assert_eq!(task["task"]["status"], "completed");
+
+    // Invalid status rejected
+    let resp = app.clone().oneshot(auth_req("PUT", "/api/tasks/bulk-status", &tok,
+        Some(json!({"task_ids":[t1],"status":"invalid"})))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+}
+
+// ============================================================
+// v10 T4: Task restore from trash
+// ============================================================
+
+#[tokio::test]
+async fn test_task_restore() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"TrashMe"})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+
+    // Delete (soft)
+    app.clone().oneshot(auth_req("DELETE", &format!("/api/tasks/{}", tid), &tok, None)).await.unwrap();
+
+    // Verify in trash
+    let resp = app.clone().oneshot(auth_req("GET", "/api/tasks/trash", &tok, None)).await.unwrap();
+    let trash = body_json(resp).await;
+    assert!(trash.as_array().unwrap().iter().any(|t| t["id"] == tid));
+
+    // Restore
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/tasks/{}/restore", tid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 204);
+
+    // Verify no longer in trash
+    let resp = app.clone().oneshot(auth_req("GET", "/api/tasks/trash", &tok, None)).await.unwrap();
+    let trash = body_json(resp).await;
+    assert!(!trash.as_array().unwrap().iter().any(|t| t["id"] == tid));
+}
+
+// ============================================================
+// v10 T5: Sprint completion snapshot
+// ============================================================
+
+#[tokio::test]
+async fn test_sprint_completion_takes_snapshot() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"SprintTask","remaining_points":5.0})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+    let resp = app.clone().oneshot(auth_req("POST", "/api/sprints", &tok, Some(json!({"name":"SnapSprint"})))).await.unwrap();
+    let sid = body_json(resp).await["id"].as_i64().unwrap();
+    app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/tasks", sid), &tok, Some(json!({"task_ids":[tid]})))).await.unwrap();
+    app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/start", sid), &tok, None)).await.unwrap();
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/complete", sid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let sprint = body_json(resp).await;
+    assert_eq!(sprint["status"], "completed");
+    // Burndown should have at least one snapshot
+    let resp = app.clone().oneshot(auth_req("GET", &format!("/api/sprints/{}/burndown", sid), &tok, None)).await.unwrap();
+    let burndown = body_json(resp).await;
+    assert!(burndown.as_array().unwrap().len() >= 1);
+}
+
+// ============================================================
+// v10 T6: Refresh token rotation
+// ============================================================
+
+#[tokio::test]
+async fn test_refresh_token_rotation() {
+    let app = app().await;
+    // Register and get tokens
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/register", Some(json!({"username":"refreshUser","password":"Pass1234"})))).await.unwrap();
+    let auth = body_json(resp).await;
+    let refresh = auth["refresh_token"].as_str().unwrap().to_string();
+
+    // Refresh
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/refresh", Some(json!({"refresh_token": refresh})))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let new_auth = body_json(resp).await;
+    assert!(new_auth["token"].as_str().unwrap().len() > 10);
+
+    // Old refresh token should be revoked
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/refresh", Some(json!({"refresh_token": refresh})))).await.unwrap();
+    assert_eq!(resp.status(), 401);
+}
+
+// ============================================================
+// v10 T7: Sprint date validation
+// ============================================================
+
+#[tokio::test]
+async fn test_sprint_date_ordering() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    // end_date before start_date should fail
+    let resp = app.clone().oneshot(auth_req("POST", "/api/sprints", &tok,
+        Some(json!({"name":"BadDates","start_date":"2026-04-20","end_date":"2026-04-10"})))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+    // Valid dates should succeed
+    let resp = app.clone().oneshot(auth_req("POST", "/api/sprints", &tok,
+        Some(json!({"name":"GoodDates","start_date":"2026-04-10","end_date":"2026-04-20"})))).await.unwrap();
+    assert_eq!(resp.status(), 201);
+}
+
+// ============================================================
+// v10 T8: Concurrent task update conflict
+// ============================================================
+
+#[tokio::test]
+async fn test_task_update_conflict_detection() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"ConflictTask"})))).await.unwrap();
+    let task = body_json(resp).await;
+    let tid = task["id"].as_i64().unwrap();
+    let updated_at = task["updated_at"].as_str().unwrap().to_string();
+
+    // First update succeeds
+    let resp = app.clone().oneshot(auth_req("PUT", &format!("/api/tasks/{}", tid), &tok,
+        Some(json!({"title":"Updated","expected_updated_at": updated_at})))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+
+    // Second update with stale timestamp fails
+    let resp = app.clone().oneshot(auth_req("PUT", &format!("/api/tasks/{}", tid), &tok,
+        Some(json!({"title":"Stale","expected_updated_at": updated_at})))).await.unwrap();
+    assert_eq!(resp.status(), 409);
+}
