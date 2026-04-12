@@ -8,6 +8,14 @@ pub struct Label {
     pub created_at: String,
 }
 
+#[derive(Debug, Clone, FromRow, serde::Serialize, utoipa::ToSchema)]
+pub struct TaskLabel {
+    pub task_id: i64,
+    pub id: i64,
+    pub name: String,
+    pub color: String,
+}
+
 pub async fn list_labels(pool: &Pool) -> Result<Vec<Label>> {
     Ok(sqlx::query_as::<_, Label>("SELECT * FROM labels ORDER BY name").fetch_all(pool).await?)
 }
@@ -40,4 +48,11 @@ pub async fn get_task_labels(pool: &Pool, task_id: i64) -> Result<Vec<Label>> {
     Ok(sqlx::query_as::<_, Label>(
         "SELECT l.* FROM labels l JOIN task_labels tl ON l.id = tl.label_id WHERE tl.task_id = ? ORDER BY l.name"
     ).bind(task_id).fetch_all(pool).await?)
+}
+
+// P1: Batch fetch all task-label associations
+pub async fn get_all_task_labels(pool: &Pool) -> Result<Vec<TaskLabel>> {
+    Ok(sqlx::query_as::<_, TaskLabel>(
+        "SELECT tl.task_id, l.id, l.name, l.color FROM labels l JOIN task_labels tl ON l.id = tl.label_id ORDER BY tl.task_id, l.name"
+    ).fetch_all(pool).await?)
 }

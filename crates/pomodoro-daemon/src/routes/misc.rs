@@ -53,6 +53,7 @@ pub struct TasksFullResponse {
     pub task_sprints: Vec<db::TaskSprintInfo>,
     pub burn_totals: Vec<BurnTotalEntry>,
     pub assignees: Vec<db::TaskAssignee>,
+    pub labels: Vec<db::TaskLabel>,
 }
 
 #[utoipa::path(get, path = "/api/tasks/full", responses((status = 200, body = Vec<db::Task>)), security(("bearer" = [])))]
@@ -72,11 +73,12 @@ pub async fn get_tasks_full(State(engine): State<AppState>, _claims: Claims, hea
         }
     }
 
-    let (tasks, task_sprints, burn_totals_raw, assignees) = tokio::join!(
+    let (tasks, task_sprints, burn_totals_raw, assignees, labels) = tokio::join!(
         db::list_tasks(&engine.pool, None, None),
         db::get_all_task_sprints(&engine.pool),
         db::get_all_burn_totals(&engine.pool),
         db::get_all_assignees(&engine.pool),
+        db::get_all_task_labels(&engine.pool),
     );
     let burn_totals: Vec<BurnTotalEntry> = burn_totals_raw.map_err(internal)?.into_iter()
         .map(|(tid, bt)| BurnTotalEntry { task_id: tid, total_points: bt.total_points, total_hours: bt.total_hours, count: bt.count })
@@ -86,6 +88,7 @@ pub async fn get_tasks_full(State(engine): State<AppState>, _claims: Claims, hea
         task_sprints: task_sprints.map_err(internal)?,
         burn_totals,
         assignees: assignees.map_err(internal)?,
+        labels: labels.map_err(internal)?,
     };
     let body = serde_json::to_vec(&resp).map_err(internal)?;
     Ok(axum::response::Response::builder()

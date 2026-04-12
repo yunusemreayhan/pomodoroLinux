@@ -183,8 +183,10 @@ pub async fn room_ws(
     Ok(ws.on_upgrade(move |mut socket| async move {
         use axum::extract::ws::Message;
         // Send initial state
+        let mut last_json = String::new();
         if let Ok(state) = db::get_room_state(&pool, room_id).await {
             if let Ok(json) = serde_json::to_string(&state) {
+                last_json = json.clone();
                 let _ = socket.send(Message::Text(json.into())).await;
             }
         }
@@ -194,7 +196,11 @@ pub async fn room_ws(
                     if matches!(evt, ChangeEvent::Rooms) {
                         if let Ok(state) = db::get_room_state(&pool, room_id).await {
                             if let Ok(json) = serde_json::to_string(&state) {
-                                if socket.send(Message::Text(json.into())).await.is_err() { break; }
+                                // P2: Skip sending if state unchanged
+                                if json != last_json {
+                                    last_json = json.clone();
+                                    if socket.send(Message::Text(json.into())).await.is_err() { break; }
+                                }
                             }
                         }
                     }
