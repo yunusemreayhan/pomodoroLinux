@@ -8,6 +8,7 @@ pub mod webhook;
 
 use axum::Router;
 use axum::handler::Handler;
+use axum::response::IntoResponse;
 use std::sync::Arc;
 use tower_http::cors::{CorsLayer, AllowOrigin};
 use axum::http::{HeaderValue, Method, header};
@@ -148,6 +149,7 @@ pub fn build_router(engine: Arc<engine::Engine>) -> Router {
         .layer(axum::extract::DefaultBodyLimit::max(2 * 1024 * 1024)) // 2MB max request body
         .layer(cors)
         .layer(axum::middleware::from_fn(security_headers))
+        .layer(axum::middleware::from_fn(api_rate_limit))
         .with_state(engine)
 }
 
@@ -158,4 +160,27 @@ async fn security_headers(req: axum::extract::Request, next: axum::middleware::N
     h.insert("x-frame-options", "DENY".parse().unwrap());
     h.insert("referrer-policy", "strict-origin-when-cross-origin".parse().unwrap());
     resp
+}
+
+async fn api_rate_limit(
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> impl IntoResponse {
+    let method = req.method().clone();
+    if method == axum::http::Method::GET || method == axum::http::Method::HEAD || method == axum::http::Method::OPTIONS {
+        return next.run(req).await.into_response();
+    }
+    let ip = routes::extract_ip(req.headers());
+    let limiter = routes::api_limiter();
+    let now = std::time::Instant::now();
+    {
+        let mut map = limiter.attempts.lock().unwrap();
+        let entries = map.entry(ip).or_default();
+        entries.retain(|t| now.duration_since(*t).as_secs() < limiter.window_secs);
+        if entries.len() >= limiter.max_requests {
+            return (axum::http::StatusCode::TOO_MANY_REQUESTS, "Rate limit exceeded").into_response();
+        }
+        entries.push(now);
+    }
+    next.run(req).await.into_response()
 }

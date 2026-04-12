@@ -26,10 +26,13 @@ fn json_req(method: &str, uri: &str, body: Option<Value>) -> Request<Body> {
 }
 
 fn auth_req(method: &str, uri: &str, token: &str, body: Option<Value>) -> Request<Body> {
+    static AUTH_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    let ip = format!("10.1.0.{}", AUTH_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed) % 250 + 1);
     let b = Request::builder().method(method).uri(uri)
         .header("content-type", "application/json")
         .header("authorization", format!("Bearer {}", token))
-        .header("x-requested-with", "test");
+        .header("x-requested-with", "test")
+        .header("x-forwarded-for", ip);
     if let Some(v) = body {
         b.body(Body::from(serde_json::to_vec(&v).unwrap())).unwrap()
     } else {

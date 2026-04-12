@@ -9,10 +9,10 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 // Inline rate limiter (no external module dependency)
-struct RateLimiter {
-    attempts: std::sync::Mutex<std::collections::HashMap<String, Vec<std::time::Instant>>>,
-    max_requests: usize,
-    window_secs: u64,
+pub(crate) struct RateLimiter {
+    pub(crate) attempts: std::sync::Mutex<std::collections::HashMap<String, Vec<std::time::Instant>>>,
+    pub(crate) max_requests: usize,
+    pub(crate) window_secs: u64,
 }
 impl RateLimiter {
     fn new(max_requests: usize, window_secs: u64) -> Self {
@@ -25,15 +25,23 @@ fn auth_limiter() -> &'static RateLimiter {
     AUTH_LIMITER.get_or_init(|| RateLimiter::new(10, 60))
 }
 
-pub(crate) fn check_auth_rate_limit(headers: &axum::http::HeaderMap) -> Result<(), ApiError> {
-    // Prefer x-real-ip (typically set by trusted reverse proxy) over x-forwarded-for (spoofable).
-    // In production, deploy behind nginx/caddy that sets x-real-ip from actual peer address.
-    let ip = headers.get("x-real-ip")
+// General API rate limiter: 200 requests per 60 seconds per IP (for mutation endpoints)
+static API_LIMITER: std::sync::OnceLock<RateLimiter> = std::sync::OnceLock::new();
+pub(crate) fn api_limiter() -> &'static RateLimiter {
+    API_LIMITER.get_or_init(|| RateLimiter::new(200, 60))
+}
+
+pub(crate) fn extract_ip(headers: &axum::http::HeaderMap) -> String {
+    headers.get("x-real-ip")
         .or_else(|| headers.get("x-forwarded-for"))
         .and_then(|v| v.to_str().ok())
         .map(|s| s.split(',').next().unwrap_or(s).trim().to_string())
         .map(|s| s.strip_prefix("::ffff:").unwrap_or(&s).to_string())
-        .unwrap_or_else(|| "unknown".to_string());
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+pub(crate) fn check_auth_rate_limit(headers: &axum::http::HeaderMap) -> Result<(), ApiError> {
+    let ip = extract_ip(headers);
     let limiter = auth_limiter();
     let now = std::time::Instant::now();
     let mut map = limiter.attempts.lock().unwrap();
