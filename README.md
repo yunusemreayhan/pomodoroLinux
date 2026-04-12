@@ -326,39 +326,37 @@ Tests use in-memory SQLite — no disk I/O, fully isolated, no port conflicts.
 
 ### E2E GUI Tests
 
-End-to-end tests drive the real Tauri GUI via WebDriver against an isolated daemon.
-Each run gets a **random port** and **fresh temp directory** — multiple instances can run in parallel.
+659 end-to-end tests across 31 files drive the real Tauri GUI via WebDriver against an isolated daemon. 100% API endpoint coverage (154/154 endpoints tested).
 
 ```bash
 # Run all E2E tests
 ./e2etests/run_e2e.sh
 
-# Run a specific test class
-./e2etests/run_e2e.sh -k TestLogin
-
 # Run a specific test file
 ./e2etests/run_e2e.sh test_flows.py
+
+# Run a specific test class
+./e2etests/run_e2e.sh test_flows.py::TestLogin
 ```
+
+**Coverage areas:**
+- GUI flows: login, registration, timer, task detail, sprint board, settings, theme, sidebar navigation
+- API exhaustive: every endpoint, every status transition, every config field
+- Edge cases: unicode/emoji, 10K-char strings, SQL/HTML injection, boundary values
+- Multi-user: permissions, privilege escalation, cross-user scenarios
+- Stress: 500 concurrent task creates, 200 rapid requests
+- Regressions: stale token auth, React 19 input filling, Xvfb display isolation
+
+**Writing new tests:** See [`e2etests/CHEATSHEET.md`](e2etests/CHEATSHEET.md) for copy-paste patterns and [`e2etests/helpers.py`](e2etests/helpers.py) for the 150+ method test helper library.
 
 **Prerequisites:**
 - `cargo install tauri-driver` (WebDriver bridge for Tauri)
 - `sudo apt install webkit2gtk-driver` (WebKitWebDriver)
+- `sudo apt install xvfb` (headless display)
 - Built daemon: `cargo build --release -p pomodoro-daemon`
-- Built GUI: `cargo tauri build` (or set `POMODORO_GUI_BINARY`)
+- Built GUI: `cargo tauri build`
 
-**Test isolation:**
-- Fresh SQLite DB per run (0 tasks, 0 sprints, 0 rooms)
-- Random port (no conflicts with production daemon on :9090)
-- Temp dir cleaned up after tests
-- Flaky test retry: `--reruns=1 --reruns-delay=2`
-
-**E2E test files:**
-| File | Coverage |
-|------|----------|
-| `test_flows.py` | Auth (login, register, logout), timer, tasks, sprints, rooms, history, settings, theme, API tab, DOM integrity, multi-user, password validation, session expiry |
-| `test_sprint_lifecycle.py` | Sprint display, start, board columns, complete |
-| `test_room_voting.py` | Room creation, voting task display, vote + reveal, members |
-| `test_task_crud.py` | Task create, rename, status change, soft delete, restore, purge, bulk update |
+**Test isolation:** Each test file gets a fresh daemon (random port, temp DB), fresh GUI session, and its own Xvfb display. No cross-file contamination.
 
 ### Unit Test Coverage
 - Auth: seed root, register, login, wrong password, unauthenticated rejection
