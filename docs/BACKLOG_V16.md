@@ -74,23 +74,23 @@ Tests: 275 backend, 154 frontend
 
 ## Performance (5)
 
-- [ ] **P1.** `TaskDetailView` N+1 API calls — 4 calls per DetailNode child (time reports, assignees, users, burn-users). 10 children = 40+ calls.
-- [ ] **P2.** `useSseConnection` `taskSafety` interval fetches all tasks every 30s even when SSE is working — wasteful for large lists.
-- [ ] **P3.** `compare_sprints` loads full task lists just to count completed — should use `COUNT(*)` SQL query.
-- [ ] **P4.** `log_burn` loads ALL sprint tasks to check if one task belongs to sprint — should use `SELECT EXISTS(...)`.
-- [ ] **P5.** `get_active_timers` does N+1 queries — fetches user and task individually per active timer.
+- [x] **P1.** `TaskDetailView` N+1 API calls — 4 calls per DetailNode child (time reports, assignees, users, burn-users). 10 children = 40+ calls.
+- [x] **P2.** `useSseConnection` `taskSafety` interval fetches all tasks every 30s even when SSE is working — wasteful for large lists.
+- [x] **P3.** `compare_sprints` loads full task lists just to count completed — should use `COUNT(*)` SQL query.
+- [x] **P4.** `log_burn` loads ALL sprint tasks to check if one task belongs to sprint — should use `SELECT EXISTS(...)`.
+- [x] **P5.** `get_active_timers` does N+1 queries — fetches user and task individually per active timer.
 
 ## i18n Gaps (3)
 
-- [ ] **I1.** ~70% of frontend strings still hardcoded English — Timer.tsx, Dashboard.tsx, Sprints.tsx, EstimationRoomView.tsx, History.tsx, Settings.tsx all have significant gaps.
-- [ ] **I2.** `Recurrence.tsx` pattern `<option>` values display raw strings instead of using existing i18n keys.
-- [ ] **I3.** `TaskContextMenu.tsx` all menu item labels hardcoded English.
+- [x] **I1.** WON'T FIX — ~70% of frontend strings still hardcoded English — Timer.tsx, Dashboard.tsx, Sprints.tsx, EstimationRoomView.tsx, History.tsx, Settings.tsx all have significant gaps.
+- [x] **I2.** `Recurrence.tsx` pattern `<option>` values display raw strings instead of using existing i18n keys.
+- [x] **I3.** WON'T FIX — `TaskContextMenu.tsx` all menu item labels hardcoded English.
 
 ## Infrastructure (3)
 
-- [ ] **INF1.** Rate limiter uses `std::sync::Mutex` in async context — blocks tokio thread under high concurrency. Use `parking_lot::Mutex` or `tokio::sync::Mutex`.
-- [ ] **INF2.** `list_rooms` and `list_sprints` have hardcoded `LIMIT 200` with no pagination support.
-- [ ] **INF3.** `FTS5` search doesn't escape special operators (`NOT`, `OR`, `AND`, `*`, `+`, `-`) — user input interpreted as FTS5 boolean query.
+- [x] **INF1.** WON'T FIX — Rate limiter uses `std::sync::Mutex` in async context — blocks tokio thread under high concurrency. Use `parking_lot::Mutex` or `tokio::sync::Mutex`.
+- [x] **INF2.** WON'T FIX — `list_rooms` and `list_sprints` have hardcoded `LIMIT 200` with no pagination support.
+- [x] **INF3.** FALSE POSITIVE — `FTS5` search doesn't escape special operators (`NOT`, `OR`, `AND`, `*`, `+`, `-`) — user input interpreted as FTS5 boolean query.
 
 ---
 
