@@ -100,7 +100,7 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
         layout="position"
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
-        draggable={!selectMode}
+        draggable
         onDragStart={(e: React.DragEvent) => {
           e.dataTransfer?.setData("text/plain", String(t.id));
           e.dataTransfer.effectAllowed = "move";

@@ -139,9 +139,14 @@ export function BacklogView({ sprintId, taskIds, reload }: { sprintId: number; t
         )}
       </div>
 
-      {/* Sprint tasks */}
-      <div>
-        <div className="text-xs text-white/50 mb-1 font-medium">Sprint Tasks (click ✕ to remove)</div>
+      {/* Sprint tasks — drop zone for drag-and-drop from available tasks */}
+      <div
+        onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--color-accent)"; }}
+        onDragLeave={e => { e.currentTarget.style.borderColor = "transparent"; }}
+        onDrop={e => { e.currentTarget.style.borderColor = "transparent"; const id = Number(e.dataTransfer.getData("text/plain")); if (id && !taskIds.has(id)) addTask(id); }}
+        className="border-2 border-transparent rounded-lg transition-colors"
+      >
+        <div className="text-xs text-white/50 mb-1 font-medium">Sprint Tasks (click ✕ to remove, or drag from below)</div>
         <div className="space-y-1 max-h-[50vh] overflow-y-auto">
           {[...taskIds].length === 0 && <div className="text-xs text-white/20 py-4 text-center">📋 No tasks yet — add tasks from the task list</div>}
           <TaskList selectMode onSelect={removeTask} selectedTaskId={null} votedTaskIds={taskIds}
