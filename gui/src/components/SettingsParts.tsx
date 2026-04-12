@@ -22,6 +22,7 @@ export function TemplateManager() {
   };
 
   const del = async (id: number) => {
+    if (!confirm("Delete this template?")) return;
     await apiCall("DELETE", `/api/templates/${id}`);
     load();
   };
@@ -84,6 +85,7 @@ export function WebhookManager() {
   };
 
   const del = async (id: number) => {
+    if (!confirm("Delete this webhook?")) return;
     await apiCall("DELETE", `/api/webhooks/${id}`);
     load();
   };
@@ -147,7 +149,7 @@ export function CsvImport() {
       <div className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${dragging ? "border-[var(--color-accent)] bg-[var(--color-accent)]/5" : "border-white/10"}`}
         onDragOver={e => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
-        onDrop={async e => { e.preventDefault(); setDragging(false); const file = e.dataTransfer.files[0]; if (file) await processFile(file); }}>
+        onDrop={async e => { e.preventDefault(); setDragging(false); const file = e.dataTransfer.files[0]; if (file && (file.name.endsWith('.csv') || file.type === 'text/csv')) await processFile(file); else if (file) setResult("Only .csv files are accepted"); }}>
         <label className="cursor-pointer text-xs text-white/40 hover:text-white/60">
           {dragging ? "Drop CSV here" : "Drag CSV here or click to browse"}
           <input type="file" accept=".csv" onChange={handleFile} className="hidden" />
@@ -173,6 +175,12 @@ export function TrashView() {
     useStore.getState().loadTasks();
   };
 
+  const purge = async (id: number) => {
+    if (!confirm("Permanently delete this task? This cannot be undone.")) return;
+    await apiCall("DELETE", `/api/tasks/${id}/permanent`);
+    setTasks(prev => prev.filter(t => t.id !== id));
+  };
+
   if (loading) return <div className="text-xs text-white/40">Loading...</div>;
   if (tasks.length === 0) return <div className="text-xs text-white/40 mt-2">Trash is empty</div>;
 
@@ -184,7 +192,8 @@ export function TrashView() {
           <div key={t.id} className="flex items-center justify-between py-1.5 px-2 rounded bg-white/5 text-xs">
             <span className="text-white/60 truncate flex-1">{t.title}</span>
             <span className="text-white/30 text-[10px] mx-2">{t.deleted_at?.slice(0, 10)}</span>
-            <button onClick={() => restore(t.id)} className="text-[var(--color-accent)] hover:underline text-[10px]">Restore</button>
+            <button onClick={() => restore(t.id)} className="text-[var(--color-accent)] hover:underline text-[10px] mr-2">Restore</button>
+            <button onClick={() => purge(t.id)} className="text-[var(--color-danger)] hover:underline text-[10px]">Delete</button>
           </div>
         ))}
       </div>

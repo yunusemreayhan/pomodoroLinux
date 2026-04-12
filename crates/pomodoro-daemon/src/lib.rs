@@ -59,6 +59,7 @@ pub fn build_router(engine: Arc<engine::Engine>) -> Router {
         .route("/api/tasks/search", get(routes::search_tasks))
         .route("/api/tasks/{id}", get(routes::get_task_detail).put(routes::update_task).delete(routes::delete_task))
         .route("/api/tasks/{id}/restore", post(routes::restore_task))
+        .route("/api/tasks/{id}/permanent", delete(routes::purge_task))
         .route("/api/tasks/{id}/duplicate", post(routes::duplicate_task))
         .route("/api/tasks/bulk-status", put(routes::bulk_update_status))
         .route("/api/tasks/{id}/comments", get(routes::list_comments).post(routes::add_comment))

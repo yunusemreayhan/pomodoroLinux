@@ -241,6 +241,17 @@ pub async fn restore_task(State(engine): State<AppState>, claims: Claims, Path(i
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(delete, path = "/api/tasks/{id}/permanent", responses((status = 204)), security(("bearer" = [])))]
+pub async fn purge_task(State(engine): State<AppState>, claims: Claims, Path(id): Path<i64>) -> Result<StatusCode, ApiError> {
+    let task: (i64, Option<String>) = sqlx::query_as("SELECT user_id, deleted_at FROM tasks WHERE id = ?")
+        .bind(id).fetch_one(&engine.pool).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
+    if !is_owner_or_root(task.0, &claims) { return Err(err(StatusCode::FORBIDDEN, "Not owner")); }
+    if task.1.is_none() { return Err(err(StatusCode::BAD_REQUEST, "Task must be in trash first")); }
+    sqlx::query("DELETE FROM tasks WHERE id = ? AND deleted_at IS NOT NULL").bind(id).execute(&engine.pool).await.map_err(internal)?;
+    engine.notify(ChangeEvent::Tasks);
+    Ok(StatusCode::NO_CONTENT)
+}
+
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct BulkStatusRequest { pub task_ids: Vec<i64>, pub status: String }
 

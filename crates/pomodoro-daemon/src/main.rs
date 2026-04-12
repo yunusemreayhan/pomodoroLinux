@@ -72,6 +72,9 @@ use utoipa_swagger_ui::SwaggerUi;
         routes::compare_sprints,
         routes::instantiate_template,
         routes::get_active_timers,
+        routes::purge_task,
+        routes::restore_task,
+        routes::list_deleted_tasks,
     ),
     components(schemas(
         db::Task, db::Session, db::Comment, db::User, db::TaskDetail, db::SessionWithPath, db::DayStat, db::TaskAssignee,

@@ -61,12 +61,12 @@ export default function AuthScreen() {
               <div className="flex-1 flex gap-1">
                 <input value={serverDraft} onChange={(e) => setServerDraft(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") { setServerUrl(serverDraft); setEditingServer(false); }
+                    if (e.key === "Enter") { try { new URL(serverDraft); setServerUrl(serverDraft); setEditingServer(false); } catch { setError("Invalid URL format"); } }
                     if (e.key === "Escape") { setServerDraft(serverUrl); setEditingServer(false); }
                   }}
                   className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-[var(--color-accent)] font-mono"
                   autoFocus />
-                <button type="button" onClick={() => { setServerUrl(serverDraft); setEditingServer(false); }}
+                <button type="button" onClick={() => { try { new URL(serverDraft); setServerUrl(serverDraft); setEditingServer(false); } catch { setError("Invalid URL format"); } }}
                   className="text-xs px-2 py-1 rounded bg-[var(--color-accent)] text-white">✓</button>
                 <button type="button" onClick={() => { setServerDraft(serverUrl); setEditingServer(false); }}
                   className="text-xs px-2 py-1 rounded bg-white/10 text-white/60">✕</button>

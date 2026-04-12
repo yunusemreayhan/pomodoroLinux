@@ -7,8 +7,8 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "rec
 export function BurnsView({ sprintId, sprintName, tasks }: { sprintId: number; sprintName?: string; tasks: Task[] }) {
   const [burns, setBurns] = useState<BurnEntry[]>([]);
   const [summary, setSummary] = useState<BurnSummaryEntry[]>([]);
-  const [taskId, setTaskId] = useState<number>(tasks[0]?.id || 0);
-  useEffect(() => { if (tasks.length && !taskId) setTaskId(tasks[0].id); }, [tasks]);
+  const [taskId, setTaskId] = useState<number>(tasks[0]?.id ?? 0);
+  useEffect(() => { if (tasks.length && !tasks.find(t => t.id === taskId)) setTaskId(tasks[0].id); }, [tasks]);
   const [points, setPoints] = useState("");
   const [hours, setHours] = useState("");
   const [note, setNote] = useState("");

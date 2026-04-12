@@ -153,14 +153,14 @@ export default function TaskContextMenu(p: CtxMenuProps) {
 
         <div className="border-t border-white/5 my-1" />
 
-        <button onClick={async () => {
+        <button role="menuitem" onClick={async () => {
           const allTasks = useStore.getState().tasks;
           const siblings = allTasks.filter((s: Task) => s.parent_id === t.parent_id).sort((a: Task, b: Task) => a.sort_order - b.sort_order);
           const idx = siblings.findIndex((s: Task) => s.id === t.id);
           if (idx > 0) { const prev = siblings[idx - 1]; await Promise.all([p.updateTask(t.id, { sort_order: prev.sort_order }), p.updateTask(prev.id, { sort_order: t.sort_order })]); }
           close();
         }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">↑ Move up</button>
-        <button onClick={async () => {
+        <button role="menuitem" onClick={async () => {
           const allTasks = useStore.getState().tasks;
           const siblings = allTasks.filter((s: Task) => s.parent_id === t.parent_id).sort((a: Task, b: Task) => a.sort_order - b.sort_order);
           const idx = siblings.findIndex((s: Task) => s.id === t.id);
@@ -169,25 +169,25 @@ export default function TaskContextMenu(p: CtxMenuProps) {
         }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">↓ Move down</button>
 
         <div className="border-t border-white/5 my-1" />
-        <button onClick={() => { p.start(t.id); close(); }}
+        <button role="menuitem" onClick={() => { p.start(t.id); close(); }}
           className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2"
           disabled={t.status === "completed" || (config?.leaf_only_mode && node.children.length > 0)}>▶ Start timer</button>
-        <button onClick={() => { p.setTimeReporting(true); close(); }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">🕐 Log time</button>
-        <button onClick={() => { p.setCommenting(true); close(); }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">💬 Comment</button>
-        <button onClick={() => { p.setAdding(true); close(); }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">＋ Add subtask</button>
-        <button onClick={() => { p.onView(t.id); close(); }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">👁 View details</button>
+        <button role="menuitem" onClick={() => { p.setTimeReporting(true); close(); }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">🕐 Log time</button>
+        <button role="menuitem" onClick={() => { p.setCommenting(true); close(); }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">💬 Comment</button>
+        <button role="menuitem" onClick={() => { p.setAdding(true); close(); }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">＋ Add subtask</button>
+        <button role="menuitem" onClick={() => { p.onView(t.id); close(); }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">👁 View details</button>
 
         {isOwner && (
           <>
             <div className="border-t border-white/5 my-1" />
-            <button onClick={() => { p.setEditingTitle(true); p.setTitleDraft(t.title); close(); }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">✏️ Rename</button>
-            <button onClick={() => { p.setEditingDesc(true); p.setDescDraft(t.description || ""); close(); }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">📝 Edit description</button>
-            <button onClick={async () => {
+            <button role="menuitem" onClick={() => { p.setEditingTitle(true); p.setTitleDraft(t.title); close(); }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">✏️ Rename</button>
+            <button role="menuitem" onClick={() => { p.setEditingDesc(true); p.setDescDraft(t.description || ""); close(); }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">📝 Edit description</button>
+            <button role="menuitem" onClick={async () => {
               const data = { title: t.title, priority: t.priority, estimated: t.estimated, estimated_hours: t.estimated_hours, remaining_points: t.remaining_points, project: t.project, description: t.description };
               await apiCall("POST", "/api/templates", { name: t.title, data: JSON.stringify(data) });
               useStore.getState().toast("Saved as template"); close();
             }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">📋 Save as template</button>
-            <button onClick={() => { p.handleDelete(); close(); }} className="w-full text-left px-3 py-1.5 text-red-400/70 hover:bg-red-500/10 flex items-center gap-2">🗑 Delete</button>
+            <button role="menuitem" onClick={() => { p.handleDelete(); close(); }} className="w-full text-left px-3 py-1.5 text-red-400/70 hover:bg-red-500/10 flex items-center gap-2">🗑 Delete</button>
           </>
         )}
       </div>

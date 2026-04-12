@@ -75,6 +75,7 @@ export function TaskAttachments({ taskId }: { taskId: number }) {
   };
 
   const del = async (id: number) => {
+    if (!confirm("Delete this attachment?")) return;
     await apiCall("DELETE", `/api/attachments/${id}`);
     setAtts(a => a.filter(x => x.id !== id));
   };

@@ -87,6 +87,7 @@ export function EstimateVsActual({ estimated, actual, unit }: { estimated: numbe
 
 export function ExportButton({ detail }: { detail: TaskDetail }) {
   const t = detail.task;
+  const [open, setOpen] = useState(false);
 
   const doExport = async (fmt: string) => {
     let content: string, ext: string;
@@ -127,15 +128,15 @@ export function ExportButton({ detail }: { detail: TaskDetail }) {
   };
 
   return (
-    <div className="relative group">
+    <div className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
       <button onClick={() => doExport("md")} className="w-9 h-9 flex items-center justify-center rounded-lg glass text-white/60 hover:text-white transition-all" title="Export">
         <Download size={16} />
       </button>
-      <div className="absolute right-0 top-full mt-1 hidden group-hover:flex gap-1 glass p-1 z-30 rounded">
+      {open && <div className="absolute right-0 top-full mt-1 flex gap-1 glass p-1 z-30 rounded">
         {["md", "json"].map(f => (
           <button key={f} onClick={() => doExport(f)} className="px-2 py-1 text-[10px] text-white/60 hover:text-white hover:bg-white/5 rounded uppercase font-mono">{f}</button>
         ))}
-      </div>
+      </div>}
     </div>
   );
 }

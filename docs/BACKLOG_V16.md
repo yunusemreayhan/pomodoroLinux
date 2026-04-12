@@ -37,14 +37,14 @@ Tests: 275 backend, 154 frontend
 
 ## Business Logic (8)
 
-- [ ] **BL1.** `update_task` allows setting `parent_id` to a descendant — creates circular reference, causes `get_descendant_ids` to loop until depth limit.
-- [ ] **BL2.** `duplicate_task` doesn't copy `work_duration_minutes`, labels, assignees, or dependencies — silently drops task metadata.
-- [ ] **BL3.** `room_ws` doesn't re-verify membership after initial check — kicked users keep receiving room state updates until disconnect.
-- [ ] **BL4.** `add_time_report` compares username instead of user_id for authorization — username changes between token issuance and request cause false denials.
-- [ ] **BL5.** `update_sprint` doesn't validate `capacity_hours` range — `create_sprint` validates 0-10000 but update accepts any value.
-- [ ] **BL6.** `create_label` doesn't validate color format — any string accepted. Should validate `#RRGGBB` or `#RGB`.
-- [ ] **BL7.** `delete_user` doesn't handle `epic_groups.created_by` — FK violation after user deletion.
-- [ ] **BL8.** `get_tasks_full` ETag doesn't reflect soft-delete changes — `deleted_at` update doesn't change `updated_at`, so clients serve stale data.
+- [x] **BL1.** `update_task` allows setting `parent_id` to a descendant — creates circular reference, causes `get_descendant_ids` to loop until depth limit.
+- [x] **BL2.** `duplicate_task` doesn't copy `work_duration_minutes`, labels, assignees, or dependencies — silently drops task metadata.
+- [x] **BL3.** `room_ws` doesn't re-verify membership after initial check — kicked users keep receiving room state updates until disconnect.
+- [x] **BL4.** `add_time_report` compares username instead of user_id for authorization — username changes between token issuance and request cause false denials.
+- [x] **BL5.** `update_sprint` doesn't validate `capacity_hours` range — `create_sprint` validates 0-10000 but update accepts any value.
+- [x] **BL6.** `create_label` doesn't validate color format — any string accepted. Should validate `#RRGGBB` or `#RGB`.
+- [x] **BL7.** `delete_user` doesn't handle `epic_groups.created_by` — FK violation after user deletion.
+- [x] **BL8.** `get_tasks_full` ETag doesn't reflect soft-delete changes — `deleted_at` update doesn't change `updated_at`, so clients serve stale data.
 
 ## UX Improvements (10)
 

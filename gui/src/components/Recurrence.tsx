@@ -58,7 +58,7 @@ export function TaskRecurrence({ taskId }: { taskId: number }) {
       <select value={pattern} onChange={e => setPattern(e.target.value)}
         className="text-xs px-2 py-1 rounded bg-[var(--color-surface)] border border-white/10 text-[var(--color-text)]"
         aria-label="Recurrence pattern">
-        {PATTERNS.map(p => <option key={p} value={p}>{p}</option>)}
+        {PATTERNS.map(p => <option key={p} value={p}>{(t as Record<string, string>)[p] || p}</option>)}
       </select>
       <input type="date" value={nextDue} onChange={e => setNextDue(e.target.value)} aria-label="Next due date"
         className="text-xs px-2 py-1 rounded bg-[var(--color-surface)] border border-white/10 text-[var(--color-text)]" />
