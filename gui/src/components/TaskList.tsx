@@ -501,9 +501,9 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
   selectMode?: boolean; onSelect?: (id: number) => void; selectedTaskId?: number | null; votedTaskIds?: Set<number>;
   selectLabel?: string; selectClassName?: string; filterIds?: Set<number>; excludeIds?: Set<number>; rootOnly?: boolean; leafOnly?: boolean;
 } = {}) {
-  const { tasks, createTask, teamScope } = useStore();
+  const { tasks, createTask, teamScope, username } = useStore();
   const [newTitle, setNewTitle] = useState("");
-  const [filter, setFilter] = useState<"all" | "active">("all");
+  const [filter, setFilter] = useState<"all" | "active" | "mine">("all");
   const [viewStack, setViewStack] = useState<number[]>([]);
   const [search, setSearch] = useState("");
   const [bulkSelected, setBulkSelected] = useState<Set<number>>(new Set());
@@ -540,7 +540,9 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
     }
     return buildTree(t);
   }, [tasks, filterIds, excludeIds, search, rootOnly, leafOnly, teamScope]);
-  const filtered = filter === "all" ? tree.filter(n => n.task.status !== "archived") : tree.filter((n) => n.task.status !== "completed" && n.task.status !== "archived");
+  const filtered = filter === "mine" ? tree.filter(n => n.task.user === username && n.task.status !== "archived")
+    : filter === "all" ? tree.filter(n => n.task.status !== "archived")
+    : tree.filter((n) => n.task.status !== "completed" && n.task.status !== "archived");
   const [sortBy, setSortBy] = useState<"order" | "priority" | "due" | "updated">("order");
   const sorted = sortBy === "order" ? filtered : [...filtered].sort((a, b) => {
     if (sortBy === "priority") return a.task.priority - b.task.priority;
@@ -607,9 +609,9 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
             </div>
           )}
         </div>
-        <button onClick={() => setFilter(filter === "all" ? "active" : "all")}
-          className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-all ${filter === "active" ? "bg-[var(--color-accent)] text-white" : "bg-white/5 text-white/40 hover:text-white/60"}`}>
-          {filter === "active" ? "Active" : "All"} ({sorted.length})
+        <button onClick={() => setFilter(f => f === "all" ? "active" : f === "active" ? "mine" : "all")}
+          className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-all ${filter !== "all" ? "bg-[var(--color-accent)] text-white" : "bg-white/5 text-white/40 hover:text-white/60"}`}>
+          {filter === "active" ? "Active" : filter === "mine" ? "Mine" : "All"} ({sorted.length})
         </button>
         <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} aria-label="Sort tasks"
           className="text-[10px] bg-transparent border border-white/10 rounded px-1 py-0.5 text-white/40">
