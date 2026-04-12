@@ -8,7 +8,7 @@ import AuditLog from "./AuditLog";
 import Select from "./Select";
 import { useI18n, useT } from "../i18n";
 import { apiCall, setToken } from "../store/api";
-import { TemplateManager, WebhookManager } from "./SettingsParts";
+import { TemplateManager, WebhookManager, CsvImport } from "./SettingsParts";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -180,6 +180,14 @@ export default function Settings() {
         <Field label="Sound">
           <Toggle value={local.sound_enabled} onChange={(v) => set("sound_enabled", v)} />
         </Field>
+        {local.notification_enabled && (
+          <div className="ml-4 mt-1 space-y-1 text-xs text-white/40">
+            <div>Notifications are sent when:</div>
+            <div>• Timer session completes</div>
+            <div>• Break ends (if auto-start work is off)</div>
+            <div>• Daily goal reached</div>
+          </div>
+        )}
       </div>
 
       <div className="glass p-5">
@@ -256,6 +264,7 @@ export default function Settings() {
         <LabelManager />
         <TemplateManager />
         <WebhookManager />
+        <CsvImport />
       </div>
 
       {role === "root" && (

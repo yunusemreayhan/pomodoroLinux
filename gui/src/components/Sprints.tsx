@@ -475,6 +475,23 @@ function SummaryView({ detail }: { detail: SprintDetail }) {
           </div>
         ))}
       </div>
+      {s.status === "completed" && (
+        <div className="bg-[var(--color-surface)] p-3 rounded-lg border border-white/5 space-y-2">
+          <div className="text-xs text-white/50 font-medium">Retrospective</div>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <div className="text-green-400/60 mb-1">✅ Done ({done.length})</div>
+              {done.slice(0, 5).map(t => <div key={t.id} className="text-white/50 truncate">• {t.title}</div>)}
+              {done.length > 5 && <div className="text-white/30">+{done.length - 5} more</div>}
+            </div>
+            <div>
+              <div className="text-amber-400/60 mb-1">⏳ Carried Over ({tasks.length - done.length})</div>
+              {tasks.filter(t => t.status !== "completed").slice(0, 5).map(t => <div key={t.id} className="text-white/50 truncate">• {t.title}</div>)}
+            </div>
+          </div>
+          {totalPts > 0 && <div className="text-[10px] text-white/30">Completion: {((donePts / totalPts) * 100).toFixed(0)}%</div>}
+        </div>
+      )}
     </div>
   );
 }

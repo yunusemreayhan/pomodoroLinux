@@ -28,10 +28,9 @@ export function TemplateManager() {
 
   const apply = async (t: Template) => {
     try {
-      const parsed = JSON.parse(t.data);
-      await apiCall("POST", "/api/tasks", parsed);
-      useStore.getState().toast(`Created task from template "${t.name}"`);
-      useStore.getState().loadTasks();
+      const d = JSON.parse(t.data);
+      await useStore.getState().createTask(d.title || t.name, undefined, d.project, d.priority ?? 3, d.estimated ?? 1);
+      useStore.getState().toast(`Created task from "${t.name}"`);
     } catch { useStore.getState().toast("Invalid template data", "error"); }
   };
 
@@ -108,6 +107,36 @@ export function WebhookManager() {
         </div>
       ))}
       {hooks.length === 0 && <div className="text-xs text-[var(--color-dim)]">No webhooks configured</div>}
+    </div>
+  );
+}
+
+export function CsvImport() {
+  const [result, setResult] = useState<string | null>(null);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    try {
+      const resp = await apiCall<{ imported: number }>("POST", "/api/import/tasks", { csv: text });
+      setResult(`Imported ${resp.imported} tasks`);
+      useStore.getState().loadTasks();
+    } catch {
+      setResult("Import failed");
+    }
+    e.target.value = "";
+  };
+
+  return (
+    <div className="mt-4">
+      <h3 className="text-sm font-medium text-[var(--color-text)] mb-2">Import Tasks (CSV)</h3>
+      <div className="text-xs text-[var(--color-dim)] mb-2">CSV format: title,project,tags,priority,estimated</div>
+      <label className="inline-block px-3 py-1.5 rounded text-xs bg-white/5 border border-white/10 text-[var(--color-text)] cursor-pointer hover:bg-white/10">
+        Choose CSV file
+        <input type="file" accept=".csv" onChange={handleFile} className="hidden" />
+      </label>
+      {result && <div className="text-xs text-[var(--color-accent)] mt-2">{result}</div>}
     </div>
   );
 }
