@@ -7,7 +7,6 @@ import harness
 from harness import ROOT_PASSWORD
 
 _ID = os.getpid()
-_tok = {}
 
 
 def api(method, path, body=None, token=None):
@@ -47,9 +46,8 @@ def api_err(method, path, body=None, token=None):
 
 
 def tok(user="root", pw=ROOT_PASSWORD):
-    if user not in _tok:
-        _tok[user] = api("POST", "/api/auth/login", {"username": user, "password": pw})["token"]
-    return _tok[user]
+    """Always get a fresh token — no caching. Role changes invalidate old tokens."""
+    return api("POST", "/api/auth/login", {"username": user, "password": pw})["token"]
 
 
 def register(username, password):
@@ -93,28 +91,24 @@ class TestPrivilegeEscalation:
         register("alice", "AlicePass1")
         uid = get_uid("alice")
         api("PUT", f"/api/admin/users/{uid}/role", {"role": "root"}, tok())
-        _tok.pop("alice", None)  # force re-login to get new role in token
         users = api("GET", "/api/admin/users", token=tok("alice", "AlicePass1"))
         assert any(u["username"] == "root" for u in users)
 
     def test_elevated_user_can_manage_others(self, logged_in):
         register("alice", "AlicePass1")
-        register("bob", "BobbyPass1")
+        register("pe_bob", "BobbyPass1")
         uid_a = get_uid("alice")
         api("PUT", f"/api/admin/users/{uid_a}/role", {"role": "root"}, tok())
-        _tok.pop("alice", None)
-        # Alice (now root) can reset Bob's password
-        uid_b = get_uid("bob")
+        # Alice (now root) can reset pe_bob's password
+        uid_b = get_uid("pe_bob")
         api("PUT", f"/api/admin/users/{uid_b}/password", {"password": "BobNew1xx"}, tok("alice", "AlicePass1"))
-        _tok.pop("bob", None)
-        t = tok("bob", "BobNew1xx")
+        t = tok("pe_bob", "BobNew1xx")
         assert t
 
     def test_demote_back_to_user(self, logged_in):
         register("alice", "AlicePass1")
         uid = get_uid("alice")
         api("PUT", f"/api/admin/users/{uid}/role", {"role": "user"}, tok())
-        _tok.pop("alice", None)
         code, _ = api_err("GET", "/api/admin/users", token=tok("alice", "AlicePass1"))
         assert code == 403
 
@@ -258,6 +252,12 @@ class TestTaskOwnershipBoundaries:
 
     def test_user_cannot_edit_others_task(self, logged_in):
         register("gina", "GinaPas1x")
+        # Ensure gina is a normal user (may have been elevated by other tests)
+        try:
+            uid = get_uid("gina")
+            api("PUT", f"/api/admin/users/{uid}/role", {"role": "user"}, tok())
+        except Exception:
+            pass
         task = api("POST", "/api/tasks", {"title": f"Own_{_ID}"}, tok())
         code, _ = api_err("PUT", f"/api/tasks/{task['id']}",
                           {"title": "Stolen"}, tok("gina", "GinaPas1x"))
@@ -365,7 +365,6 @@ class TestFullTeamWorkflow:
         # Root elevates lead
         uid_lead = get_uid("lead")
         api("PUT", f"/api/admin/users/{uid_lead}/role", {"role": "root"}, tok())
-        _tok.pop("lead", None)
         lead_tok = tok("lead", "LeadPas1x")
 
         # Lead creates team
