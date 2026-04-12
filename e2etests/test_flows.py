@@ -35,8 +35,13 @@ def set_input(app, selector: str, value: str):
 
 
 def api_call(method, path, body=None, token=None):
-    data = json.dumps(body).encode() if body else (b"" if method in ("POST", "PUT") else None)
-    hdrs = {"Content-Type": "application/json", "X-Requested-With": "test"}
+    if body is not None:
+        data = json.dumps(body).encode()
+        hdrs = {"Content-Type": "application/json", "X-Requested-With": "test"}
+    elif method in ("POST", "PUT"):
+        data, hdrs = b"", {"Content-Type": "application/json", "X-Requested-With": "test"}
+    else:
+        data, hdrs = None, {"X-Requested-With": "test"}
     if token:
         hdrs["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(f"{harness.BASE_URL}{path}", data=data, headers=hdrs, method=method)

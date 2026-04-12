@@ -1,9 +1,6 @@
-"""Estimation room E2E tests: create via API, vote + reveal via GUI."""
+"""Room voting E2E: create via API, verify display + reveal via GUI."""
 
-import time
-import json
-import urllib.request
-import os
+import time, json, os, urllib.request
 import pytest
 import harness
 from harness import ROOT_PASSWORD
@@ -15,87 +12,83 @@ def click_tab(app, title):
 
 
 def api(method, path, body=None, token=None):
-    data = json.dumps(body).encode() if body else (b"" if method in ("POST", "PUT") else None)
-    hdrs = {"Content-Type": "application/json", "X-Requested-With": "test"}
+    url = harness.BASE_URL
+    if body is not None:
+        data = json.dumps(body).encode()
+        hdrs = {"Content-Type": "application/json", "X-Requested-With": "test"}
+    elif method in ("POST", "PUT"):
+        data, hdrs = b"", {"Content-Type": "application/json", "X-Requested-With": "test"}
+    else:
+        data, hdrs = None, {"X-Requested-With": "test"}
     if token:
         hdrs["Authorization"] = f"Bearer {token}"
-    req = urllib.request.Request(f"{harness.BASE_URL}{path}", data=data, headers=hdrs, method=method)
-    resp = urllib.request.urlopen(req, timeout=5)
+    resp = urllib.request.urlopen(
+        urllib.request.Request(f"{url}{path}", data=data, headers=hdrs, method=method), timeout=5)
     raw = resp.read().decode()
     return json.loads(raw) if raw else {}
 
 
-def root_token():
+def token():
     return api("POST", "/api/auth/login", {"username": "root", "password": ROOT_PASSWORD})["token"]
 
 
-def body_text(app):
-    return app.text(app.find("body"))
-
-
 def click_room(app, name):
-    """Click a room card in the list."""
     app.execute_js(f"""
-        var els = document.querySelectorAll('[role="button"], .glass, [tabindex="0"]');
-        for (var i = 0; i < els.length; i++) {{
-            if (els[i].textContent.includes('{name}') && els[i].className.indexOf('cursor-pointer') >= 0) {{
-                els[i].click(); break;
-            }}
-        }}
+        var els=document.querySelectorAll('[tabindex="0"],.glass');
+        for(var i=0;i<els.length;i++)
+            if(els[i].textContent.includes('{name}')&&els[i].className.indexOf('cursor-pointer')>=0)
+                {{els[i].click();break;}}
     """)
     time.sleep(1.5)
 
 
-_RUN_ID = os.getpid()
+_ID = os.getpid()
 
 
 class TestRoomDisplay:
-
     def test_room_shows_in_gui(self, logged_in):
-        token = root_token()
-        api("POST", "/api/rooms", {"name": f"Room_{_RUN_ID}", "estimation_unit": "points"}, token)
+        t = token()
+        api("POST", "/api/rooms", {"name": f"Rm_{_ID}", "estimation_unit": "points"}, t)
         click_tab(logged_in, "Refresh data")
         time.sleep(0.5)
         click_tab(logged_in, "Rooms")
-        assert f"Room_{_RUN_ID}" in logged_in.page_source()
+        assert f"Rm_{_ID}" in logged_in.page_source()
+
+    def test_room_status_visible(self, logged_in):
+        click_tab(logged_in, "Rooms")
+        src = logged_in.page_source()
+        assert "idle" in src or "lobby" in src or f"Rm_{_ID}" in src
 
 
 class TestRoomVoting:
-
     @pytest.fixture(autouse=True)
-    def setup_room(self, logged_in):
-        self.token = root_token()
-        room = api("POST", "/api/rooms", {"name": f"Vote_{_RUN_ID}", "estimation_unit": "points"}, self.token)
-        self.room_id = room["id"]
-        api("POST", f"/api/rooms/{self.room_id}/join", token=self.token)
-        task = api("POST", "/api/tasks", {"title": f"Est_{_RUN_ID}", "project": "VP"}, self.token)
-        self.task_id = task["id"]
-        api("POST", f"/api/rooms/{self.room_id}/start-voting", {"task_id": task["id"]}, self.token)
+    def _setup(self, logged_in):
+        self.tok = token()
+        r = api("POST", "/api/rooms", {"name": f"Vt_{_ID}", "estimation_unit": "points"}, self.tok)
+        self.rid = r["id"]
+        api("POST", f"/api/rooms/{self.rid}/join", token=self.tok)
+        t = api("POST", "/api/tasks", {"title": f"Est_{_ID}", "project": "VP"}, self.tok)
+        self.tid = t["id"]
+        api("POST", f"/api/rooms/{self.rid}/start-voting", {"task_id": t["id"]}, self.tok)
 
-    def test_room_detail_shows_task(self, logged_in):
-        click_tab(logged_in, "Refresh data")
-        time.sleep(0.5)
+    def test_detail_shows_task(self, logged_in):
+        click_tab(logged_in, "Timer")
         click_tab(logged_in, "Rooms")
-        click_room(logged_in, f"Vote_{_RUN_ID}")
-        body = body_text(logged_in)
-        assert f"Est_{_RUN_ID}" in body or "voting" in body.lower() or "Reveal" in body
+        click_room(logged_in, f"Vt_{_ID}")
+        body = logged_in.text(logged_in.find("body"))
+        assert f"Est_{_ID}" in body or "voting" in body.lower() or "Reveal" in body
 
-    def test_vote_and_reveal_via_api_shows_in_gui(self, logged_in):
-        """Vote + reveal via API, verify results visible in GUI."""
-        api("POST", f"/api/rooms/{self.room_id}/vote", {"value": 5}, self.token)
-        api("POST", f"/api/rooms/{self.room_id}/reveal", token=self.token)
-
-        click_tab(logged_in, "Refresh data")
-        time.sleep(0.5)
+    def test_vote_reveal_shows_result(self, logged_in):
+        api("POST", f"/api/rooms/{self.rid}/vote", {"value": 5}, self.tok)
+        api("POST", f"/api/rooms/{self.rid}/reveal", token=self.tok)
+        click_tab(logged_in, "Timer")
         click_tab(logged_in, "Rooms")
-        click_room(logged_in, f"Vote_{_RUN_ID}")
-        time.sleep(1)
-
+        click_room(logged_in, f"Vt_{_ID}")
         src = logged_in.page_source()
-        assert "revealed" in src or "5" in src or f"Vote_{_RUN_ID}" in src
+        assert "revealed" in src or "5" in src or f"Vt_{_ID}" in src
 
-    def test_room_members_visible(self, logged_in):
+    def test_members_visible(self, logged_in):
         click_tab(logged_in, "Rooms")
-        click_room(logged_in, f"Vote_{_RUN_ID}")
-        body = body_text(logged_in)
+        click_room(logged_in, f"Vt_{_ID}")
+        body = logged_in.text(logged_in.find("body"))
         assert "root" in body or "members" in body.lower()
