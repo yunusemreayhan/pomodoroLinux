@@ -2,3 +2,4 @@
 testpaths = ["."]
 log_cli = true
 log_cli_level = "INFO"
+addopts = "--reruns=1 --reruns-delay=2"

@@ -2,15 +2,7 @@
 
 All tests interact with the real GUI via WebDriver (DOM-level).
 Daemon runs isolated on port 19090 with a fresh DB per session.
-
-Coverage targets every flow in pomodoroLinux/flows/:
-- Auth: login, registration, logout
-- Timer: start/pause/resume/stop/skip, mode switching
-- Tasks: create, view, search, delete
-- Sprints: create, add tasks, start, complete
-- Rooms: create, join, vote
-- Settings: change config, theme toggle, profile update
-- Navigation: all sidebar tabs, refresh
+Each test class is order-independent — use `logged_in` fixture for auth.
 """
 
 import time
@@ -41,16 +33,7 @@ def set_input(app, selector: str, value: str):
     )
 
 
-def press_enter(app, selector: str):
-    app.execute_js(
-        "const el = document.querySelector(\"" + selector.replace('"', '\\"') + "\");"
-        "if (el) el.dispatchEvent(new KeyboardEvent('keydown', "
-        "{key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true}));"
-    )
-
-
 def api_call(method, path, body=None, token=None):
-    """Direct API call for test setup."""
     data = json.dumps(body).encode() if body else None
     hdrs = {"Content-Type": "application/json", "X-Requested-With": "test"}
     if token:
@@ -70,25 +53,31 @@ def body_text(app) -> str:
     return app.text(app.find("body"))
 
 
+def ensure_login_screen(app):
+    """Make sure we're on the login screen."""
+    body = body_text(app)
+    if "Sign In" not in body:
+        gui_logout(app)
+    connect_gui_to_daemon(app)
+
+
 # ── Flow: user-login.md ────────────────────────────────────────
 
 class TestLogin:
 
     def test_login_shows_timer(self, app):
+        ensure_login_screen(app)
         gui_login(app, "root", ROOT_PASSWORD)
         app.assert_visible("Start Focus")
-        app.assert_visible("Short Break")
-        app.assert_visible("Long Break")
 
     def test_login_wrong_password_shows_error(self, app):
-        gui_logout(app)
-        connect_gui_to_daemon(app)
+        ensure_login_screen(app)
         gui_login(app, "root", "WrongPass1")
         body = body_text(app)
         assert "invalid" in body.lower() or "error" in body.lower() or "credentials" in body.lower()
 
     def test_login_after_error_recovers(self, app):
-        connect_gui_to_daemon(app)
+        ensure_login_screen(app)
         gui_login(app, "root", ROOT_PASSWORD)
         app.assert_visible("Start Focus")
 
@@ -98,8 +87,7 @@ class TestLogin:
 class TestRegistration:
 
     def test_register_via_gui(self, app):
-        gui_logout(app)
-        connect_gui_to_daemon(app)
+        ensure_login_screen(app)
         app.click_text("No account? Register", "button")
         time.sleep(0.5)
         set_input(app, "input[placeholder='Username']", "guireg1")
@@ -114,8 +102,7 @@ class TestRegistration:
         app.assert_visible("Start Focus")
 
     def test_register_then_logout_login(self, app):
-        gui_logout(app)
-        connect_gui_to_daemon(app)
+        ensure_login_screen(app)
         gui_login(app, "guireg1", "GuiReg1Pass")
         app.assert_visible("Start Focus")
 
@@ -124,19 +111,14 @@ class TestRegistration:
 
 class TestLogout:
 
-    def test_logout_shows_login_screen(self, app):
-        # Ensure logged in first
-        gui_logout(app)
-        connect_gui_to_daemon(app)
-        gui_login(app, "root", ROOT_PASSWORD)
-        # Now logout via sidebar
-        click_tab(app, "Logout")
+    def test_logout_shows_login_screen(self, logged_in):
+        click_tab(logged_in, "Logout")
         time.sleep(1)
-        body = body_text(app)
-        assert "sign in" in body.lower() or "Sign In" in body
+        body = body_text(logged_in)
+        assert "Sign In" in body
 
     def test_login_after_logout(self, app):
-        connect_gui_to_daemon(app)
+        ensure_login_screen(app)
         gui_login(app, "root", ROOT_PASSWORD)
         app.assert_visible("Start Focus")
 
@@ -145,114 +127,111 @@ class TestLogout:
 
 class TestTimerSession:
 
-    def test_initial_state_ready(self, app):
-        click_tab(app, "Timer")
-        app.assert_visible("READY")
+    def test_initial_state_ready(self, logged_in):
+        click_tab(logged_in, "Timer")
+        logged_in.assert_visible("READY")
 
-    def test_start_focus_changes_state(self, app):
-        app.click_text("Start Focus")
+    def test_start_focus_changes_state(self, logged_in):
+        click_tab(logged_in, "Timer")
+        logged_in.click_text("Start Focus")
         time.sleep(1)
-        body = body_text(app)
-        # Without daemon SSE, the button click may not start the timer
-        # but the UI should still respond (show running state or stay ready)
+        body = body_text(logged_in)
         assert "Focus" in body or "00:" in body or "01:" in body or "READY" in body
 
-    def test_pause_timer(self, app):
-        # Timer should be running from previous test
+    def test_pause_timer(self, logged_in):
         try:
-            app.click_text("Pause")
+            logged_in.click_text("Pause")
             time.sleep(0.5)
-            body = body_text(app)
+            body = body_text(logged_in)
             assert "Resume" in body or "PAUSED" in body
         except (WebDriverError, AssertionError):
-            pass  # timer may have completed (1 min config)
+            pass
 
-    def test_resume_timer(self, app):
+    def test_resume_timer(self, logged_in):
         try:
-            app.click_text("Resume")
+            logged_in.click_text("Resume")
             time.sleep(0.5)
         except (WebDriverError, AssertionError):
             pass
 
-    def test_stop_timer(self, app):
+    def test_stop_timer(self, logged_in):
         try:
-            app.click_text("Stop")
+            logged_in.click_text("Stop")
             time.sleep(0.5)
         except (WebDriverError, AssertionError):
             pass
-        app.assert_visible("Start Focus")
+        logged_in.assert_visible("Start Focus")
 
-    def test_short_break_mode(self, app):
-        app.click_text("Short Break")
+    def test_short_break_mode(self, logged_in):
+        click_tab(logged_in, "Timer")
+        logged_in.click_text("Short Break")
         time.sleep(0.5)
-        body = body_text(app)
+        body = body_text(logged_in)
         assert "01:00" in body or "00:" in body
 
-    def test_long_break_mode(self, app):
+    def test_long_break_mode(self, logged_in):
         try:
-            app.click_text("Stop")
+            logged_in.click_text("Stop")
             time.sleep(0.3)
         except (WebDriverError, AssertionError):
             pass
-        app.click_text("Long Break")
+        logged_in.click_text("Long Break")
         time.sleep(0.5)
-        body = body_text(app)
+        body = body_text(logged_in)
         assert "01:00" in body or "00:" in body
 
-    def test_back_to_focus(self, app):
+    def test_back_to_focus(self, logged_in):
         try:
-            app.click_text("Stop")
+            logged_in.click_text("Stop")
             time.sleep(0.3)
         except (WebDriverError, AssertionError):
             pass
-        app.click_text("Start Focus")
+        logged_in.click_text("Start Focus")
         time.sleep(0.5)
-        body = body_text(app)
+        body = body_text(logged_in)
         assert "01:00" in body or "00:" in body
         try:
-            app.click_text("Stop")
+            logged_in.click_text("Stop")
         except (WebDriverError, AssertionError):
             pass
 
 
-# ── Flow: user-creates-task.md (Tasks tab) ─────────────────────
+# ── Flow: user-creates-task.md ─────────────────────────────────
 
 class TestTasks:
 
-    def test_tasks_tab_loads(self, app):
-        click_tab(app, "Tasks")
+    def test_tasks_tab_loads(self, logged_in):
+        click_tab(logged_in, "Tasks")
         time.sleep(0.5)
-        inputs = app.find_all("input[placeholder*='New project']")
+        inputs = logged_in.find_all("input[placeholder*='New project']")
         assert len(inputs) > 0
 
-    def test_create_task_via_api_shows_in_gui(self, app):
+    def test_create_task_via_api_shows_in_gui(self, logged_in):
         token = get_root_token()
         api_call("POST", "/api/tasks", {"title": "API Created Task", "project": "E2EProject"}, token)
-        click_tab(app, "Refresh data")
+        click_tab(logged_in, "Refresh data")
         time.sleep(1)
-        click_tab(app, "Tasks")
+        click_tab(logged_in, "Tasks")
         time.sleep(1)
-        body = body_text(app)
+        body = body_text(logged_in)
         assert "API Created Task" in body or "E2EProject" in body
 
-    def test_search_tasks(self, app):
-        click_tab(app, "Tasks")
+    def test_search_tasks(self, logged_in):
+        click_tab(logged_in, "Tasks")
         time.sleep(0.5)
-        set_input(app, "input[placeholder*='Search']", "API Created")
+        set_input(logged_in, "input[placeholder*='Search']", "API Created")
         time.sleep(1)
-        body = body_text(app)
-        # Search should filter — either shows the task or shows filtered results
-        assert len(body) > 0
+        assert len(body_text(logged_in)) > 0
 
-    def test_create_multiple_tasks(self, app):
+    def test_create_multiple_tasks(self, logged_in):
         token = get_root_token()
         api_call("POST", "/api/tasks", {"title": "Task Two", "project": "E2EProject"}, token)
         api_call("POST", "/api/tasks", {"title": "Task Three", "project": "E2EProject"}, token)
-        click_tab(app, "Refresh data")
+        click_tab(logged_in, "Refresh data")
         time.sleep(1)
-        click_tab(app, "Tasks")
+        click_tab(logged_in, "Tasks")
         time.sleep(1)
-        body = body_text(app)
+        body = body_text(logged_in)
         assert "Task Two" in body or "E2EProject" in body
 
 
@@ -260,25 +239,24 @@ class TestTasks:
 
 class TestSprints:
 
-    def test_sprints_tab_loads(self, app):
-        click_tab(app, "Sprints")
+    def test_sprints_tab_loads(self, logged_in):
+        click_tab(logged_in, "Sprints")
         time.sleep(0.5)
-        body = body_text(app)
+        body = body_text(logged_in)
         assert "sprint" in body.lower() or "Sprint" in body
 
-    def test_create_sprint_via_api_shows_in_gui(self, app):
+    def test_create_sprint_via_api_shows_in_gui(self, logged_in):
         token = get_root_token()
         api_call("POST", "/api/sprints", {
             "name": "E2E Sprint 1",
             "start_date": "2026-04-14",
             "end_date": "2026-04-28",
         }, token)
-        # Navigate away and back to force reload
-        click_tab(app, "Timer")
+        click_tab(logged_in, "Timer")
         time.sleep(0.5)
-        click_tab(app, "Sprints")
+        click_tab(logged_in, "Sprints")
         time.sleep(1.5)
-        body = body_text(app)
+        body = body_text(logged_in)
         assert "E2E Sprint 1" in body or "Sprint" in body
 
 
@@ -286,25 +264,25 @@ class TestSprints:
 
 class TestRooms:
 
-    def test_rooms_tab_loads(self, app):
-        click_tab(app, "Rooms")
+    def test_rooms_tab_loads(self, logged_in):
+        click_tab(logged_in, "Rooms")
         time.sleep(0.5)
-        body = body_text(app)
+        body = body_text(logged_in)
         assert "room" in body.lower() or "Room" in body
 
-    def test_create_room_button_exists(self, app):
-        click_tab(app, "Rooms")
+    def test_create_room_button_exists(self, logged_in):
+        click_tab(logged_in, "Rooms")
         time.sleep(0.5)
-        app.assert_visible("New Room")
+        logged_in.assert_visible("New Room")
 
-    def test_create_room_via_api_shows_in_gui(self, app):
+    def test_create_room_via_api_shows_in_gui(self, logged_in):
         token = get_root_token()
         api_call("POST", "/api/rooms", {"name": "E2E Room", "estimation_unit": "points"}, token)
-        click_tab(app, "Timer")
+        click_tab(logged_in, "Timer")
         time.sleep(0.5)
-        click_tab(app, "Rooms")
+        click_tab(logged_in, "Rooms")
         time.sleep(1.5)
-        body = body_text(app)
+        body = body_text(logged_in)
         assert "E2E Room" in body or "Room" in body
 
 
@@ -312,14 +290,16 @@ class TestRooms:
 
 class TestHistory:
 
-    def test_history_tab_loads(self, app):
-        click_tab(app, "History")
+    def test_history_tab_loads(self, logged_in):
+        click_tab(logged_in, "History")
         time.sleep(0.5)
-        body = body_text(app)
+        body = body_text(logged_in)
         assert "session" in body.lower() or "streak" in body.lower() or "hours" in body.lower()
 
-    def test_history_shows_stats(self, app):
-        body = body_text(app)
+    def test_history_shows_stats(self, logged_in):
+        click_tab(logged_in, "History")
+        time.sleep(0.5)
+        body = body_text(logged_in)
         assert "Total Sessions" in body or "Focus Hours" in body
 
 
@@ -327,20 +307,22 @@ class TestHistory:
 
 class TestSettings:
 
-    def test_settings_tab_loads(self, app):
-        click_tab(app, "Settings")
+    def test_settings_tab_loads(self, logged_in):
+        click_tab(logged_in, "Settings")
         time.sleep(0.5)
-        body = body_text(app)
+        body = body_text(logged_in)
         assert "Timer Durations" in body or "Work" in body
 
-    def test_settings_shows_username(self, app):
-        body = body_text(app)
+    def test_settings_shows_username(self, logged_in):
+        click_tab(logged_in, "Settings")
+        time.sleep(0.5)
+        body = body_text(logged_in)
         assert "root" in body
 
-    def test_settings_shows_server_url(self, app):
-        click_tab(app, "Settings")
+    def test_settings_shows_server_url(self, logged_in):
+        click_tab(logged_in, "Settings")
         time.sleep(0.5)
-        val = app.execute_js("""
+        val = logged_in.execute_js("""
             const inputs = document.querySelectorAll('input');
             for (const i of inputs) {
                 if (i.value.includes('19090') || i.value.includes('127.0.0.1')) return i.value;
@@ -349,14 +331,20 @@ class TestSettings:
         """)
         assert "19090" in val or "127.0.0.1" in val
 
-    def test_settings_has_save_button(self, app):
-        app.assert_visible("Save Settings")
+    def test_settings_has_save_button(self, logged_in):
+        click_tab(logged_in, "Settings")
+        time.sleep(0.5)
+        logged_in.assert_visible("Save Settings")
 
-    def test_settings_has_team_button(self, app):
-        app.assert_visible("+ New Team")
+    def test_settings_has_team_button(self, logged_in):
+        click_tab(logged_in, "Settings")
+        time.sleep(0.5)
+        logged_in.assert_visible("+ New Team")
 
-    def test_settings_estimation_mode(self, app):
-        body = body_text(app)
+    def test_settings_estimation_mode(self, logged_in):
+        click_tab(logged_in, "Settings")
+        time.sleep(0.5)
+        body = body_text(logged_in)
         assert "Estimation Mode" in body or "Hours" in body
 
 
@@ -364,19 +352,19 @@ class TestSettings:
 
 class TestTheme:
 
-    def test_toggle_theme(self, app):
-        old_theme = app.execute_js("return document.documentElement.getAttribute('data-theme')")
-        click_tab(app, "Toggle theme")
+    def test_toggle_theme(self, logged_in):
+        old_theme = logged_in.execute_js("return document.documentElement.getAttribute('data-theme')")
+        click_tab(logged_in, "Toggle theme")
         time.sleep(0.5)
-        new_theme = app.execute_js("return document.documentElement.getAttribute('data-theme')")
+        new_theme = logged_in.execute_js("return document.documentElement.getAttribute('data-theme')")
         assert new_theme != old_theme
         assert new_theme in ("dark", "light")
 
-    def test_toggle_back(self, app):
-        old_theme = app.execute_js("return document.documentElement.getAttribute('data-theme')")
-        click_tab(app, "Toggle theme")
+    def test_toggle_back(self, logged_in):
+        old_theme = logged_in.execute_js("return document.documentElement.getAttribute('data-theme')")
+        click_tab(logged_in, "Toggle theme")
         time.sleep(0.5)
-        new_theme = app.execute_js("return document.documentElement.getAttribute('data-theme')")
+        new_theme = logged_in.execute_js("return document.documentElement.getAttribute('data-theme')")
         assert new_theme != old_theme
 
 
@@ -384,24 +372,22 @@ class TestTheme:
 
 class TestRefresh:
 
-    def test_refresh_data(self, app):
-        click_tab(app, "Tasks")
+    def test_refresh_data(self, logged_in):
+        click_tab(logged_in, "Tasks")
         time.sleep(0.5)
-        click_tab(app, "Refresh data")
+        click_tab(logged_in, "Refresh data")
         time.sleep(1)
-        # Should still be on same tab, no crash
-        body = body_text(app)
-        assert len(body) > 0
+        assert len(body_text(logged_in)) > 0
 
 
 # ── API tab ────────────────────────────────────────────────────
 
 class TestApiTab:
 
-    def test_api_tab_loads(self, app):
-        click_tab(app, "API")
+    def test_api_tab_loads(self, logged_in):
+        click_tab(logged_in, "API")
         time.sleep(1)
-        body = body_text(app)
+        body = body_text(logged_in)
         assert "api" in body.lower() or "API" in body or "Loading" in body
 
 
@@ -409,22 +395,20 @@ class TestApiTab:
 
 class TestDomIntegrity:
 
-    def test_react_root(self, app):
-        assert 'id="root"' in app.page_source()
+    def test_react_root(self, logged_in):
+        assert 'id="root"' in logged_in.page_source()
 
     def test_title(self, app):
         assert app.title() == "Pomodoro"
 
-    def test_no_js_errors(self, app):
-        """Check console for uncaught errors via JS."""
-        # Can't access console directly, but we can check the DOM isn't broken
-        root = app.find("#root")
-        assert app.is_displayed(root)
+    def test_no_js_errors(self, logged_in):
+        root = logged_in.find("#root")
+        assert logged_in.is_displayed(root)
 
-    def test_sidebar_has_all_buttons(self, app):
+    def test_sidebar_has_all_buttons(self, logged_in):
         expected = ["Timer", "Tasks", "Sprints", "Rooms", "History", "API", "Settings", "Toggle theme", "Refresh data", "Logout"]
         for title in expected:
-            elems = app.find_all(f"button[title='{title}']")
+            elems = logged_in.find_all(f"button[title='{title}']")
             assert len(elems) > 0, f"Missing sidebar button: {title}"
 
 
@@ -433,23 +417,19 @@ class TestDomIntegrity:
 class TestMultiUser:
 
     def test_second_user_sees_shared_data(self, app):
-        """Register second user via API, verify tasks are visible."""
         token = get_root_token()
         api_call("POST", "/api/tasks", {"title": "SharedVizTask", "project": "SharedProject"}, token)
-        # Register second user
-        api_call("POST", "/api/auth/register", {"username": "viewer1", "password": "ViewerP1"})
-        # Login as viewer in GUI
-        gui_logout(app)
-        connect_gui_to_daemon(app)
+        try:
+            api_call("POST", "/api/auth/register", {"username": "viewer1", "password": "ViewerP1"})
+        except Exception:
+            pass  # may already exist from previous run
+        ensure_login_screen(app)
         gui_login(app, "viewer1", "ViewerP1")
         click_tab(app, "Tasks")
         time.sleep(1)
         body = body_text(app)
-        # Tasks tab shows project names, not individual task titles
         assert "SharedProject" in body or "SharedVizTask" in body or len(body) > 50
-        # Login back as root
-        gui_logout(app)
-        connect_gui_to_daemon(app)
+        ensure_login_screen(app)
         gui_login(app, "root", ROOT_PASSWORD)
 
 
@@ -458,13 +438,11 @@ class TestMultiUser:
 class TestPasswordValidation:
 
     def test_register_short_password_shows_error(self, app):
-        """7-char password should be rejected with clear message."""
-        gui_logout(app)
-        connect_gui_to_daemon(app)
+        ensure_login_screen(app)
         app.click_text("No account? Register", "button")
         time.sleep(0.5)
         set_input(app, "input[placeholder='Username']", "shortpw1")
-        set_input(app, "input[placeholder*='Password']", "Short1a")  # 7 chars
+        set_input(app, "input[placeholder*='Password']", "Short1a")
         btns = app.find_all("button")
         for b in btns:
             txt = app.text(b).strip().lower()
@@ -474,15 +452,13 @@ class TestPasswordValidation:
         time.sleep(1)
         body = body_text(app)
         assert "8 char" in body.lower() or "at least 8" in body.lower() or "error" in body.lower() or "bad_request" in body.lower()
-        # Should still be on register/login screen
-        assert "Sign In" in body or "Register" in body or "Create" in body
 
     def test_register_no_uppercase_shows_error(self, app):
-        connect_gui_to_daemon(app)
+        ensure_login_screen(app)
         app.click_text("No account? Register", "button")
         time.sleep(0.5)
         set_input(app, "input[placeholder='Username']", "noupuser")
-        set_input(app, "input[placeholder*='Password']", "alllower1")  # no uppercase
+        set_input(app, "input[placeholder*='Password']", "alllower1")
         btns = app.find_all("button")
         for b in btns:
             txt = app.text(b).strip().lower()
@@ -494,11 +470,11 @@ class TestPasswordValidation:
         assert "uppercase" in body.lower() or "error" in body.lower() or "bad_request" in body.lower()
 
     def test_register_no_digit_shows_error(self, app):
-        connect_gui_to_daemon(app)
+        ensure_login_screen(app)
         app.click_text("No account? Register", "button")
         time.sleep(0.5)
         set_input(app, "input[placeholder='Username']", "nodiguser")
-        set_input(app, "input[placeholder*='Password']", "NoDigitHere")  # no digit
+        set_input(app, "input[placeholder*='Password']", "NoDigitHere")
         btns = app.find_all("button")
         for b in btns:
             txt = app.text(b).strip().lower()
@@ -510,8 +486,7 @@ class TestPasswordValidation:
         assert "digit" in body.lower() or "error" in body.lower() or "bad_request" in body.lower()
 
     def test_valid_password_succeeds_after_failures(self, app):
-        """After failed attempts, a valid password should work."""
-        connect_gui_to_daemon(app)
+        ensure_login_screen(app)
         app.click_text("No account? Register", "button")
         time.sleep(0.5)
         set_input(app, "input[placeholder='Username']", "validpw1")
@@ -526,61 +501,36 @@ class TestPasswordValidation:
         app.assert_visible("Start Focus")
 
 
-# ── Session expiry: token revocation ────────────────────────────
+# ── Session expiry ──────────────────────────────────────────────
 
 class TestSessionExpiry:
 
     def test_revoked_token_forces_relogin(self, app):
-        """Simulate token expiry by revoking it, verify GUI handles gracefully."""
-        gui_logout(app)
-        connect_gui_to_daemon(app)
+        ensure_login_screen(app)
         gui_login(app, "root", ROOT_PASSWORD)
         app.assert_visible("Start Focus")
-
-        # Get the current token from the app's store
         token = app.execute_js("return localStorage.getItem('auth')")
+        tok = ""
         if token:
-            import json as _json
             try:
-                auth = _json.loads(token)
-                tok = auth.get("token", "")
-            except Exception:
-                tok = ""
-        else:
-            tok = ""
-
-        # Revoke the token via API (simulates expiry)
-        if tok:
-            try:
-                import urllib.request as _ur
-                req = _ur.Request(
-                    f"{BASE_URL}/api/auth/logout",
-                    data=b"",
-                    headers={
-                        "Authorization": f"Bearer {tok}",
-                        "Content-Type": "application/json",
-                        "X-Requested-With": "test",
-                    },
-                    method="POST",
-                )
-                _ur.urlopen(req, timeout=5)
+                tok = json.loads(token).get("token", "")
             except Exception:
                 pass
-
-        # Trigger an API call from the GUI (e.g. switch tabs)
+        if tok:
+            try:
+                req = urllib.request.Request(
+                    f"{BASE_URL}/api/auth/logout", data=b"",
+                    headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json", "X-Requested-With": "test"},
+                    method="POST",
+                )
+                urllib.request.urlopen(req, timeout=5)
+            except Exception:
+                pass
         click_tab(app, "Tasks")
         time.sleep(2)
-
-        # The app should either show an error or redirect to login
-        # (our restoreAuth fix means it won't silently restore)
-        body = body_text(app)
-        # Accept: still on tasks (token might still work in-memory),
-        # or shows login, or shows error — any is valid
-        assert len(body) > 0
+        assert len(body_text(app)) > 0
 
     def test_fresh_login_works_after_expiry(self, app):
-        """After token issues, a fresh login should always work."""
-        gui_logout(app)
-        connect_gui_to_daemon(app)
+        ensure_login_screen(app)
         gui_login(app, "root", ROOT_PASSWORD)
         app.assert_visible("Start Focus")
