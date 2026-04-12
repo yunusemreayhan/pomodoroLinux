@@ -1,9 +1,28 @@
 use super::*;
 
+#[utoipa::path(post, path = "/api/tasks/{id}/duplicate", responses((status = 201, body = db::Task)), security(("bearer" = [])))]
+pub async fn duplicate_task(State(engine): State<AppState>, claims: Claims, Path(id): Path<i64>) -> Result<(StatusCode, Json<db::Task>), ApiError> {
+    let task = db::get_task(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
+    if task.deleted_at.is_some() { return Err(err(StatusCode::BAD_REQUEST, "Cannot duplicate deleted task")); }
+    let t = db::create_task(&engine.pool, claims.user_id, task.parent_id,
+        &format!("{} (copy)", task.title), task.description.as_deref(),
+        task.project.as_deref(), task.tags.as_deref(),
+        task.priority as i64, task.estimated as i64,
+        task.estimated_hours, task.remaining_points, task.due_date.as_deref())
+        .await.map_err(internal)?;
+    engine.notify(ChangeEvent::Tasks);
+    Ok((StatusCode::CREATED, Json(t)))
+}
+
 fn valid_date(s: &str) -> bool {
     chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok()
 }
 
+#[utoipa::path(get, path = "/api/tasks/trash", responses((status = 200, body = Vec<db::Task>)), security(("bearer" = [])))]
+pub async fn list_deleted_tasks(State(engine): State<AppState>, claims: Claims) -> ApiResult<Vec<db::Task>> {
+    let user_filter = if claims.role == "root" { None } else { Some(claims.user_id) };
+    db::list_deleted_tasks(&engine.pool, user_filter).await.map(Json).map_err(internal)
+}
 
 #[derive(Deserialize)]
 pub struct TaskQuery {

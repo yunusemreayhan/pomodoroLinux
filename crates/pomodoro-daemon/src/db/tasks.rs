@@ -35,6 +35,15 @@ pub async fn list_tasks(pool: &Pool, status: Option<&str>, project: Option<&str>
     list_tasks_paged(pool, TaskFilter { status, project, search: None, assignee: None, due_before: None, due_after: None, priority: None, team_id: None, user_id: None }, 5000, 0).await
 }
 
+pub async fn list_deleted_tasks(pool: &Pool, user_id: Option<i64>) -> Result<Vec<Task>> {
+    let mut q = format!("{} WHERE t.deleted_at IS NOT NULL", TASK_SELECT);
+    if user_id.is_some() { q.push_str(" AND t.user_id = ?"); }
+    q.push_str(" ORDER BY t.deleted_at DESC LIMIT 500");
+    let mut query = sqlx::query_as::<_, Task>(&q);
+    if let Some(uid) = user_id { query = query.bind(uid); }
+    Ok(query.fetch_all(pool).await?)
+}
+
 pub async fn list_tasks_paged(pool: &Pool, f: TaskFilter<'_>, limit: i64, offset: i64) -> Result<Vec<Task>> {
     let team_scope: Option<Vec<i64>> = if let Some(tid) = f.team_id {
         let roots: Vec<(i64,)> = sqlx::query_as("SELECT task_id FROM team_root_tasks WHERE team_id = ?").bind(tid).fetch_all(pool).await?;

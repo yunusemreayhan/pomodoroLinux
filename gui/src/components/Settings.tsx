@@ -8,7 +8,7 @@ import AuditLog from "./AuditLog";
 import Select from "./Select";
 import { useI18n, useT } from "../i18n";
 import { apiCall, setToken } from "../store/api";
-import { TemplateManager, WebhookManager, CsvImport } from "./SettingsParts";
+import { TemplateManager, WebhookManager, CsvImport, TrashView } from "./SettingsParts";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -265,6 +265,7 @@ export default function Settings() {
         <TemplateManager />
         <WebhookManager />
         <CsvImport />
+        <TrashView />
       </div>
 
       {role === "root" && (

@@ -150,3 +150,37 @@ export function CsvImport() {
     </div>
   );
 }
+
+// --- Trash View ---
+import type { Task } from "../store/api";
+
+export function TrashView() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const load = () => { apiCall<Task[]>("GET", "/api/tasks/trash").then(setTasks).catch(() => {}).finally(() => setLoading(false)); };
+  useEffect(load, []);
+
+  const restore = async (id: number) => {
+    await apiCall("POST", `/api/tasks/${id}/restore`);
+    setTasks(prev => prev.filter(t => t.id !== id));
+    useStore.getState().loadTasks();
+  };
+
+  if (loading) return <div className="text-xs text-white/40">Loading...</div>;
+  if (tasks.length === 0) return <div className="text-xs text-white/40 mt-2">Trash is empty</div>;
+
+  return (
+    <div className="mt-4">
+      <h3 className="text-sm font-medium text-[var(--color-text)] mb-2">Trash ({tasks.length})</h3>
+      <div className="space-y-1 max-h-64 overflow-y-auto">
+        {tasks.map(t => (
+          <div key={t.id} className="flex items-center justify-between py-1.5 px-2 rounded bg-white/5 text-xs">
+            <span className="text-white/60 truncate flex-1">{t.title}</span>
+            <span className="text-white/30 text-[10px] mx-2">{t.deleted_at?.slice(0, 10)}</span>
+            <button onClick={() => restore(t.id)} className="text-[var(--color-accent)] hover:underline text-[10px]">Restore</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
