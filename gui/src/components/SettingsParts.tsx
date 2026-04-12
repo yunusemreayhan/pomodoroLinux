@@ -114,9 +114,7 @@ export function WebhookManager() {
 export function CsvImport() {
   const [result, setResult] = useState<string | null>(null);
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processFile = async (file: File) => {
     const text = await file.text();
     try {
       const resp = await apiCall<{ imported: number }>("POST", "/api/import/tasks", { csv: text });
@@ -125,17 +123,29 @@ export function CsvImport() {
     } catch {
       setResult("Import failed");
     }
+  };
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) await processFile(file);
     e.target.value = "";
   };
+
+  const [dragging, setDragging] = useState(false);
 
   return (
     <div className="mt-4">
       <h3 className="text-sm font-medium text-[var(--color-text)] mb-2">Import Tasks (CSV)</h3>
-      <div className="text-xs text-[var(--color-dim)] mb-2">CSV format: title,project,tags,priority,estimated</div>
-      <label className="inline-block px-3 py-1.5 rounded text-xs bg-white/5 border border-white/10 text-[var(--color-text)] cursor-pointer hover:bg-white/10">
-        Choose CSV file
-        <input type="file" accept=".csv" onChange={handleFile} className="hidden" />
-      </label>
+      <div className="text-xs text-[var(--color-dim)] mb-2">CSV format: title,priority,estimated,project</div>
+      <div className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${dragging ? "border-[var(--color-accent)] bg-[var(--color-accent)]/5" : "border-white/10"}`}
+        onDragOver={e => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={async e => { e.preventDefault(); setDragging(false); const file = e.dataTransfer.files[0]; if (file) await processFile(file); }}>
+        <label className="cursor-pointer text-xs text-white/40 hover:text-white/60">
+          {dragging ? "Drop CSV here" : "Drag CSV here or click to browse"}
+          <input type="file" accept=".csv" onChange={handleFile} className="hidden" />
+        </label>
+      </div>
       {result && <div className="text-xs text-[var(--color-accent)] mt-2">{result}</div>}
     </div>
   );
