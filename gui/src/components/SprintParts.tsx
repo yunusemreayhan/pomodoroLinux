@@ -6,10 +6,10 @@ import type { SprintBoard, SprintDetail, Task } from "../store/api";
 import TaskList from "./TaskList";
 
 export function BoardView({ board, reload, wipLimit: wipLimitProp }: { board: SprintBoard; reload: () => void; wipLimit?: number }) {
-  const changeStatus = async (taskId: number, status: string) => {
+  const changeStatus = useCallback(async (taskId: number, status: string) => {
     await apiCall("PUT", `/api/tasks/${taskId}`, { status });
     reload();
-  };
+  }, [reload]);
   // U2: Touch drag state
   const [touchDrag, setTouchDrag] = useState<{ id: number; startX: number } | null>(null);
   // B7: Use store's taskLabelsMap instead of N+1 API calls

@@ -52,10 +52,13 @@ const SPRINT_TASK_SELECT: &str = "SELECT st.sprint_id, st.task_id, st.added_by_i
 
 pub async fn add_sprint_tasks(pool: &Pool, sprint_id: i64, task_ids: &[i64], user_id: i64) -> Result<Vec<SprintTask>> {
     let now = now_str();
+    // B9: Wrap in transaction to prevent partial inserts
+    let mut tx = pool.begin().await?;
     for tid in task_ids {
         sqlx::query("INSERT OR IGNORE INTO sprint_tasks (sprint_id, task_id, added_by_id, added_at) VALUES (?,?,?,?)")
-            .bind(sprint_id).bind(tid).bind(user_id).bind(&now).execute(pool).await?;
+            .bind(sprint_id).bind(tid).bind(user_id).bind(&now).execute(&mut *tx).await?;
     }
+    tx.commit().await?;
     get_sprint_task_entries(pool, sprint_id).await
 }
 

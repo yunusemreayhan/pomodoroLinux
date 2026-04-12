@@ -1,15 +1,12 @@
 use super::*;
 
-// B12: Check FTS5 availability once, fall back to LIKE
-static FTS5_AVAILABLE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-pub async fn check_fts5(pool: &Pool) -> bool {
-    *FTS5_AVAILABLE.get_or_init(|| {
-        // Can't do async in OnceLock init, so default to true — will be set properly by migrate
-        true
-    })
+// B12: FTS5 availability flag — set by migrate, read by search
+static FTS5_AVAILABLE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+pub async fn check_fts5(_pool: &Pool) -> bool {
+    FTS5_AVAILABLE.load(std::sync::atomic::Ordering::Relaxed)
 }
-pub fn set_fts5_available(v: bool) { FTS5_AVAILABLE.set(v).ok(); }
-fn fts5_ok() -> bool { FTS5_AVAILABLE.get().copied().unwrap_or(false) }
+pub fn set_fts5_available(v: bool) { FTS5_AVAILABLE.store(v, std::sync::atomic::Ordering::Relaxed); }
+fn fts5_ok() -> bool { FTS5_AVAILABLE.load(std::sync::atomic::Ordering::Relaxed) }
 
 fn search_clause() -> &'static str {
     if fts5_ok() { " AND t.id IN (SELECT rowid FROM tasks_fts WHERE tasks_fts MATCH ?)" }
