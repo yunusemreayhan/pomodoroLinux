@@ -87,12 +87,14 @@ class Daemon:
 
 
 def connect_gui_to_daemon(app):
-    """Point the Tauri GUI at the test daemon and reload."""
-    app.execute_js(f"""
-        localStorage.clear();
-        localStorage.setItem('serverUrl', '{BASE_URL}');
-        window.__TAURI_INTERNALS__.invoke('set_connection', {{ baseUrl: '{BASE_URL}' }});
-    """)
+    """Point the Tauri GUI at the test daemon, clear all auth, and reload."""
+    app.execute_js(
+        "localStorage.clear();"
+        "localStorage.setItem('serverUrl', '" + BASE_URL + "');"
+        "try { window.__TAURI_INTERNALS__.invoke('set_connection', { baseUrl: '" + BASE_URL + "' }); } catch(e) {}"
+        "try { window.__TAURI_INTERNALS__.invoke('clear_auth'); } catch(e) {}"
+        "try { window.__TAURI_INTERNALS__.invoke('set_token', { token: '' }); } catch(e) {}"
+    )
     time.sleep(0.3)
     app.execute_js("location.reload()")
     time.sleep(3)
