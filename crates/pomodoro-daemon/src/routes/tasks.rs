@@ -253,7 +253,7 @@ pub async fn bulk_update_status(State(engine): State<AppState>, claims: Claims, 
     }
     // Batch update
     let ph = req.task_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-    let sql = format!("UPDATE tasks SET status = ?, updated_at = ? WHERE id IN ({})", ph);
+    let sql = format!("UPDATE tasks SET status = ?, updated_at = ? WHERE id IN ({}) AND deleted_at IS NULL", ph);
     let mut q = sqlx::query(&sql).bind(&req.status).bind(crate::db::now_str());
     for id in &req.task_ids { q = q.bind(id); }
     q.execute(&engine.pool).await.map_err(internal)?;

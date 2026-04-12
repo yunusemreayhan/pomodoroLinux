@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Edit3, Save, Download } from "lucide-react";
 import type { TaskDetail } from "../store/api";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
@@ -13,10 +13,12 @@ export function formatDuration(s: number) {
 export function EditField({ label, value, type, onSave }: { label: string; value: string | number; type?: string; onSave: (v: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value));
+  const cancelledRef = useRef(false);
 
   useEffect(() => { setDraft(String(value)); }, [value]);
   useEffect(() => {
     if (!editing) return;
+    cancelledRef.current = false;
     const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
@@ -39,8 +41,8 @@ export function EditField({ label, value, type, onSave }: { label: string; value
       <span className="text-xs text-white/40">{label}</span>
       <div className="flex gap-1">
         <input type={type || "text"} value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus
-          onKeyDown={(e) => { if (e.key === "Enter") { onSave(draft); setEditing(false); } if (e.key === "Escape") setEditing(false); }}
-          onBlur={() => { if (draft !== String(value)) onSave(draft); setEditing(false); }}
+          onKeyDown={(e) => { if (e.key === "Enter") { onSave(draft); setEditing(false); } if (e.key === "Escape") { cancelledRef.current = true; setEditing(false); } }}
+          onBlur={() => { if (!cancelledRef.current && draft !== String(value)) onSave(draft); setEditing(false); }}
           className="w-32 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white text-right outline-none focus:border-[var(--color-accent)]" />
         <button onClick={() => { onSave(draft); setEditing(false); }} className="text-[var(--color-success)]"><Save size={12} /></button>
       </div>

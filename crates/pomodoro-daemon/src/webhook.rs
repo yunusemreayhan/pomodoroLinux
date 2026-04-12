@@ -25,24 +25,20 @@ fn is_private_ip(ip: &IpAddr) -> bool {
     }
 }
 
-async fn is_safe_url(url: &str) -> Option<String> {
+async fn is_safe_url(url: &str) -> Option<(String, std::net::SocketAddr)> {
     let Ok(parsed) = url::Url::parse(url) else { return None };
     if !matches!(parsed.scheme(), "http" | "https") { return None; }
     let Some(host) = parsed.host_str() else { return None };
+    let port = parsed.port().unwrap_or(if parsed.scheme() == "https" { 443 } else { 80 });
     // Direct IP check
     if let Ok(ip) = host.parse::<IpAddr>() {
-        return if is_private_ip(&ip) { None } else { Some(url.to_string()) };
+        return if is_private_ip(&ip) { None } else { Some((url.to_string(), std::net::SocketAddr::new(ip, port))) };
     }
-    // DNS resolution check — resolve once and rewrite URL to use resolved IP (prevents DNS rebinding)
-    let port = parsed.port().unwrap_or(if parsed.scheme() == "https" { 443 } else { 80 });
+    // DNS resolution check — resolve once and pin IP
     match tokio::net::lookup_host(format!("{}:{}", host, port)).await {
         Ok(mut addrs) => {
-            let safe_addr = addrs.find(|a| !is_private_ip(&a.ip()));
-            safe_addr.map(|a| {
-                let mut pinned = parsed.clone();
-                pinned.set_host(Some(&a.ip().to_string())).ok();
-                pinned.to_string()
-            })
+            addrs.find(|a| !is_private_ip(&a.ip()))
+                .map(|a| (url.to_string(), a))
         },
         Err(_) => None,
     }
@@ -58,9 +54,17 @@ pub fn dispatch(pool: Pool, event: &str, payload: serde_json::Value) {
         };
         let client = webhook_client();
         for hook in hooks {
-            let Some(safe_url) = is_safe_url(&hook.url).await else {
+            let Some((safe_url, pinned_addr)) = is_safe_url(&hook.url).await else {
                 tracing::warn!("Webhook {} blocked: resolves to private/loopback IP", hook.url);
                 continue;
+            };
+            // Build a per-hook client that pins DNS to the resolved IP (preserves TLS SNI)
+            let pinned_client = {
+                let host = url::Url::parse(&hook.url).ok().and_then(|u| u.host_str().map(|s| s.to_string())).unwrap_or_default();
+                reqwest::Client::builder()
+                    .timeout(std::time::Duration::from_secs(10))
+                    .resolve(&host, pinned_addr)
+                    .build().unwrap_or_else(|_| client.clone())
             };
             let body = serde_json::json!({ "event": &event, "data": &payload });
             let body_str = serde_json::to_string(&body).unwrap_or_default();
@@ -79,10 +83,9 @@ pub fn dispatch(pool: Pool, event: &str, payload: serde_json::Value) {
             loop {
                 attempts += 1;
                 // B10: Rebuild full request each attempt to avoid lost headers on try_clone failure
-                let mut retry_req = client.post(&safe_url)
+                let mut retry_req = pinned_client.post(&safe_url)
                     .header("content-type", "application/json")
                     .header("x-pomodoro-event", &event)
-                    .header("host", url::Url::parse(&hook.url).and_then(|u| Ok(u.host_str().unwrap_or("").to_string())).unwrap_or_default())
                     .body(body_str.clone());
                 if let Some(ref sig) = signature { retry_req = retry_req.header("x-pomodoro-signature", sig.as_str()); }
                 match retry_req.send().await {

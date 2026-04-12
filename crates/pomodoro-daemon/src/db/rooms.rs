@@ -102,7 +102,7 @@ pub async fn get_room_state(pool: &Pool, room_id: i64) -> Result<RoomState> {
     let tasks_fut = async {
         match &room.project {
             Some(p) if !p.is_empty() => {
-                sqlx::query_as(&format!("{} WHERE t.project = ? ORDER BY t.sort_order LIMIT 1000", TASK_SELECT)).bind(p).fetch_all(pool).await
+                sqlx::query_as(&format!("{} WHERE t.project = ? AND t.deleted_at IS NULL ORDER BY t.sort_order LIMIT 1000", TASK_SELECT)).bind(p).fetch_all(pool).await
             }
             _ => {
                 // B3: Scope to tasks owned by room members (not all global leaf tasks)

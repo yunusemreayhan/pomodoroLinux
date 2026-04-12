@@ -15,6 +15,9 @@ export function useSseConnection(token: string | null) {
     let unmounted = false;
     let reconnectAttempts = 0;
 
+    let reconnectId: ReturnType<typeof setTimeout> | null = null;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
     const connectSse = async () => {
       try {
         const resp = await apiCall<{ ticket: string }>("POST", "/api/timer/ticket");
@@ -32,7 +35,6 @@ export function useSseConnection(token: string | null) {
       });
 
       const pending = new Set<string>();
-      let debounceTimer: ReturnType<typeof setTimeout> | null = null;
       const flushChanges = () => {
         if (pending.has("Tasks")) useStore.getState().loadTasks();
         if (pending.has("Sprints")) {
@@ -64,7 +66,6 @@ export function useSseConnection(token: string | null) {
       };
       sseInstance.onopen = () => { useStore.setState({ connected: true }); reconnectAttempts = 0; };
     };
-    let reconnectId: ReturnType<typeof setTimeout> | null = null;
     connectSse();
 
     const timerFallback = setInterval(() => {
@@ -76,6 +77,7 @@ export function useSseConnection(token: string | null) {
       unmounted = true;
       sseInstance?.close();
       if (reconnectId) clearTimeout(reconnectId);
+      if (debounceTimer) clearTimeout(debounceTimer);
       clearInterval(timerFallback);
       clearInterval(taskSafety);
     };

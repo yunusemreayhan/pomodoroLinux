@@ -265,15 +265,17 @@ function setStorage(key: string, value: string) {
   try { localStorage.setItem(key, value); } catch {}
 }
 
+function createProxiedLocale(locale: string): Locale {
+  const base = locales[locale] || en;
+  return new Proxy(base, { get: (target, prop: string) => (target as any)[prop] ?? (en as any)[prop] ?? prop }) as Locale;
+}
+
 export const useI18n = create<I18nState>((set) => ({
   locale: getStorage("locale", "en"),
-  t: locales[getStorage("locale", "en")] || en,
+  t: createProxiedLocale(getStorage("locale", "en")),
   setLocale: (locale: string) => {
     setStorage("locale", locale);
-    // CQ5: Fall back to English for any missing translation keys
-    const base = locales[locale] || en;
-    const t = new Proxy(base, { get: (target, prop: string) => (target as any)[prop] ?? (en as any)[prop] ?? prop }) as Locale;
-    set({ locale, t });
+    set({ locale, t: createProxiedLocale(locale) });
   },
   availableLocales: () => Object.keys(locales),
 }));

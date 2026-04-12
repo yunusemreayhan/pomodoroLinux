@@ -269,7 +269,9 @@ async fn main() -> Result<()> {
                 _ = interval.tick() => {},
                 _ = shutdown_rx_archive.changed() => break,
             }
-            let days = engine_archive.get_config().await.auto_archive_days.max(1) as i64;
+            let days = engine_archive.get_config().await.auto_archive_days;
+            if days == 0 { continue; } // 0 = disabled
+            let days = days.max(1) as i64;
             let cutoff = (chrono::Utc::now() - chrono::Duration::days(days)).format("%Y-%m-%dT%H:%M:%S").to_string();
             if let Err(e) = sqlx::query("UPDATE tasks SET status = 'archived', updated_at = datetime('now') WHERE status = 'completed' AND updated_at < ? AND deleted_at IS NULL")
                 .bind(&cutoff).execute(&engine_archive.pool).await {

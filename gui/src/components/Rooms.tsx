@@ -34,6 +34,7 @@ function RoomList({ onSelect }: { onSelect: (id: number) => void }) {
   };
 
   const remove = async (id: number) => {
+    if (!confirm("Delete this room? This cannot be undone.")) return;
     await apiCall("DELETE", `/api/rooms/${id}`);
     load();
   };

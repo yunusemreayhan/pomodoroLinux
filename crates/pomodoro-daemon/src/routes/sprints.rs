@@ -157,7 +157,7 @@ pub async fn add_sprint_tasks(State(engine): State<AppState>, claims: Claims, Pa
     for tid in &task_ids {
         if let Ok(task) = db::get_task(&engine.pool, *tid).await {
             if task.user_id != claims.user_id {
-                db::create_notification(&engine.pool, task.user_id, "sprint_started", &format!("Your task '{}' was added to sprint '{}'", task.title, sprint_name), Some("sprint"), Some(id)).await.ok();
+                db::create_notification(&engine.pool, task.user_id, "task_added_to_sprint", &format!("Your task '{}' was added to sprint '{}'", task.title, sprint_name), Some("sprint"), Some(id)).await.ok();
             }
         }
     }

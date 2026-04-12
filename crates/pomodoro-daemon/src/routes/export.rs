@@ -116,8 +116,7 @@ pub async fn import_tasks_csv(State(engine): State<AppState>, claims: Claims, Js
     if req.csv.len() > 1_048_576 { return Err(err(StatusCode::BAD_REQUEST, "CSV too large (max 1MB)")); }
     let mut created = 0i64;
     let mut errors = Vec::new();
-    // BL3: Use deferred transaction for atomicity
-    sqlx::query("BEGIN DEFERRED").execute(&engine.pool).await.map_err(internal)?;
+    let mut tx = engine.pool.begin().await.map_err(internal)?;
     for (i, line) in req.csv.lines().enumerate() {
         if i == 0 { continue; }
         let cols = parse_csv_line(line);
@@ -127,12 +126,16 @@ pub async fn import_tasks_csv(State(engine): State<AppState>, claims: Claims, Js
         let priority = cols.get(1).and_then(|s| s.trim().parse::<i64>().ok()).unwrap_or(3).clamp(1, 5);
         let estimated = cols.get(2).and_then(|s| s.trim().parse::<i64>().ok()).unwrap_or(0);
         let project = cols.get(3).map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
-        match db::create_task(&engine.pool, claims.user_id, None, &title, None, project.as_deref(), None, priority, estimated, 0.0, 0.0, None).await {
-            Ok(_) => created += 1,
-            Err(e) => { sqlx::query("ROLLBACK").execute(&engine.pool).await.ok(); return Err(internal(format!("Line {}: {}", i + 1, e))); }
+        let now = db::now_str();
+        if let Err(e) = sqlx::query("INSERT INTO tasks (user_id, title, project, priority, estimated, actual, estimated_hours, remaining_points, status, sort_order, created_at, updated_at) VALUES (?,?,?,?,?,0,0.0,0.0,'backlog',0,?,?)")
+            .bind(claims.user_id).bind(&title).bind(project.as_deref()).bind(priority).bind(estimated).bind(&now).bind(&now)
+            .execute(&mut *tx).await {
+            tx.rollback().await.ok();
+            return Err(internal(format!("Line {}: {}", i + 1, e)));
         }
+        created += 1;
     }
-    sqlx::query("COMMIT").execute(&engine.pool).await.map_err(internal)?;
+    tx.commit().await.map_err(internal)?;
     engine.notify(ChangeEvent::Tasks);
     Ok(Json(serde_json::json!({ "created": created, "errors": errors })))
 }
@@ -152,23 +155,29 @@ pub struct ImportJsonTask {
 pub async fn import_tasks_json(State(engine): State<AppState>, claims: Claims, Json(req): Json<ImportJsonRequest>) -> ApiResult<serde_json::Value> {
     if req.tasks.len() > 500 { return Err(err(StatusCode::BAD_REQUEST, "Too many tasks (max 500)")); }
     let mut created = 0i64;
-    async fn import_tree(pool: &db::Pool, user_id: i64, tasks: &[ImportJsonTask], parent_id: Option<i64>, created: &mut i64, depth: u32) -> Result<(), String> {
+    let mut tx = engine.pool.begin().await.map_err(internal)?;
+    async fn import_tree(tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>, user_id: i64, tasks: &[ImportJsonTask], parent_id: Option<i64>, created: &mut i64, depth: u32) -> Result<(), String> {
         if depth > 20 { return Err("Max nesting depth (20) exceeded".to_string()); }
         for t in tasks {
             if t.title.trim().is_empty() { return Err("Title cannot be empty".to_string()); }
             if t.title.len() > 500 { return Err(format!("Title too long: {}", t.title.chars().take(50).collect::<String>())); }
-            let task = db::create_task(pool, user_id, parent_id, &t.title, t.description.as_deref(), t.project.as_deref(), None, t.priority.unwrap_or(3).clamp(1, 5), t.estimated.unwrap_or(0), 0.0, 0.0, None)
-                .await.map_err(|e| e.to_string())?;
+            let now = db::now_str();
+            let priority = t.priority.unwrap_or(3).clamp(1, 5);
+            let estimated = t.estimated.unwrap_or(0);
+            let id = sqlx::query("INSERT INTO tasks (parent_id, user_id, title, description, project, priority, estimated, actual, estimated_hours, remaining_points, status, sort_order, created_at, updated_at) VALUES (?,?,?,?,?,?,?,0,0.0,0.0,'backlog',0,?,?)")
+                .bind(parent_id).bind(user_id).bind(t.title.trim()).bind(t.description.as_deref()).bind(t.project.as_deref()).bind(priority).bind(estimated).bind(&now).bind(&now)
+                .execute(&mut **tx).await.map_err(|e| e.to_string())?.last_insert_rowid();
             *created += 1;
             if let Some(children) = &t.children {
-                Box::pin(import_tree(pool, user_id, children, Some(task.id), created, depth + 1)).await?;
+                Box::pin(import_tree(tx, user_id, children, Some(id), created, depth + 1)).await?;
             }
         }
         Ok(())
     }
     let mut errors = Vec::new();
-    if let Err(e) = import_tree(&engine.pool, claims.user_id, &req.tasks, None, &mut created, 0).await {
-        errors.push(e);
+    match import_tree(&mut tx, claims.user_id, &req.tasks, None, &mut created, 0).await {
+        Ok(()) => { tx.commit().await.map_err(internal)?; }
+        Err(e) => { tx.rollback().await.ok(); errors.push(e); }
     }
     engine.notify(ChangeEvent::Tasks);
     Ok(Json(serde_json::json!({ "created": created, "errors": errors })))
