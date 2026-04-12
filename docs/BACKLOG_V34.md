@@ -111,30 +111,30 @@ The mobile nav filters to 8 tabs (`timer, tasks, kanban, dashboard, sprints, roo
 
 | ID | Severity | Category | Status |
 |----|----------|----------|--------|
-| V34-1 | Medium | Bug | |
-| V34-2 | Medium | Security | |
-| V34-3 | Medium | Security | |
-| V34-4 | Medium | Performance | |
-| V34-5 | Low | Bug | |
-| V34-6 | Low | Bug | |
-| V34-7 | Low | Security | |
-| V34-8 | Low | Bug | |
-| V34-9 | Low | Code quality | |
-| V34-10 | Low | Bug | |
-| V34-11 | Low | Performance | |
-| V34-12 | Low | UX | |
-| V34-13 | Low | Code quality | |
-| V34-14 | Low | Bug | |
-| V34-15 | Low | Accessibility | |
-| V34-16 | Low | UX | |
-| V34-17 | Low | Code quality | |
-| V34-18 | Low | Bug | |
-| V34-19 | Low | Security | |
-| V34-20 | Low | UX | |
-| V34-21 | Low | Performance | |
-| V34-22 | Low | Code quality | |
-| V34-23 | Low | Documentation | |
-| V34-24 | Low | Bug | |
-| V34-25 | Low | UX | |
+| V34-1 | Medium | Bug | FIXED |
+| V34-2 | Medium | Security | FIXED |
+| V34-3 | Medium | Security | FIXED |
+| V34-4 | Medium | Performance | FIXED |
+| V34-5 | Low | Bug | FIXED |
+| V34-6 | Low | Bug | WON'T FIX (Tauri upstream bug, workaround stable) |
+| V34-7 | Low | Security | FIXED |
+| V34-8 | Low | Bug | WON'T FIX (server time is authoritative for edit windows) |
+| V34-9 | Low | Code quality | WON'T FIX (pattern is safe, fields are hardcoded) |
+| V34-10 | Low | Bug | FIXED |
+| V34-11 | Low | Performance | WON'T FIX (7 subqueries are fast on SQLite, ETag prevents full response) |
+| V34-12 | Low | UX | FIXED |
+| V34-13 | Low | Code quality | FIXED |
+| V34-14 | Low | Bug | FIXED |
+| V34-15 | Low | Accessibility | FIXED |
+| V34-16 | Low | UX | WON'T FIX (filtered to 8 candidates, O(8n) is negligible) |
+| V34-17 | Low | Code quality | WON'T FIX (json! is idiomatic for analytics endpoints) |
+| V34-18 | Low | Bug | FIXED |
+| V34-19 | Low | Security | FIXED |
+| V34-20 | Low | UX | FIXED |
+| V34-21 | Low | Performance | WON'T FIX (two queries with LIMIT is simpler than UNION ALL) |
+| V34-22 | Low | Code quality | WON'T FIX (not a production issue, test-only) |
+| V34-23 | Low | Documentation | FIXED |
+| V34-24 | Low | Bug | FIXED |
+| V34-25 | Low | UX | FIXED |
 
-**Total: 25 items** — 4 medium, 21 low
+**Total: 25 items** — 17 fixed, 8 won't fix

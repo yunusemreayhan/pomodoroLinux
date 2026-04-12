@@ -102,10 +102,18 @@ export default function AuthScreen() {
             </button>
           </div>
           {isRegister && password.length > 0 && (() => {
-            const s = (password.length >= 8 ? 1 : 0) + (/[A-Z]/.test(password) ? 1 : 0) + (/[0-9]/.test(password) ? 1 : 0) + (/[^A-Za-z0-9]/.test(password) ? 1 : 0);
+            const hasLen = password.length >= 8;
+            const hasUpper = /[A-Z]/.test(password);
+            const hasDigit = /[0-9]/.test(password);
+            const hasSpecial = /[^A-Za-z0-9]/.test(password);
+            const s = (hasLen ? 1 : 0) + (hasUpper ? 1 : 0) + (hasDigit ? 1 : 0) + (hasSpecial ? 1 : 0);
             const label = ["Weak", "Fair", "Good", "Strong"][Math.min(s, 3)];
             const color = ["#ef4444", "#f59e0b", "#22c55e", "#22c55e"][Math.min(s, 3)];
-            return <div className="flex items-center gap-2 text-xs" role="status" aria-label={`Password strength: ${label}`}><div className="flex-1 h-1 rounded bg-white/10"><div className="h-1 rounded transition-all" style={{ width: `${Math.min(s + 1, 4) * 25}%`, background: color }} /></div><span style={{ color }}>{label}</span></div>;
+            const Check = ({ ok, text }: { ok: boolean; text: string }) => <span className={ok ? "text-green-400" : "text-white/25"}>{ok ? "✓" : "○"} {text}</span>;
+            return <>
+              <div className="flex items-center gap-2 text-xs" role="status" aria-label={`Password strength: ${label}`}><div className="flex-1 h-1 rounded bg-white/10"><div className="h-1 rounded transition-all" style={{ width: `${Math.min(s + 1, 4) * 25}%`, background: color }} /></div><span style={{ color }}>{label}</span></div>
+              <div className="flex gap-3 text-[10px]"><Check ok={hasLen} text="8+ chars" /><Check ok={hasUpper} text="Uppercase" /><Check ok={hasDigit} text="Digit" /></div>
+            </>;
           })()}
 
           {error && <div role="alert" className="text-xs text-[var(--color-danger)] bg-[var(--color-danger)]/10 rounded-lg px-3 py-2">{error}</div>}
