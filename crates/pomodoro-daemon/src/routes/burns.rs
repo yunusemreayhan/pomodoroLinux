@@ -6,6 +6,7 @@ pub async fn log_burn(State(engine): State<AppState>, claims: Claims, Path(id): 
     let pts = req.points.unwrap_or(0.0);
     let hrs = req.hours.unwrap_or(0.0);
     if pts < 0.0 || hrs < 0.0 { return Err(err(StatusCode::BAD_REQUEST, "Points and hours must be non-negative")); }
+    if pts == 0.0 && hrs == 0.0 { return Err(err(StatusCode::BAD_REQUEST, "At least one of points or hours must be positive")); }
     if pts > 1000.0 || hrs > 24.0 { return Err(err(StatusCode::BAD_REQUEST, "Points max 1000, hours max 24")); }
     if req.note.as_ref().map_or(false, |n| n.len() > 5000) { return Err(err(StatusCode::BAD_REQUEST, "Note too long (max 5000)")); }
     let sprint = db::get_sprint(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Sprint not found"))?;

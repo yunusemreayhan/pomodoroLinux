@@ -178,6 +178,14 @@ export const useStore = create<Store>((set, get) => ({
     apiCall("POST", "/api/auth/logout").catch(() => {});
     invoke("clear_auth").catch(() => {});
     localStorage.removeItem("auth");
+    // S2: Remove tokens for this server from savedServers
+    const url = get().serverUrl;
+    const username = get().username;
+    if (url && username) {
+      const servers = loadServers().filter(s => !(s.url === url && s.username === username));
+      saveServers(servers);
+      set({ savedServers: servers });
+    }
     set({ token: null, username: null, role: null });
     invoke("set_token", { token: "" }).catch(() => {});
   },

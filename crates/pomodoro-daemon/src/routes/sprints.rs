@@ -45,6 +45,9 @@ pub async fn update_sprint(State(engine): State<AppState>, claims: Claims, Path(
     if req.retro_notes.as_ref().and_then(|o| o.as_ref()).map_or(false, |r| r.len() > 10000) { return Err(err(StatusCode::BAD_REQUEST, "Retro notes too long (max 10000)")); }
     if req.status.is_some() { return Err(err(StatusCode::BAD_REQUEST, "Use /start or /complete endpoints to change sprint status")); }
     if let Some(Some(cap)) = req.capacity_hours { if cap < 0.0 || cap > 10000.0 { return Err(err(StatusCode::BAD_REQUEST, "capacity_hours must be 0-10000")); } }
+    // V1-v23: Validate date format on update (create_sprint validates, update_sprint didn't)
+    if let Some(Some(ref d)) = req.start_date { if chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").is_err() { return Err(err(StatusCode::BAD_REQUEST, "start_date must be YYYY-MM-DD")); } }
+    if let Some(Some(ref d)) = req.end_date { if chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").is_err() { return Err(err(StatusCode::BAD_REQUEST, "end_date must be YYYY-MM-DD")); } }
     // V1: Validate date ordering on update (resolve effective dates from request or existing sprint)
     {
         let eff_start = req.start_date.as_ref().map(|o| o.as_deref()).unwrap_or(sprint.start_date.as_deref());

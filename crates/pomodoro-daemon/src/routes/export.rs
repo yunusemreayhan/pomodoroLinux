@@ -157,7 +157,8 @@ pub async fn import_tasks_csv(State(engine): State<AppState>, claims: Claims, Js
             .bind(claims.user_id).bind(&title).bind(description.as_deref()).bind(project.as_deref()).bind(tags.as_deref()).bind(priority).bind(estimated).bind(due_date.as_deref()).bind(&now).bind(&now)
             .execute(&mut *tx).await {
             tx.rollback().await.ok();
-            return Err(internal(format!("Line {}: {}", i + 2, e)));
+            // B3: Reset created count since rollback undid all inserts
+            return Err(internal(format!("Line {}: {} ({} rows rolled back)", i + 2, e, created)));
         }
         created += 1;
     }

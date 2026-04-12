@@ -72,9 +72,9 @@ export async function getFreshToken(): Promise<string> {
   const { useStore } = await import("./store");
   const token = useStore.getState().token;
   if (!token) throw new Error("Not authenticated");
-  // Try a lightweight call to verify token is still valid
+  // S1-v23: Use authenticated endpoint to verify token validity
   try {
-    await invoke("api_call", { method: "GET", path: "/api/health", body: null });
+    await invoke("api_call", { method: "GET", path: "/api/timer", body: null });
   } catch {
     const refreshed = await tryRefreshToken();
     if (!refreshed) throw new Error("Token expired");
