@@ -73,4 +73,6 @@ class TestLabels:
         api("POST", "/api/tasks", {"title": f"LbGui_{_ID}", "project": f"LbGP_{_ID}"}, t)
         click_tab(logged_in, "Timer")
         click_tab(logged_in, "Tasks")
-        assert f"LbGui_{_ID}" in logged_in.page_source()
+        import time; time.sleep(2)
+        body = logged_in.execute_js("return document.body.innerText || ''")
+        assert f"LbGui_{_ID}" in body

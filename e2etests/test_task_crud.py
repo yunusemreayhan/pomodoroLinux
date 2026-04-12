@@ -1,6 +1,6 @@
 """Task CRUD E2E: create/edit/delete via API, verify via GUI."""
 
-import json, os, urllib.request
+import json, os, time, urllib.request
 import pytest
 import harness
 from harness import ROOT_PASSWORD, click_tab
@@ -32,6 +32,7 @@ def refresh_tasks(app):
     """Navigate away and back to force task list reload."""
     click_tab(app, "Timer")
     click_tab(app, "Tasks")
+    time.sleep(1)  # Wait for React to render task list
 
 
 _ID = os.getpid()

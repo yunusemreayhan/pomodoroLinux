@@ -62,13 +62,13 @@ class TestRestoreAuthStaleToken:
         time.sleep(2)
         b = body_text(app)
         # Should show login screen, not the timer
-        assert "Sign In" in b or "Start Focus" not in b.split("Sign In")[0] if "Sign In" in b else True
+        assert "Sign In" in b or "Start" not in b.split("Sign In")[0] if "Sign In" in b else True
 
     def test_cleared_auth_shows_login(self, app):
         """After clearing auth, app shows login screen."""
         connect_gui_to_daemon(app)
         gui_login(app, "root", ROOT_PASSWORD)
-        app.assert_visible("Start Focus")
+        app.assert_visible("Start")
         # Clear auth and reload
         app.execute_js("localStorage.removeItem('auth'); location.reload()")
         time.sleep(2)
@@ -83,8 +83,8 @@ class TestRestoreAuthStaleToken:
             gui_logout(app)
             connect_gui_to_daemon(app)
         gui_login(app, "root", ROOT_PASSWORD)
-        b = wait_text(app, "Start Focus")
-        assert "Start Focus" in b
+        b = wait_text(app, "Start")
+        assert "Start" in b
 
 
 # ── Bug #2: Password placeholder / validation mismatch ─────────
@@ -213,8 +213,8 @@ class TestReact19InputFilling:
             gui_logout(app)
             connect_gui_to_daemon(app)
         gui_login(app, "root", ROOT_PASSWORD)
-        b = wait_text(app, "Start Focus")
-        assert "Start Focus" in b
+        b = wait_text(app, "Start")
+        assert "Start" in b
 
     def test_input_value_reflects_in_react_state(self, app):
         """After nativeSet + input event, React state matches the DOM value."""

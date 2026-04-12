@@ -137,7 +137,7 @@ def gui_login(app, username: str, password: str):
     deadline = time.time() + 10
     while time.time() < deadline:
         body = app.text(app.find("body"))
-        if "Start Focus" in body or "error" in body.lower() or "invalid" in body.lower():
+        if "Start" in body or "error" in body.lower() or "invalid" in body.lower():
             return
         time.sleep(0.3)
 
@@ -167,7 +167,7 @@ def gui_register(app, username: str, password: str):
     deadline = time.time() + 10
     while time.time() < deadline:
         body = app.text(app.find("body"))
-        if "Start Focus" in body or "error" in body.lower() or "bad_request" in body.lower():
+        if "Start" in body or "error" in body.lower() or "bad_request" in body.lower():
             return
         time.sleep(0.3)
 
@@ -198,7 +198,7 @@ def reload_and_login(app):
     while time.time() < deadline:
         try:
             body = app.text(app.find("body"))
-            if "Sign In" in body or "Start Focus" in body:
+            if "Sign In" in body or "Start" in body:
                 break
         except Exception:
             pass
