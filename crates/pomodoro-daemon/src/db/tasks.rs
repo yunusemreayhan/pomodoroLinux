@@ -89,10 +89,10 @@ pub async fn list_tasks_paged(pool: &Pool, f: TaskFilter<'_>, limit: i64, offset
         Some(get_descendant_ids(pool, &rids).await?)
     } else { None };
 
-    // P2: Use JOIN for assignee filter instead of pre-fetching IDs
+    // P2: Use EXISTS subquery for assignee filter to avoid duplicates
     let mut q = format!("{} WHERE t.deleted_at IS NULL", TASK_SELECT);
     if f.assignee.is_some() {
-        q = format!("{} JOIN task_assignees _ta ON _ta.task_id = t.id JOIN users _au ON _au.id = _ta.user_id WHERE t.deleted_at IS NULL AND _au.username = ?", TASK_SELECT);
+        q.push_str(" AND EXISTS (SELECT 1 FROM task_assignees _ta JOIN users _au ON _au.id = _ta.user_id WHERE _ta.task_id = t.id AND _au.username = ?)");
     }
     if f.status.is_some() { q.push_str(" AND t.status = ?"); }
     if f.project.is_some() { q.push_str(" AND t.project = ?"); }
@@ -247,10 +247,10 @@ pub async fn restore_task(pool: &Pool, id: i64) -> Result<()> {
 
 pub async fn reorder_tasks(pool: &Pool, orders: &[(i64, i64)]) -> Result<()> {
     let mut tx = pool.begin().await?;
-    let now = now_str();
     for (id, sort_order) in orders {
-        sqlx::query("UPDATE tasks SET sort_order = ?, updated_at = ? WHERE id = ?")
-            .bind(sort_order).bind(&now).bind(id).execute(&mut *tx).await?;
+        // V35-19: Only update sort_order, skip updated_at to avoid triggering full reloads
+        sqlx::query("UPDATE tasks SET sort_order = ? WHERE id = ?")
+            .bind(sort_order).bind(id).execute(&mut *tx).await?;
     }
     tx.commit().await?;
     Ok(())

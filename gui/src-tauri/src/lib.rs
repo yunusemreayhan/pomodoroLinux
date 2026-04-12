@@ -24,6 +24,10 @@ struct AppState {
 
 #[tauri::command]
 async fn api_call(state: tauri::State<'_, Arc<AppState>>, method: String, path: String, body: Option<Value>) -> Result<Value, String> {
+    // V35-4: Validate path to prevent SSRF — must start with /api/
+    if !path.starts_with("/api/") {
+        return Err("Invalid API path".to_string());
+    }
     let config = state.config.lock().await.clone();
     let url = format!("{}{}", config.base_url, path);
     let client = &state.client;
@@ -89,6 +93,10 @@ async fn set_connection(state: tauri::State<'_, Arc<AppState>>, base_url: String
 
 #[tauri::command]
 async fn write_file(path: String, content: String) -> Result<(), String> {
+    // V35-7: Limit content size to 50MB to prevent disk exhaustion
+    if content.len() > 50 * 1024 * 1024 {
+        return Err("Write denied: content exceeds 50MB limit".to_string());
+    }
     let p = std::path::Path::new(&path);
     // Only allow writing to user's download/document/desktop directories (not all of data dir)
     let allowed = dirs::download_dir()
@@ -134,13 +142,13 @@ fn auth_key() -> Vec<u8> {
     let salt_path = dir.join(".auth_salt");
     let salt = if let Ok(s) = std::fs::read(&salt_path) {
         if s.len() == 32 { s } else {
-            let s = generate_salt();
+            let s = generate_salt().expect("Failed to generate cryptographic salt");
             let _ = std::fs::create_dir_all(&dir);
             let _ = std::fs::write(&salt_path, &s);
             s
         }
     } else {
-        let s = generate_salt();
+        let s = generate_salt().expect("Failed to generate cryptographic salt");
         let _ = std::fs::create_dir_all(&dir);
         let _ = std::fs::write(&salt_path, &s);
         s
@@ -155,24 +163,19 @@ fn auth_key() -> Vec<u8> {
     h.finalize().to_vec()
 }
 
-fn generate_salt() -> Vec<u8> {
-    use std::io::Read;
+fn generate_salt() -> Result<Vec<u8>, String> {
     let mut buf = vec![0u8; 32];
-    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
-        let _ = f.read_exact(&mut buf);
-    }
-    buf
+    getrandom::fill(&mut buf).map_err(|e| format!("Failed to generate salt: {}", e))?;
+    Ok(buf)
 }
 
 fn encrypt_auth(data: &[u8], key: &[u8]) -> Result<Vec<u8>, String> {
     use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
     let cipher = Aes256Gcm::new_from_slice(key).map_err(|e| e.to_string())?;
-    // Generate random 12-byte nonce
     let mut nonce_bytes = [0u8; 12];
-    std::io::Read::read_exact(&mut std::fs::File::open("/dev/urandom").map_err(|e| e.to_string())?, &mut nonce_bytes).map_err(|e| e.to_string())?;
+    getrandom::fill(&mut nonce_bytes).map_err(|e| format!("Failed to generate nonce: {}", e))?;
     let nonce = Nonce::from_slice(&nonce_bytes);
     let ciphertext = cipher.encrypt(nonce, data).map_err(|e| e.to_string())?;
-    // Prepend nonce to ciphertext
     let mut out = nonce_bytes.to_vec();
     out.extend(ciphertext);
     Ok(out)

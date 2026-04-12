@@ -78,7 +78,7 @@ pub struct TaskDetail {
     #[schema(no_recursion)] pub children: Vec<TaskDetail>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, FromRow, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct DayStat { pub date: String, pub completed: i64, pub interrupted: i64, pub total_focus_s: i64 }
 
 #[derive(Debug, Clone, FromRow, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]

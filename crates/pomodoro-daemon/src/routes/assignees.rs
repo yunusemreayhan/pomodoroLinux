@@ -11,7 +11,7 @@ pub async fn add_assignee(State(engine): State<AppState>, claims: Claims, Path(i
     // S1: Verify task exists and user owns it (or is root)
     let task = db::get_task(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
     if task.user_id != claims.user_id && claims.role != "root" { return Err(err(StatusCode::FORBIDDEN, "Not your task")); }
-    let uid = db::get_user_id_by_username(&engine.pool, &req.username).await.map_err(|e| if e.to_string() == "not_found" { err(StatusCode::NOT_FOUND, "User not found") } else { internal(e) })?;
+    let uid = db::get_user_id_by_username(&engine.pool, &req.username).await.map_err(internal)?.ok_or_else(|| err(StatusCode::NOT_FOUND, "User not found"))?;
     db::add_assignee(&engine.pool, id, uid).await.map_err(internal)?;
     // BL21: Notify assigned user
     db::create_notification(&engine.pool, uid, "task_assigned", &format!("You were assigned to: {}", task.title), Some("task"), Some(id)).await.ok();
@@ -22,7 +22,7 @@ pub async fn add_assignee(State(engine): State<AppState>, claims: Claims, Path(i
 #[utoipa::path(delete, path = "/api/tasks/{id}/assignees/{username}", responses((status = 204)), security(("bearer" = [])))]
 pub async fn remove_assignee(State(engine): State<AppState>, claims: Claims, Path((id, username)): Path<(i64, String)>) -> Result<StatusCode, ApiError> {
     let task = db::get_task(&engine.pool, id).await.map_err(internal)?;
-    let uid = db::get_user_id_by_username(&engine.pool, &username).await.map_err(|e| if e.to_string() == "not_found" { err(StatusCode::NOT_FOUND, "User not found") } else { internal(e) })?;
+    let uid = db::get_user_id_by_username(&engine.pool, &username).await.map_err(internal)?.ok_or_else(|| err(StatusCode::NOT_FOUND, "User not found"))?;
     // Allow task owner, root, or the assigned user themselves to unassign
     if !is_owner_or_root(task.user_id, &claims) && uid != claims.user_id { return Err(err(StatusCode::FORBIDDEN, "Not owner or assignee")); }
     db::remove_assignee(&engine.pool, id, uid).await.map_err(internal)?;

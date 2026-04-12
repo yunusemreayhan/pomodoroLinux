@@ -81,19 +81,19 @@ export async function clearSyncEntry(queueId: number): Promise<void> {
   tx(db, 'syncQueue', 'readwrite').delete(queueId);
 }
 
-export async function processSyncQueue(token: string): Promise<{ synced: number; failed: number }> {
+export async function processSyncQueue(_token: string): Promise<{ synced: number; failed: number }> {
+  // V35-14: Use apiCall instead of raw fetch to get token refresh, CSRF header, and error toasts
+  const { apiCall: api } = await import('./store/api');
   const queue = await getSyncQueue();
   let synced = 0, failed = 0;
   for (const entry of queue) {
     try {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'x-requested-with': 'pomo-offline' };
-      const opts: RequestInit = { method: entry.method, headers };
-      if (entry.body && entry.method !== 'GET') opts.body = JSON.stringify(entry.body);
-      const resp = await fetch(entry.url, opts);
-      if (resp.ok || resp.status === 409) { // 409 = conflict, skip
-        if (entry.queueId) await clearSyncEntry(entry.queueId);
-        synced++;
-      } else { failed++; }
+      // Extract path from stored full URL
+      let path: string;
+      try { path = new URL(entry.url).pathname; } catch { path = entry.url; }
+      await api(entry.method, path, entry.body);
+      if (entry.queueId) await clearSyncEntry(entry.queueId);
+      synced++;
     } catch { failed++; }
   }
   return { synced, failed };

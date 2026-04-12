@@ -92,20 +92,18 @@ pub async fn get_history(pool: &Pool, from: &str, to: &str, user_id: Option<i64>
 
 pub async fn get_day_stats(pool: &Pool, days: i64, user_id: Option<i64>) -> Result<Vec<DayStat>> {
     let from = (Utc::now().naive_utc() - chrono::Duration::days(days)).format("%Y-%m-%dT00:00:00").to_string();
-    let mut sql = format!("{} WHERE s.session_type = 'work' AND s.started_at >= ?", SESSION_SELECT);
-    if user_id.is_some() { sql.push_str(" AND s.user_id = ?"); }
-    sql.push_str(" ORDER BY s.started_at");
-    let mut query = sqlx::query_as::<_, Session>(&sql).bind(&from);
+    let mut sql = String::from(
+        "SELECT substr(started_at, 1, 10) as date, \
+         SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed, \
+         SUM(CASE WHEN status = 'interrupted' THEN 1 ELSE 0 END) as interrupted, \
+         COALESCE(SUM(duration_s), 0) as total_focus_s \
+         FROM sessions WHERE session_type = 'work' AND started_at >= ?"
+    );
+    if user_id.is_some() { sql.push_str(" AND user_id = ?"); }
+    sql.push_str(" GROUP BY substr(started_at, 1, 10) ORDER BY date");
+    let mut query = sqlx::query_as::<_, DayStat>(&sql).bind(&from);
     if let Some(uid) = user_id { query = query.bind(uid); }
-    let rows: Vec<Session> = query.fetch_all(pool).await?;
-    let mut map: std::collections::BTreeMap<String, DayStat> = std::collections::BTreeMap::new();
-    for r in rows {
-        let date = r.started_at.get(..10).unwrap_or("").to_string();
-        let entry = map.entry(date.clone()).or_insert(DayStat { date, completed: 0, interrupted: 0, total_focus_s: 0 });
-        match r.status.as_str() { "completed" => entry.completed += 1, "interrupted" => entry.interrupted += 1, _ => {} }
-        entry.total_focus_s += r.duration_s.unwrap_or(0);
-    }
-    Ok(map.into_values().collect())
+    Ok(query.fetch_all(pool).await?)
 }
 
 pub async fn get_today_completed_for_user(pool: &Pool, user_id: Option<i64>) -> Result<i64> {

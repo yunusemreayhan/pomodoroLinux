@@ -105,14 +105,14 @@ use utoipa_swagger_ui::SwaggerUi;
         routes::CreateRoomRequest, routes::RoomRoleRequest, routes::StartVotingRequest, routes::CastVoteRequest, routes::AcceptEstimateRequest,
         routes::CreateSprintRequest, routes::UpdateSprintRequest, routes::AddSprintTasksRequest,
         routes::LogBurnRequest, routes::ApiErrorBody,
-        db::Attachment, db::TaskTemplate, db::Notification,
+        db::Attachment, db::TaskTemplate, db::Notification, db::TaskLabel,
         // Feature schemas (F1-F28)
         routes::AddTaskLinkRequest, routes::GitHubPushEvent, routes::GitHubCommit, routes::GitHubRepo,
         routes::CreateAutomationRuleRequest, routes::AutomationRule,
         routes::SlackIntegrationRequest,
     )),
     modifiers(&SecurityAddon),
-    info(title = "Pomodoro API", version = "1.0.0", description = "Multi-user Pomodoro timer with hierarchical task management")
+    info(title = "Pomodoro API", version = "2.0.1", description = "Multi-user Pomodoro timer with hierarchical task management")
 )]
 struct ApiDoc;
 

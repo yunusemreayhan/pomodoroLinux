@@ -76,6 +76,7 @@ pub async fn delete_user(pool: &Pool, id: i64) -> Result<()> {
     sqlx::query("DELETE FROM notifications WHERE user_id = ?").bind(id).execute(&mut *tx).await?;
     sqlx::query("DELETE FROM notification_prefs WHERE user_id = ?").bind(id).execute(&mut *tx).await?;
     sqlx::query("DELETE FROM task_watchers WHERE user_id = ?").bind(id).execute(&mut *tx).await?;
+    sqlx::query("UPDATE task_attachments SET user_id = ? WHERE user_id = ?").bind(target_id).bind(id).execute(&mut *tx).await?;
     sqlx::query("DELETE FROM user_configs WHERE user_id = ?").bind(id).execute(&mut *tx).await?;
     sqlx::query("DELETE FROM team_members WHERE user_id = ?").bind(id).execute(&mut *tx).await?;
     sqlx::query("UPDATE sessions SET user_id = ? WHERE user_id = ?").bind(target_id).bind(id).execute(&mut *tx).await?;

@@ -21,13 +21,10 @@ pub async fn list_assignees(pool: &Pool, task_id: i64) -> Result<Vec<String>> {
     Ok(rows.into_iter().map(|(u,)| u).collect())
 }
 
-pub async fn get_user_id_by_username(pool: &Pool, username: &str) -> Result<i64> {
-    let (id,): (i64,) = sqlx::query_as("SELECT id FROM users WHERE username = ?").bind(username)
-        .fetch_one(pool).await.map_err(|e| match e {
-            sqlx::Error::RowNotFound => anyhow::anyhow!("not_found"),
-            other => anyhow::anyhow!(other),
-        })?;
-    Ok(id)
+pub async fn get_user_id_by_username(pool: &Pool, username: &str) -> Result<Option<i64>> {
+    let row: Option<(i64,)> = sqlx::query_as("SELECT id FROM users WHERE username = ?").bind(username)
+        .fetch_optional(pool).await?;
+    Ok(row.map(|(id,)| id))
 }
 
 // --- Room CRUD ---

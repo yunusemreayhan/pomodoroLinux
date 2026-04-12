@@ -28,7 +28,6 @@ pub async fn get_room(pool: &Pool, id: i64) -> Result<Room> {
 }
 
 pub async fn delete_room(pool: &Pool, id: i64) -> Result<()> {
-    sqlx::query("PRAGMA foreign_keys = ON").execute(pool).await?;
     sqlx::query("DELETE FROM rooms WHERE id = ?").bind(id).execute(pool).await?;
     Ok(())
 }
