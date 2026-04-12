@@ -174,6 +174,10 @@ pub fn validate_username(u: &str) -> Result<(), ApiError> {
     if !u.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
         return Err(err(StatusCode::BAD_REQUEST, "Username must be alphanumeric (underscores and hyphens allowed)"));
     }
+    const RESERVED: &[&str] = &["admin", "root", "system", "api", "null", "undefined", "anonymous"];
+    if RESERVED.contains(&u.to_lowercase().as_str()) {
+        return Err(err(StatusCode::BAD_REQUEST, "This username is reserved"));
+    }
     Ok(())
 }
 

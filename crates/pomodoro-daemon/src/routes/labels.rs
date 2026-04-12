@@ -20,7 +20,8 @@ pub async fn create_label(State(engine): State<AppState>, _claims: Claims, Json(
 }
 
 #[utoipa::path(delete, path = "/api/labels/{id}", responses((status = 204)), security(("bearer" = [])))]
-pub async fn delete_label(State(engine): State<AppState>, _claims: Claims, Path(id): Path<i64>) -> Result<StatusCode, ApiError> {
+pub async fn delete_label(State(engine): State<AppState>, claims: Claims, Path(id): Path<i64>) -> Result<StatusCode, ApiError> {
+    if claims.role != "root" { return Err(err(StatusCode::FORBIDDEN, "Only root can delete labels")); }
     db::delete_label(&engine.pool, id).await.map_err(internal)?;
     Ok(StatusCode::NO_CONTENT)
 }

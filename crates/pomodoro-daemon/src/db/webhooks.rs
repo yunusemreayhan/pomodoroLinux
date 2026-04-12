@@ -16,8 +16,20 @@ pub struct Webhook {
 fn derive_key() -> Vec<u8> {
     use hmac::{Hmac, Mac, KeyInit};
     use sha2::Sha256;
-    let jwt_secret = std::env::var("POMODORO_JWT_SECRET").unwrap_or_else(|_| "default-key".to_string());
-    let mut mac = Hmac::<Sha256>::new_from_slice(jwt_secret.as_bytes()).unwrap();
+    let secret_bytes: Vec<u8> = std::env::var("POMODORO_JWT_SECRET")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .map(|s| s.into_bytes())
+        .unwrap_or_else(|| {
+            let path = crate::db::data_dir().join(".jwt_secret");
+            std::fs::read(&path).ok()
+                .filter(|d| d.len() >= 32)
+                .unwrap_or_else(|| {
+                    tracing::error!("SECURITY: No JWT secret available for webhook key derivation");
+                    b"default-key".to_vec()
+                })
+        });
+    let mut mac = Hmac::<Sha256>::new_from_slice(&secret_bytes).unwrap();
     mac.update(b"webhook-secret-encryption");
     mac.finalize().into_bytes().to_vec()
 }
