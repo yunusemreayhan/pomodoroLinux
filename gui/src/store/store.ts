@@ -284,6 +284,21 @@ export const useStore = create<Store>((set, get) => ({
       // Only update tasks if data actually changed (avoid unnecessary tree rebuilds)
       const prev = get().tasks;
       const tasksChanged = prev.length !== resp.tasks.length || resp.tasks.some((t, i) => t.id !== prev[i]?.id || t.updated_at !== prev[i]?.updated_at);
+      // F10: Detect status changes on tasks assigned to current user
+      if (tasksChanged && prev.length > 0) {
+        const me = get().username;
+        const myAssignments = get().allAssignees;
+        const prevMap = new Map(prev.map(t => [t.id, t.status]));
+        for (const t of resp.tasks) {
+          const oldStatus = prevMap.get(t.id);
+          if (oldStatus && oldStatus !== t.status && t.user !== me) {
+            const assigned = myAssignments.get(t.id);
+            if (assigned?.some(a => a === me)) {
+              get().toast(`"${t.title}" → ${t.status} (by ${t.user})`, "success");
+            }
+          }
+        }
+      }
       set({ tasks: tasksChanged ? resp.tasks : prev, taskSprints: ts, taskSprintsMap, burnTotals, allAssignees, tasksLoadedAt: Date.now() });
     } catch { /* ignore */ }
     set(s => ({ loading: { ...s.loading, tasks: false } }));
