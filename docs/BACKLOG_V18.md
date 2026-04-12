@@ -35,14 +35,14 @@ Full audit of 56 backend .rs files (6523 LOC), 53 frontend .ts/.tsx files (9261 
 
 ## Business Logic (8 items)
 
-- [ ] **BL1.** `add_dependency` doesn't check for circular dependencies — A depends on B, B depends on A is allowed, which would permanently block both tasks.
-- [ ] **BL2.** `delete_sprint` cascades via FK but doesn't clean up `sprint_root_tasks` explicitly — FK cascade handles it, but no audit log entry is created for sprint deletion.
-- [ ] **BL3.** `update_task` auto-unblock logic checks ALL dependencies are completed, but doesn't handle the case where a dependency is soft-deleted — a deleted dependency should be treated as resolved.
-- [ ] **BL4.** `accept_estimate` for "points" unit sets both `estimated` (integer) and `remaining_points` (float) to the same value — but `estimated` is truncated to i64, losing decimal precision for fractional story points.
-- [ ] **BL5.** `log_burn` auto-assigns user to task via `INSERT OR IGNORE INTO task_assignees` — this is a side effect that may surprise users who just want to log time without being assigned.
-- [ ] **BL6.** `create_room` auto-joins creator as admin but `join_room` uses `INSERT OR IGNORE` with role 'voter' — if creator leaves and re-joins, they become a voter instead of admin.
-- [ ] **BL7.** `snapshot_sprint` counts `remaining_points` as "total_points" and "done_points" — but `remaining_points` is supposed to decrease as work progresses, so the burndown logic is inverted (should use `estimated` minus `remaining_points` for done).
-- [ ] **BL8.** `velocity` query LEFT JOINs `sprint_tasks` and `tasks` but counts `DISTINCT CASE WHEN t.status IN ('completed','done') THEN t.id END` — tasks that appear in multiple sprints are counted once per sprint, which is correct, but cancelled burns still affect the points/hours totals even though they're filtered.
+- [x] **BL1.** `add_dependency` doesn't check for circular dependencies — A depends on B, B depends on A is allowed, which would permanently block both tasks.
+- [x] **BL2.** `delete_sprint` cascades via FK but doesn't clean up `sprint_root_tasks` explicitly — FK cascade handles it, but no audit log entry is created for sprint deletion.
+- [x] **BL3.** `update_task` auto-unblock logic checks ALL dependencies are completed, but doesn't handle the case where a dependency is soft-deleted — a deleted dependency should be treated as resolved.
+- [x] **BL4.** `accept_estimate` for "points" unit sets both `estimated` (integer) and `remaining_points` (float) to the same value — but `estimated` is truncated to i64, losing decimal precision for fractional story points.
+- [x] **BL5.** `log_burn` auto-assigns user to task via `INSERT OR IGNORE INTO task_assignees` — this is a side effect that may surprise users who just want to log time without being assigned.
+- [x] **BL6.** `create_room` auto-joins creator as admin but `join_room` uses `INSERT OR IGNORE` with role 'voter' — if creator leaves and re-joins, they become a voter instead of admin.
+- [x] **BL7.** `snapshot_sprint` counts `remaining_points` as "total_points" and "done_points" — but `remaining_points` is supposed to decrease as work progresses, so the burndown logic is inverted (should use `estimated` minus `remaining_points` for done).
+- [x] **BL8.** `velocity` query LEFT JOINs `sprint_tasks` and `tasks` but counts `DISTINCT CASE WHEN t.status IN ('completed','done') THEN t.id END` — tasks that appear in multiple sprints are counted once per sprint, which is correct, but cancelled burns still affect the points/hours totals even though they're filtered.
 
 ## Validation (6 items)
 

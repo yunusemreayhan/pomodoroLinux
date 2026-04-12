@@ -203,7 +203,8 @@ pub async fn update_task(State(engine): State<AppState>, claims: Claims, Path(id
                             let mut all_done = true;
                             for d in &deps {
                                 if let Ok(dt) = db::get_task(&engine.pool, *d).await {
-                                    if dt.status != "completed" { all_done = false; break; }
+                                    // BL3: Soft-deleted or completed deps count as resolved
+                                    if dt.deleted_at.is_none() && dt.status != "completed" { all_done = false; break; }
                                 }
                             }
                             if all_done {

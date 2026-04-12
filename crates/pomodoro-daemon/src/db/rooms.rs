@@ -37,8 +37,12 @@ const MEMBER_SELECT: &str = "SELECT rm.room_id, rm.user_id, u.username, rm.role,
 
 pub async fn join_room(pool: &Pool, room_id: i64, user_id: i64) -> Result<()> {
     let now = now_str();
-    sqlx::query("INSERT OR IGNORE INTO room_members (room_id, user_id, role, joined_at) VALUES (?, ?, 'voter', ?)")
-        .bind(room_id).bind(user_id).bind(&now).execute(pool).await?;
+    // BL6: Room creator re-joins as admin
+    let (creator_id,): (i64,) = sqlx::query_as("SELECT creator_id FROM rooms WHERE id = ?")
+        .bind(room_id).fetch_one(pool).await?;
+    let role = if creator_id == user_id { "admin" } else { "voter" };
+    sqlx::query("INSERT OR IGNORE INTO room_members (room_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)")
+        .bind(room_id).bind(user_id).bind(role).bind(&now).execute(pool).await?;
     Ok(())
 }
 

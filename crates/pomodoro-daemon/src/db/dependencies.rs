@@ -8,6 +8,17 @@ pub struct TaskDependency {
 
 pub async fn add_dependency(pool: &Pool, task_id: i64, depends_on: i64) -> Result<()> {
     if task_id == depends_on { return Err(anyhow::anyhow!("Task cannot depend on itself")); }
+    // BL1: Check for circular dependencies — walk chain from depends_on
+    let rows: Vec<(i64,)> = sqlx::query_as(
+        "WITH RECURSIVE chain(id) AS (
+            SELECT depends_on FROM task_dependencies WHERE task_id = ?
+            UNION
+            SELECT td.depends_on FROM task_dependencies td JOIN chain c ON td.task_id = c.id
+        ) SELECT id FROM chain"
+    ).bind(depends_on).fetch_all(pool).await?;
+    if rows.iter().any(|(id,)| *id == task_id) {
+        return Err(anyhow::anyhow!("Circular dependency detected"));
+    }
     sqlx::query("INSERT OR IGNORE INTO task_dependencies (task_id, depends_on) VALUES (?, ?)")
         .bind(task_id).bind(depends_on).execute(pool).await?;
     Ok(())
