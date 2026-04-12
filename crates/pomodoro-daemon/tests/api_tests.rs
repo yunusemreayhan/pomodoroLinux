@@ -4705,3 +4705,184 @@ async fn test_task_update_conflict_detection() {
         Some(json!({"title":"Stale","expected_updated_at": updated_at})))).await.unwrap();
     assert_eq!(resp.status(), 409);
 }
+
+// ============================================================
+// v11 T1: Sprint carry-over
+// ============================================================
+
+#[tokio::test]
+async fn test_sprint_carryover() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let t1 = body_json(app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"CarryDone","status":"completed"})))).await.unwrap()).await["id"].as_i64().unwrap();
+    let t2 = body_json(app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"CarryWIP"})))).await.unwrap()).await["id"].as_i64().unwrap();
+    // Mark t1 completed
+    app.clone().oneshot(auth_req("PUT", &format!("/api/tasks/{}", t1), &tok, Some(json!({"status":"completed"})))).await.unwrap();
+    let sid = body_json(app.clone().oneshot(auth_req("POST", "/api/sprints", &tok, Some(json!({"name":"CarrySprint"})))).await.unwrap()).await["id"].as_i64().unwrap();
+    app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/tasks", sid), &tok, Some(json!({"task_ids":[t1, t2]})))).await.unwrap();
+    app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/start", sid), &tok, None)).await.unwrap();
+    app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/complete", sid), &tok, None)).await.unwrap();
+    // Carry over
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/carryover", sid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let new_sprint = body_json(resp).await;
+    assert!(new_sprint["name"].as_str().unwrap().contains("carry-over"));
+    // Non-completed sprint should fail
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/carryover", new_sprint["id"].as_i64().unwrap()), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 400);
+}
+
+// ============================================================
+// v11 T2: Task watchers
+// ============================================================
+
+#[tokio::test]
+async fn test_task_watchers() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let tid = body_json(app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"WatchMe"})))).await.unwrap()).await["id"].as_i64().unwrap();
+    // Watch
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/tasks/{}/watch", tid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 204);
+    // List watchers
+    let resp = app.clone().oneshot(auth_req("GET", &format!("/api/tasks/{}/watchers", tid), &tok, None)).await.unwrap();
+    let watchers = body_json(resp).await;
+    assert_eq!(watchers.as_array().unwrap().len(), 1);
+    // Watched tasks
+    let resp = app.clone().oneshot(auth_req("GET", "/api/watched", &tok, None)).await.unwrap();
+    let watched = body_json(resp).await;
+    assert!(watched.as_array().unwrap().iter().any(|v| v.as_i64() == Some(tid)));
+    // Unwatch
+    let resp = app.clone().oneshot(auth_req("DELETE", &format!("/api/tasks/{}/watch", tid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 204);
+}
+
+// ============================================================
+// v11 T3: JSON task import
+// ============================================================
+
+#[tokio::test]
+async fn test_json_import() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let resp = app.clone().oneshot(auth_req("POST", "/api/import/tasks/json", &tok, Some(json!({
+        "tasks": [
+            {"title": "Parent", "children": [{"title": "Child1"}, {"title": "Child2"}]},
+            {"title": "Standalone"}
+        ]
+    })))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let result = body_json(resp).await;
+    assert_eq!(result["created"].as_i64().unwrap(), 4);
+    // Empty title rejected
+    let resp = app.clone().oneshot(auth_req("POST", "/api/import/tasks/json", &tok, Some(json!({
+        "tasks": [{"title": ""}]
+    })))).await.unwrap();
+    let result = body_json(resp).await;
+    assert!(!result["errors"].as_array().unwrap().is_empty());
+}
+
+// ============================================================
+// v11 T4: Session note update
+// ============================================================
+
+#[tokio::test]
+async fn test_session_note_update() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let tid = body_json(app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"NoteTask"})))).await.unwrap()).await["id"].as_i64().unwrap();
+    // Start and stop a session to create one
+    app.clone().oneshot(auth_req("POST", "/api/timer/start", &tok, Some(json!({"task_id": tid})))).await.unwrap();
+    app.clone().oneshot(auth_req("POST", "/api/timer/stop", &tok, None)).await.unwrap();
+    // Get sessions
+    let resp = app.clone().oneshot(auth_req("GET", &format!("/api/tasks/{}/sessions", tid), &tok, None)).await.unwrap();
+    let sessions = body_json(resp).await;
+    let sid = sessions.as_array().unwrap()[0]["id"].as_i64().unwrap();
+    // Update note
+    let resp = app.clone().oneshot(auth_req("PUT", &format!("/api/sessions/{}/note", sid), &tok, Some(json!({"note":"Updated note"})))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let session = body_json(resp).await;
+    assert_eq!(session["notes"], "Updated note");
+}
+
+// ============================================================
+// v11 T5: Room export
+// ============================================================
+
+#[tokio::test]
+async fn test_room_export() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let resp = app.clone().oneshot(auth_req("POST", "/api/rooms", &tok, Some(json!({"name":"ExportRoom"})))).await.unwrap();
+    let rid = body_json(resp).await["id"].as_i64().unwrap();
+    app.clone().oneshot(auth_req("POST", &format!("/api/rooms/{}/join", rid), &tok, None)).await.unwrap();
+    let resp = app.clone().oneshot(auth_req("GET", &format!("/api/rooms/{}/export", rid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    assert!(resp.headers().get("content-disposition").is_some());
+}
+
+// ============================================================
+// v11 T6: Per-task work duration
+// ============================================================
+
+#[tokio::test]
+async fn test_task_work_duration() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let tid = body_json(app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"DurTask"})))).await.unwrap()).await["id"].as_i64().unwrap();
+    // Set work duration
+    let resp = app.clone().oneshot(auth_req("PUT", &format!("/api/tasks/{}", tid), &tok, Some(json!({"work_duration_minutes": 45})))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let task = body_json(resp).await;
+    assert_eq!(task["work_duration_minutes"], 45);
+    // Invalid bounds
+    let resp = app.clone().oneshot(auth_req("PUT", &format!("/api/tasks/{}", tid), &tok, Some(json!({"work_duration_minutes": 999})))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+}
+
+// ============================================================
+// v11 T7: Sprint capacity_hours
+// ============================================================
+
+#[tokio::test]
+async fn test_sprint_capacity() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let resp = app.clone().oneshot(auth_req("POST", "/api/sprints", &tok, Some(json!({"name":"CapSprint","capacity_hours":40.0})))).await.unwrap();
+    assert_eq!(resp.status(), 201);
+    let sprint = body_json(resp).await;
+    assert_eq!(sprint["capacity_hours"], 40.0);
+    // Update capacity
+    let sid = sprint["id"].as_i64().unwrap();
+    let resp = app.clone().oneshot(auth_req("PUT", &format!("/api/sprints/{}", sid), &tok, Some(json!({"capacity_hours": 60.0})))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let sprint = body_json(resp).await;
+    assert_eq!(sprint["capacity_hours"], 60.0);
+}
+
+// ============================================================
+// v11 T9: Dependency cycle detection
+// ============================================================
+
+#[tokio::test]
+async fn test_dependency_self_reference() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let tid = body_json(app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"DepSelf"})))).await.unwrap()).await["id"].as_i64().unwrap();
+    // Self-dependency should fail
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/tasks/{}/dependencies", tid), &tok, Some(json!({"depends_on": tid})))).await.unwrap();
+    assert!(resp.status() == 400 || resp.status() == 500);
+}
+
+// ============================================================
+// v11 T10: Webhook URL length validation
+// ============================================================
+
+#[tokio::test]
+async fn test_webhook_url_length() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let long_url = format!("https://example.com/{}", "a".repeat(2000));
+    let resp = app.clone().oneshot(auth_req("POST", "/api/webhooks", &tok, Some(json!({"url": long_url})))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+}
