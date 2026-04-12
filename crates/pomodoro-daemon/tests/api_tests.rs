@@ -3900,3 +3900,308 @@ async fn test_health_endpoint() {
     assert_eq!(body["status"], "ok");
     assert_eq!(body["db"], true);
 }
+
+// === T1: Soft-delete cascade — restore parent restores children ===
+#[tokio::test]
+async fn test_soft_delete_cascade_restore() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    // Create parent + child
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"Parent"})))).await.unwrap();
+    let pid = body_json(resp).await["id"].as_i64().unwrap();
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"Child","parent_id":pid})))).await.unwrap();
+    let cid = body_json(resp).await["id"].as_i64().unwrap();
+
+    // Delete parent (should cascade to child)
+    app.clone().oneshot(auth_req("DELETE", &format!("/api/tasks/{}", pid), &tok, None)).await.unwrap();
+
+    // Both should be gone from list
+    let resp = app.clone().oneshot(auth_req("GET", "/api/tasks", &tok, None)).await.unwrap();
+    let tasks = body_json(resp).await;
+    assert!(!tasks.as_array().unwrap().iter().any(|t| t["id"] == pid || t["id"] == cid));
+
+    // Both should appear in trash
+    let resp = app.clone().oneshot(auth_req("GET", "/api/tasks/trash", &tok, None)).await.unwrap();
+    let trash = body_json(resp).await;
+    assert!(trash.as_array().unwrap().iter().any(|t| t["id"] == pid));
+    assert!(trash.as_array().unwrap().iter().any(|t| t["id"] == cid));
+
+    // Restore parent
+    app.clone().oneshot(auth_req("POST", &format!("/api/tasks/{}/restore", pid), &tok, None)).await.unwrap();
+
+    // Both should reappear
+    let resp = app.clone().oneshot(auth_req("GET", "/api/tasks", &tok, None)).await.unwrap();
+    let tasks = body_json(resp).await;
+    assert!(tasks.as_array().unwrap().iter().any(|t| t["id"] == pid));
+    assert!(tasks.as_array().unwrap().iter().any(|t| t["id"] == cid));
+}
+
+// === T2: Concurrent room voting ===
+#[tokio::test]
+async fn test_concurrent_room_voting() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    // Register second user
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/register", Some(json!({"username":"voter2","password":"Pass1234"})))).await.unwrap();
+    assert_eq!(resp.status(), 200, "Register should succeed");
+    let body = body_json(resp).await;
+    let tok2 = body["token"].as_str().expect("register should return token").to_string();
+
+    // Create room
+    let resp = app.clone().oneshot(auth_req("POST", "/api/rooms", &tok, Some(json!({"name":"ConcRoom"})))).await.unwrap();
+    assert_eq!(resp.status(), 201, "Room creation should succeed");
+    let rid = body_json(resp).await["id"].as_i64().unwrap();
+
+    // Second user joins
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/rooms/{}/join", rid), &tok2, None)).await.unwrap();
+    assert!(resp.status().is_success(), "Join should succeed");
+
+    // Create task
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"VoteTask"})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+
+    // Start voting
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/rooms/{}/start-voting", rid), &tok, Some(json!({"task_id":tid})))).await.unwrap();
+    assert!(resp.status().is_success(), "Start voting should succeed");
+
+    // Both vote simultaneously
+    let (r1, r2) = tokio::join!(
+        app.clone().oneshot(auth_req("POST", &format!("/api/rooms/{}/vote", rid), &tok, Some(json!({"value":5})))),
+        app.clone().oneshot(auth_req("POST", &format!("/api/rooms/{}/vote", rid), &tok2, Some(json!({"value":8}))))
+    );
+    assert!(r1.unwrap().status().is_success());
+    assert!(r2.unwrap().status().is_success());
+
+    // Reveal
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/rooms/{}/reveal", rid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+
+    // Fetch room state — both votes should be visible
+    let resp = app.clone().oneshot(auth_req("GET", &format!("/api/rooms/{}", rid), &tok, None)).await.unwrap();
+    let state = body_json(resp).await;
+    let votes = state["votes"].as_array().unwrap();
+    assert_eq!(votes.len(), 2);
+    assert!(votes.iter().all(|v| v["voted"] == true));
+}
+
+// === T3: CSV import with malformed data ===
+#[tokio::test]
+async fn test_csv_import_malformed() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    // Empty CSV (header only)
+    let resp = app.clone().oneshot(auth_req("POST", "/api/import/tasks", &tok, Some(json!({"csv":"title,priority\n"})))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let body = body_json(resp).await;
+    assert_eq!(body["created"], 0);
+
+    // Missing columns — should still create with defaults
+    let resp = app.clone().oneshot(auth_req("POST", "/api/import/tasks", &tok, Some(json!({"csv":"title\nJustTitle\n"})))).await.unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["created"], 1);
+
+    // Extra columns — should ignore extras
+    let resp = app.clone().oneshot(auth_req("POST", "/api/import/tasks", &tok, Some(json!({"csv":"title,priority,estimated,project,extra1,extra2\nT,1,2,proj,x,y\n"})))).await.unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["created"], 1);
+
+    // Special characters in title
+    let resp = app.clone().oneshot(auth_req("POST", "/api/import/tasks", &tok, Some(json!({"csv":"title\n\"Quoted, with comma\"\n=formula\n"})))).await.unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["created"], 2);
+
+    // Empty title lines should be skipped
+    let resp = app.clone().oneshot(auth_req("POST", "/api/import/tasks", &tok, Some(json!({"csv":"title\n\n  \nReal Task\n"})))).await.unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["created"], 1);
+
+    // Too large CSV
+    let big = "title\n".to_string() + &"x".repeat(2_000_000);
+    let resp = app.clone().oneshot(auth_req("POST", "/api/import/tasks", &tok, Some(json!({"csv": big})))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+}
+
+// === T4: Webhook SSRF protection — additional patterns ===
+#[tokio::test]
+async fn test_webhook_ssrf_additional_patterns() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    let blocked_urls = [
+        "http://localhost/hook",
+        "http://127.0.0.1/hook",
+        "http://0.0.0.0/hook",
+        "http://[::1]/hook",
+        "http://10.0.0.1/hook",
+        "http://192.168.1.1/hook",
+        "http://172.16.0.1/hook",
+        "http://169.254.1.1/hook",
+        "http://internal.local/hook",
+        "ftp://example.com/hook",
+        "http://user:pass@example.com/hook",
+    ];
+    for url in &blocked_urls {
+        let resp = app.clone().oneshot(auth_req("POST", "/api/webhooks", &tok,
+            Some(json!({"url": url, "events":"task.created"})))).await.unwrap();
+        assert_eq!(resp.status(), 400, "Expected 400 for URL: {}", url);
+    }
+}
+
+// === T8: Auth rate limiting — verify limit ===
+#[tokio::test]
+async fn test_auth_rate_limit_threshold() {
+    let app = app().await;
+
+    // Send 11 login attempts from same IP (limit is 10/60s)
+    let mut last_status = 200;
+    for i in 0..12 {
+        let resp = app.clone().oneshot(
+            Request::builder().method("POST").uri("/api/auth/login")
+                .header("content-type", "application/json")
+                .header("x-forwarded-for", "88.77.66.55")
+                .body(Body::from(serde_json::to_vec(&json!({"username":"root","password":"wrong"})).unwrap())).unwrap()
+        ).await.unwrap();
+        last_status = resp.status().as_u16();
+        if last_status == 429 { break; }
+        if i < 10 { assert_eq!(last_status, 401, "Attempt {} should be 401", i); }
+    }
+    assert_eq!(last_status, 429, "Should be rate limited after 10+ attempts");
+}
+
+// === T1b: Soft-deleted tasks rejected from sprints ===
+#[tokio::test]
+async fn test_soft_deleted_task_rejected_from_sprint() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"DelTask"})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+    let resp = app.clone().oneshot(auth_req("POST", "/api/sprints", &tok, Some(json!({"name":"S"})))).await.unwrap();
+    let sid = body_json(resp).await["id"].as_i64().unwrap();
+
+    // Soft delete the task
+    app.clone().oneshot(auth_req("DELETE", &format!("/api/tasks/{}", tid), &tok, None)).await.unwrap();
+
+    // Try to add deleted task to sprint — should fail
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/tasks", sid), &tok, Some(json!({"task_ids":[tid]})))).await.unwrap();
+    assert_eq!(resp.status(), 404);
+}
+
+// === Task duplication ===
+#[tokio::test]
+async fn test_task_duplicate() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok,
+        Some(json!({"title":"Original","priority":2,"estimated":5,"project":"proj","tags":"a,b"})))).await.unwrap();
+    let oid = body_json(resp).await["id"].as_i64().unwrap();
+
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/tasks/{}/duplicate", oid), &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 201);
+    let dup = body_json(resp).await;
+    assert!(dup["title"].as_str().unwrap().contains("(copy)"));
+    assert_eq!(dup["priority"], 2);
+    assert_eq!(dup["estimated"], 5);
+    assert_eq!(dup["project"], "proj");
+    assert_ne!(dup["id"], oid);
+}
+
+// === Trash endpoint ===
+#[tokio::test]
+async fn test_trash_endpoint() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    // Empty trash initially
+    let resp = app.clone().oneshot(auth_req("GET", "/api/tasks/trash", &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let trash = body_json(resp).await;
+    assert_eq!(trash.as_array().unwrap().len(), 0);
+
+    // Create and delete a task
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"TrashMe"})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+    app.clone().oneshot(auth_req("DELETE", &format!("/api/tasks/{}", tid), &tok, None)).await.unwrap();
+
+    // Should appear in trash
+    let resp = app.clone().oneshot(auth_req("GET", "/api/tasks/trash", &tok, None)).await.unwrap();
+    let trash = body_json(resp).await;
+    assert_eq!(trash.as_array().unwrap().len(), 1);
+    assert_eq!(trash[0]["title"], "TrashMe");
+    assert!(trash[0]["deleted_at"].as_str().is_some());
+}
+
+// === Sprint root task auth ===
+#[tokio::test]
+async fn test_sprint_root_task_auth() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    // Register non-root user
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/register", Some(json!({"username":"noroot","password":"Pass1234"})))).await.unwrap();
+    let tok2 = body_json(resp).await["token"].as_str().unwrap().to_string();
+
+    // Root creates sprint
+    let resp = app.clone().oneshot(auth_req("POST", "/api/sprints", &tok, Some(json!({"name":"AuthSprint"})))).await.unwrap();
+    let sid = body_json(resp).await["id"].as_i64().unwrap();
+
+    let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"RootTask"})))).await.unwrap();
+    let tid = body_json(resp).await["id"].as_i64().unwrap();
+
+    // Non-root tries to add root tasks — should be forbidden
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/roots", sid), &tok2, Some(json!({"task_ids":[tid]})))).await.unwrap();
+    assert_eq!(resp.status(), 403);
+
+    // Root can add
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/roots", sid), &tok, Some(json!({"task_ids":[tid]})))).await.unwrap();
+    assert_eq!(resp.status(), 204);
+}
+
+// === Template limits ===
+#[tokio::test]
+async fn test_template_limits() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    // Name too long
+    let long_name = "x".repeat(201);
+    let resp = app.clone().oneshot(auth_req("POST", "/api/templates", &tok,
+        Some(json!({"name": long_name, "data": {}})))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+
+    // Data too large
+    let big_data: serde_json::Value = serde_json::from_str(&format!("{{\"x\":\"{}\"}}", "y".repeat(70000))).unwrap();
+    let resp = app.clone().oneshot(auth_req("POST", "/api/templates", &tok,
+        Some(json!({"name": "big", "data": big_data})))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+
+    // Valid template works
+    let resp = app.clone().oneshot(auth_req("POST", "/api/templates", &tok,
+        Some(json!({"name": "ok", "data": {"title":"T"}})))).await.unwrap();
+    assert_eq!(resp.status(), 201);
+}
+
+// === Config theme validation ===
+#[tokio::test]
+async fn test_config_theme_validation() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+
+    // Get current config
+    let resp = app.clone().oneshot(auth_req("GET", "/api/config", &tok, None)).await.unwrap();
+    let mut cfg = body_json(resp).await;
+
+    // Invalid theme
+    cfg["theme"] = json!("neon");
+    let resp = app.clone().oneshot(auth_req("PUT", "/api/config", &tok, Some(cfg.clone()))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+
+    // Valid theme
+    cfg["theme"] = json!("dark");
+    let resp = app.clone().oneshot(auth_req("PUT", "/api/config", &tok, Some(cfg))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+}
