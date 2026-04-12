@@ -395,7 +395,7 @@ mod recurrence;
 pub use recurrence::*;
 mod dependencies;
 pub use dependencies::*;
-mod webhooks;
+pub mod webhooks;
 pub use webhooks::*;
 mod templates;
 pub use templates::*;

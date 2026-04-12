@@ -47,13 +47,17 @@ pub fn dispatch(pool: Pool, event: &str, payload: serde_json::Value) {
                 .header("content-type", "application/json")
                 .header("x-pomodoro-event", &event)
                 .body(body_str.clone());
-            if let Some(ref secret) = hook.secret {
-                use hmac::{Hmac, Mac, KeyInit};
-                use sha2::Sha256;
-                let mut mac = <Hmac<Sha256>>::new_from_slice(secret.as_bytes()).unwrap();
-                mac.update(body_str.as_bytes());
-                let sig = mac.finalize().into_bytes().iter().map(|b| format!("{:02x}", b)).collect::<String>();
-                req = req.header("x-pomodoro-signature", format!("sha256={}", sig));
+            if let Some(ref encrypted_secret) = hook.secret {
+                // S5: Decrypt the secret before signing
+                let secret = db::webhooks::decrypt_secret(encrypted_secret).unwrap_or_default();
+                if !secret.is_empty() {
+                    use hmac::{Hmac, Mac, KeyInit};
+                    use sha2::Sha256;
+                    let mut mac = <Hmac<Sha256>>::new_from_slice(secret.as_bytes()).unwrap();
+                    mac.update(body_str.as_bytes());
+                    let sig = mac.finalize().into_bytes().iter().map(|b| format!("{:02x}", b)).collect::<String>();
+                    req = req.header("x-pomodoro-signature", format!("sha256={}", sig));
+                }
             }
             let mut attempts = 0;
             loop {
