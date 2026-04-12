@@ -255,7 +255,10 @@ export const useI18n = create<I18nState>((set) => ({
   t: locales[getStorage("locale", "en")] || en,
   setLocale: (locale: string) => {
     setStorage("locale", locale);
-    set({ locale, t: locales[locale] || en });
+    // CQ5: Fall back to English for any missing translation keys
+    const base = locales[locale] || en;
+    const t = new Proxy(base, { get: (target, prop: string) => (target as any)[prop] ?? (en as any)[prop] ?? prop }) as Locale;
+    set({ locale, t });
   },
   availableLocales: () => Object.keys(locales),
 }));

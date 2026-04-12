@@ -188,8 +188,9 @@ async fn security_headers(req: axum::extract::Request, next: axum::middleware::N
 
 // O2: Request ID + structured error logging
 async fn request_id_logger(req: axum::extract::Request, next: axum::middleware::Next) -> axum::response::Response {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let rid = format!("{:08x}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().subsec_nanos());
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let rid = format!("{:012x}", COUNTER.fetch_add(1, Ordering::Relaxed));
     let method = req.method().to_string();
     let path = req.uri().path().to_string();
     let mut resp = next.run(req).await;

@@ -60,7 +60,7 @@ export default function TaskNode({ node, depth, onView, selectMode, onSelect, se
     : (t.remaining_points > 0 && t.estimated > 0 ? Math.round((t.remaining_points / t.estimated) * 100) : null);
 
   const handleDelete = useCallback(async () => {
-    try { await deleteTask(t.id); } catch (e) { alert(String(e)); }
+    try { await deleteTask(t.id); } catch (e) { useStore.getState().toast(String(e), "error"); }
   }, [t.id, deleteTask]);
 
   const handleAdd = useCallback(() => {

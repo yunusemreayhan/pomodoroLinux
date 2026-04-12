@@ -343,11 +343,19 @@ async fn main() -> Result<()> {
     // Graceful shutdown on SIGTERM/SIGINT
     let engine_shutdown = engine.clone();
     let handle = server.with_graceful_shutdown(async move {
-        let _ = tokio::signal::ctrl_c().await;
+        // INF1: Handle both SIGINT (ctrl_c) and SIGTERM (systemd)
+        let ctrl_c = tokio::signal::ctrl_c();
+        #[cfg(unix)]
+        let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).expect("SIGTERM handler");
+        #[cfg(unix)]
+        tokio::select! {
+            _ = ctrl_c => {},
+            _ = sigterm.recv() => {},
+        }
+        #[cfg(not(unix))]
+        let _ = ctrl_c.await;
         tracing::info!("Shutting down gracefully...");
-        // Signal background tasks to stop
         let _ = shutdown_tx.send(true);
-        // Flush running sessions
         if let Err(e) = db::recover_interrupted(&engine_shutdown.pool).await {
             tracing::error!("Error flushing sessions on shutdown: {}", e);
         }

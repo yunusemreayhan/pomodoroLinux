@@ -136,6 +136,9 @@ function Sidebar() {
 
       {/* Connection status */}
       <div
+        role="status"
+        aria-live="polite"
+        aria-label={connected ? "Daemon connected" : "Daemon disconnected"}
         className={`w-11 h-11 flex items-center justify-center rounded-xl mb-1 ${
           connected ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"
         }`}

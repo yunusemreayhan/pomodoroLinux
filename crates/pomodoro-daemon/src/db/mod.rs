@@ -275,6 +275,10 @@ async fn migrate(pool: &Pool) -> Result<()> {
     )").execute(pool).await?;
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_audit_log_user_id ON audit_log(user_id)").execute(pool).await?;
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_audit_log_entity ON audit_log(entity_type, entity_id)").execute(pool).await?;
+    // P4: Additional indexes for common query patterns
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, read)").execute(pool).await.ok();
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_task_watchers_user ON task_watchers(user_id)").execute(pool).await.ok();
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_burn_log_sprint ON burn_log(sprint_id, cancelled)").execute(pool).await.ok();
 
     sqlx::query("CREATE TABLE IF NOT EXISTS labels (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -12,7 +12,7 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex items-center justify-center h-screen bg-[var(--color-bg)]">
+        <div className="flex items-center justify-center h-screen bg-[var(--color-bg)]" role="alert" aria-live="assertive">
           <div className="text-center p-8">
             <div className="text-4xl mb-4">💥</div>
             <h1 className="text-lg text-white font-semibold mb-2">Something went wrong</h1>
