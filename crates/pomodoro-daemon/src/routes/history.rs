@@ -105,10 +105,17 @@ pub async fn focus_score(State(engine): State<AppState>, claims: Claims) -> ApiR
     let completion_rate = if total_sessions > 0 { total_completed as f64 / total_sessions as f64 } else { 0.0 };
     let completion_score = (completion_rate * 20.0).round();
 
-    // Component 4: Streak (0-20 pts) — current consecutive days with ≥1 session
+    // Component 4: Streak (0-20 pts) — current consecutive calendar days with ≥1 session
+    // V28-1: Check actual date continuity, not just consecutive entries
     let mut streak = 0i64;
-    for s in stats.iter().rev() {
-        if s.completed > 0 { streak += 1; } else { break; }
+    let active_dates: std::collections::HashSet<&str> = stats.iter().filter(|s| s.completed > 0).map(|s| s.date.as_str()).collect();
+    let today = chrono::Utc::now().naive_utc().date();
+    let mut check_date = today;
+    loop {
+        let ds = check_date.format("%Y-%m-%d").to_string();
+        if active_dates.contains(ds.as_str()) { streak += 1; } else if check_date < today { break; } // allow today to be missing (day not over)
+        else { break; }
+        check_date -= chrono::Duration::days(1);
     }
     let streak_score = ((streak as f64 / 14.0).min(1.0) * 20.0).round(); // 14-day streak = max
 
@@ -153,10 +160,15 @@ pub async fn check_achievements(State(engine): State<AppState>, claims: Claims) 
     let mut newly_unlocked = Vec::new();
     let now = db::now_str();
 
-    // Streak achievements
+    // Streak achievements — V28-1: check consecutive calendar days
+    let active_dates: std::collections::HashSet<&str> = stats.iter().filter(|s| s.completed > 0).map(|s| s.date.as_str()).collect();
     let mut streak = 0i64;
-    for s in stats.iter().rev() {
-        if s.completed > 0 { streak += 1; } else { break; }
+    let today = chrono::Utc::now().naive_utc().date();
+    let mut check_date = today;
+    loop {
+        let ds = check_date.format("%Y-%m-%d").to_string();
+        if active_dates.contains(ds.as_str()) { streak += 1; } else if check_date < today { break; } else { break; }
+        check_date -= chrono::Duration::days(1);
     }
     if streak >= 7 { try_unlock(&engine.pool, claims.user_id, "streak_7", &now, &mut newly_unlocked).await; }
     if streak >= 30 { try_unlock(&engine.pool, claims.user_id, "streak_30", &now, &mut newly_unlocked).await; }
