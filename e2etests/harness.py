@@ -75,6 +75,7 @@ class Daemon:
             "POMODORO_JWT_SECRET": JWT_SECRET,
             "POMODORO_ROOT_PASSWORD": ROOT_PASSWORD,
             "POMODORO_SWAGGER": "0",
+            "POMODORO_NO_RATE_LIMIT": "1",
             "RUST_LOG": "warn",
         })
         self.proc = subprocess.Popen(
