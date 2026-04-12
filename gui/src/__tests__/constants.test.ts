@@ -25,8 +25,8 @@ describe("TASK_STATUSES", () => {
     expect(TASK_STATUSES).toContain("archived");
   });
 
-  it("has exactly 4 statuses", () => {
-    expect(TASK_STATUSES.length).toBe(4);
+  it("has exactly 8 statuses", () => {
+    expect(TASK_STATUSES.length).toBe(8);
   });
 });
 

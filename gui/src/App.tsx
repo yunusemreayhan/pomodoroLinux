@@ -44,7 +44,8 @@ function Sidebar() {
   const setTheme = (th: string) => {
     setThemeLocal(th);
     const cur = useStore.getState().config;
-    apiCall("PUT", "/api/config", { ...cur, theme: th }).catch(() => {});
+    // B2: Only sync to server if config is loaded, otherwise just set locally
+    if (cur) apiCall("PUT", "/api/config", { ...cur, theme: th }).catch(() => {});
   };
 
   useEffect(() => {
