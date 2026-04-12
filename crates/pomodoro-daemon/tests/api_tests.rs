@@ -5033,3 +5033,67 @@ async fn test_concurrent_timer_start() {
     let state = body_json(resp).await;
     assert_eq!(state["current_task_id"], t2);
 }
+
+// ============================================================
+// v12 T6: Room membership filter
+// ============================================================
+
+#[tokio::test]
+async fn test_room_membership_filter() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    // Create a room and join
+    let resp = app.clone().oneshot(auth_req("POST", "/api/rooms", &tok, Some(json!({"name":"FilterRoom"})))).await.unwrap();
+    let rid = body_json(resp).await["id"].as_i64().unwrap();
+    app.clone().oneshot(auth_req("POST", &format!("/api/rooms/{}/join", rid), &tok, None)).await.unwrap();
+    // Register second user
+    app.clone().oneshot(json_req("POST", "/api/auth/register", Some(json!({"username":"roomuser","password":"Password1!"})))).await.unwrap();
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/login", Some(json!({"username":"roomuser","password":"Password1!"})))).await.unwrap();
+    let user_tok = body_json(resp).await["token"].as_str().unwrap().to_string();
+    // Second user should NOT see the room (not a member)
+    let resp = app.clone().oneshot(auth_req("GET", "/api/rooms", &user_tok, None)).await.unwrap();
+    let rooms = body_json(resp).await;
+    assert!(!rooms.as_array().unwrap().iter().any(|r| r["id"] == rid));
+    // Root should see it
+    let resp = app.clone().oneshot(auth_req("GET", "/api/rooms", &tok, None)).await.unwrap();
+    let rooms = body_json(resp).await;
+    assert!(rooms.as_array().unwrap().iter().any(|r| r["id"] == rid));
+}
+
+// ============================================================
+// v12 T7: Bulk status mixed ownership
+// ============================================================
+
+#[tokio::test]
+async fn test_bulk_status_mixed_ownership() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    // Register second user
+    app.clone().oneshot(json_req("POST", "/api/auth/register", Some(json!({"username":"bulkuser","password":"Password1!"})))).await.unwrap();
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/login", Some(json!({"username":"bulkuser","password":"Password1!"})))).await.unwrap();
+    let user_tok = body_json(resp).await["token"].as_str().unwrap().to_string();
+    // Root creates a task
+    let root_tid = body_json(app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"RootOwned"})))).await.unwrap()).await["id"].as_i64().unwrap();
+    // User creates a task
+    let user_tid = body_json(app.clone().oneshot(auth_req("POST", "/api/tasks", &user_tok, Some(json!({"title":"UserOwned"})))).await.unwrap()).await["id"].as_i64().unwrap();
+    // User tries to bulk-update both — should fail (root's task not owned)
+    let resp = app.clone().oneshot(auth_req("PUT", "/api/tasks/bulk-status", &user_tok, Some(json!({"task_ids":[root_tid, user_tid],"status":"active"})))).await.unwrap();
+    assert_eq!(resp.status(), 403);
+}
+
+// ============================================================
+// v12 T8: CSV import field length validation
+// ============================================================
+
+#[tokio::test]
+async fn test_csv_import_title_length() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let long_title = "x".repeat(600);
+    let csv = format!("title,priority\n{},3\nShort,2", long_title);
+    let resp = app.clone().oneshot(auth_req("POST", "/api/import/tasks", &tok, Some(json!({"csv": csv})))).await.unwrap();
+    let result = body_json(resp).await;
+    // Long title should produce an error, short one should succeed
+    assert_eq!(result["created"].as_i64().unwrap(), 1);
+    assert!(!result["errors"].as_array().unwrap().is_empty());
+}
