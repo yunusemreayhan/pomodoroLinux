@@ -51,6 +51,15 @@ export function EditField({ label, value, type, onSave }: { label: string; value
 }
 
 export function ProgressBar({ label, pct }: { label: string; pct: number }) {
+  return (
+    <div className="mb-2">
+      <div className="flex justify-between text-[10px] text-white/30 mb-1"><span>{label}</span><span>{pct}% done</span></div>
+      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full transition-all ${pct < 30 ? "bg-[var(--color-danger)]" : pct < 70 ? "bg-[var(--color-warning)]" : "bg-[var(--color-success)]"}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
 
 // F3: Estimate vs actual comparison bars
 export function EstimateVsActual({ estimated, actual, unit }: { estimated: number; actual: number; unit: string }) {
@@ -75,15 +84,6 @@ export function EstimateVsActual({ estimated, actual, unit }: { estimated: numbe
     </div>
   );
 }
-  return (
-    <div className="mb-2">
-      <div className="flex justify-between text-[10px] text-white/30 mb-1"><span>{label}</span><span>{pct}% done</span></div>
-      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${pct < 30 ? "bg-[var(--color-danger)]" : pct < 70 ? "bg-[var(--color-warning)]" : "bg-[var(--color-success)]"}`} style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
 
 export function ExportButton({ detail }: { detail: TaskDetail }) {
   const t = detail.task;
@@ -103,11 +103,11 @@ export function ExportButton({ detail }: { detail: TaskDetail }) {
       if (t.description) lines.push("", "## Description", t.description);
       if (detail.comments?.length) {
         lines.push("", "## Comments");
-        for (const c of detail.comments) lines.push(`- **${c.username}** (${c.created_at.slice(0, 10)}): ${c.content}`);
+        for (const c of detail.comments) lines.push(`- **${c.user}** (${c.created_at.slice(0, 10)}): ${c.content}`);
       }
-      if (detail.time_reports?.length) {
-        lines.push("", "## Time Reports");
-        for (const r of detail.time_reports) lines.push(`- ${r.hours}h by ${r.username} on ${r.created_at.slice(0, 10)}${r.note ? ` — ${r.note}` : ""}`);
+      if (detail.sessions?.length) {
+        lines.push("", "## Sessions");
+        for (const s of detail.sessions) lines.push(`- ${s.session_type} (${s.status}) ${s.started_at.slice(0, 10)} — ${s.duration_s ? Math.round(s.duration_s / 60) + "min" : "ongoing"}${s.notes ? ` — ${s.notes}` : ""}`);
       }
       if (detail.children?.length) {
         lines.push("", "## Subtasks");

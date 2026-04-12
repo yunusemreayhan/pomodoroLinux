@@ -20,6 +20,10 @@ pub async fn duplicate_task(State(engine): State<AppState>, claims: Claims, Path
     if let Ok(labels) = db::get_task_labels(&engine.pool, id).await {
         for label in labels { db::add_task_label(&engine.pool, t.id, label.id).await.ok(); }
     }
+    // B5: Copy assignees
+    let assignee_ids: Vec<(i64,)> = sqlx::query_as("SELECT user_id FROM task_assignees WHERE task_id = ?")
+        .bind(id).fetch_all(&engine.pool).await.unwrap_or_default();
+    for (uid,) in assignee_ids { db::add_assignee(&engine.pool, t.id, uid).await.ok(); }
     engine.notify(ChangeEvent::Tasks);
     Ok((StatusCode::CREATED, Json(t)))
 }

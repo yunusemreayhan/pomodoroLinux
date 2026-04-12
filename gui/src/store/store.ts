@@ -131,7 +131,7 @@ export const useStore = create<Store>((set, get) => ({
   savedServers: loadServers(),
   toasts: [],
   toast: (msg, type = "success", onUndo) => {
-    const id = Date.now() * 1000 + Math.floor(Math.random() * 1000);
+    const id = (Date.now() % 1_000_000_000) * 1000 + Math.floor(Math.random() * 1000);
     // U5: Cap visible toasts at 3
     set(s => ({ toasts: [...s.toasts.slice(-2), { id, msg, type, onUndo }] }));
     setTimeout(() => set(s => ({ toasts: s.toasts.filter(t => t.id !== id) })), onUndo ? 8000 : type === "error" ? 6000 : 3000);
