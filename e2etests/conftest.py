@@ -1,0 +1,21 @@
+import pytest
+from desktop_pilot import TauriWebDriver
+from harness import Daemon, GUI_BINARY, connect_gui_to_daemon, gui_login, gui_logout
+
+
+@pytest.fixture(scope="session")
+def daemon():
+    d = Daemon()
+    d.start()
+    yield d
+    d.stop()
+
+
+@pytest.fixture(scope="session")
+def app(daemon):
+    """Tauri GUI connected to the test daemon, on login screen."""
+    d = TauriWebDriver(GUI_BINARY)
+    d.start(load_wait=3)
+    connect_gui_to_daemon(d)
+    yield d
+    d.stop()
