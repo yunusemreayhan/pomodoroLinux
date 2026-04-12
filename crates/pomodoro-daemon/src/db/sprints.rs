@@ -108,8 +108,8 @@ pub async fn snapshot_sprint(pool: &Pool, sprint_id: i64) -> Result<SprintDailyS
     let (total_tasks, done_tasks, total_points, done_points, total_hours, done_hours): (i64, i64, f64, f64, f64, f64) =
         sqlx::query_as("SELECT COALESCE(COUNT(*),0), \
             COALESCE(SUM(CASE WHEN t.status IN ('completed','done') THEN 1 ELSE 0 END),0), \
-            COALESCE(SUM(CAST(t.estimated AS REAL)),0.0), \
-            COALESCE(SUM(CASE WHEN t.status IN ('completed','done') THEN CAST(t.estimated AS REAL) ELSE 0.0 END),0.0), \
+            COALESCE(SUM(t.remaining_points),0.0), \
+            COALESCE(SUM(CASE WHEN t.status IN ('completed','done') THEN t.remaining_points ELSE 0.0 END),0.0), \
             COALESCE(SUM(t.estimated_hours),0.0), \
             COALESCE(SUM(CASE WHEN t.status IN ('completed','done') THEN t.estimated_hours ELSE 0.0 END),0.0) \
             FROM sprint_tasks st JOIN tasks t ON st.task_id = t.id WHERE st.sprint_id = ?")

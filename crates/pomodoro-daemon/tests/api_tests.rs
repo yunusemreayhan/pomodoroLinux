@@ -1078,8 +1078,8 @@ async fn test_snapshot_sprint_points_not_double_counted() {
 
     let resp = app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/snapshot", sid), &tok, None)).await.unwrap();
     let stat = body_json(resp).await;
-    // total_points = estimated (story points = 3), not remaining_points
-    assert_eq!(stat["total_points"], 3.0);
+    // total_points = remaining_points (story points = 5), not estimated (pomodoros)
+    assert_eq!(stat["total_points"], 5.0);
 }
 
 // ---- Round 2 bug fix tests ----
@@ -1510,8 +1510,8 @@ async fn test_profile_update() {
     assert_eq!(auth["username"], "profuser2");
     let new_tok = auth["token"].as_str().unwrap().to_string();
 
-    // Change password
-    let resp = app.clone().oneshot(auth_req("PUT", "/api/profile", &new_tok, Some(json!({"password":"NewPass12"})))).await.unwrap();
+    // Change password (requires current_password)
+    let resp = app.clone().oneshot(auth_req("PUT", "/api/profile", &new_tok, Some(json!({"password":"NewPass12","current_password":"Pass1234"})))).await.unwrap();
     assert_eq!(resp.status(), 200);
 
     // Login with new credentials
@@ -2604,8 +2604,8 @@ async fn test_room_empty_name_rejected() {
 async fn test_profile_password_change() {
     let app = app().await;
     let tok = register_user(&app, "pwChangeUser").await;
-    // Change password
-    let resp = app.clone().oneshot(auth_req("PUT", "/api/profile", &tok, Some(json!({"password":"NewPass123"})))).await.unwrap();
+    // Change password (requires current_password)
+    let resp = app.clone().oneshot(auth_req("PUT", "/api/profile", &tok, Some(json!({"password":"NewPass123","current_password":"Pass1234"})))).await.unwrap();
     assert_eq!(resp.status(), 200);
     let new_auth = body_json(resp).await;
     assert!(new_auth["token"].as_str().unwrap().len() > 10);
@@ -2615,6 +2615,13 @@ async fn test_profile_password_change() {
     // Old password should fail
     let resp = app.clone().oneshot(json_req("POST", "/api/auth/login", Some(json!({"username":"pwChangeUser","password":"Pass1234"})))).await.unwrap();
     assert_eq!(resp.status(), 401);
+    // Missing current_password should fail
+    let tok2 = register_user(&app, "pwChangeUser2").await;
+    let resp = app.clone().oneshot(auth_req("PUT", "/api/profile", &tok2, Some(json!({"password":"NewPass123"})))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+    // Wrong current_password should fail
+    let resp = app.clone().oneshot(auth_req("PUT", "/api/profile", &tok2, Some(json!({"password":"NewPass123","current_password":"WrongPass1"})))).await.unwrap();
+    assert_eq!(resp.status(), 403);
 }
 
 // ---- Profile weak password rejected ----

@@ -43,9 +43,20 @@ pub(crate) fn extract_ip(headers: &axum::http::HeaderMap) -> String {
 pub(crate) fn check_auth_rate_limit(headers: &axum::http::HeaderMap) -> Result<(), ApiError> {
     let ip = extract_ip(headers);
     let limiter = auth_limiter();
+    check_rate_limit(limiter, &ip)
+}
+
+fn check_rate_limit(limiter: &RateLimiter, ip: &str) -> Result<(), ApiError> {
     let now = std::time::Instant::now();
     let mut map = limiter.attempts.lock().unwrap();
-    let entries = map.entry(ip).or_default();
+    // Periodic full cleanup: prune stale IPs every 500 insertions
+    if map.len() > 500 {
+        map.retain(|_, entries| {
+            entries.retain(|t| now.duration_since(*t).as_secs() < limiter.window_secs);
+            !entries.is_empty()
+        });
+    }
+    let entries = map.entry(ip.to_string()).or_default();
     entries.retain(|t| now.duration_since(*t).as_secs() < limiter.window_secs);
     if entries.len() >= limiter.max_requests {
         return Err(err(StatusCode::TOO_MANY_REQUESTS, "Too many attempts. Try again later."));

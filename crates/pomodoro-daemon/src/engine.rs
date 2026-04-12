@@ -379,7 +379,9 @@ impl Engine {
                 }
             }
             if c.auto_start {
-                if let Ok(session) = db::create_session(&self.pool, c.user_id, c.task_id, c.next_session_type).await {
+                // B1: Break sessions shouldn't be associated with a task
+                let next_task = if c.next_session_type == "work" { c.task_id } else { None };
+                if let Ok(session) = db::create_session(&self.pool, c.user_id, next_task, c.next_session_type).await {
                     // Re-acquire lock briefly to set session ID
                     let mut states = self.states.lock().await;
                     if let Some(state) = states.get_mut(&c.user_id) {

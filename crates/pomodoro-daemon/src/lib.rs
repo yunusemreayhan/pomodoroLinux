@@ -175,6 +175,12 @@ async fn api_rate_limit(
     let now = std::time::Instant::now();
     {
         let mut map = limiter.attempts.lock().unwrap();
+        if map.len() > 500 {
+            map.retain(|_, entries| {
+                entries.retain(|t| now.duration_since(*t).as_secs() < limiter.window_secs);
+                !entries.is_empty()
+            });
+        }
         let entries = map.entry(ip).or_default();
         entries.retain(|t| now.duration_since(*t).as_secs() < limiter.window_secs);
         if entries.len() >= limiter.max_requests {
