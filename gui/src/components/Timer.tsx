@@ -221,7 +221,7 @@ export default function Timer() {
             <input value={noteText} onChange={e => setNoteText(e.target.value)} autoFocus
               onKeyDown={e => {
                 if (e.key === "Enter" && noteText.trim()) {
-                  apiCall("PUT", `/api/sessions/${notePrompt.sessionId}/note`, { notes: noteText.trim() });
+                  apiCall("PUT", `/api/sessions/${notePrompt.sessionId}/note`, { note: noteText.trim() });
                   setNotePrompt(null); setNoteText("");
                 } else if (e.key === "Escape") { setNotePrompt(null); setNoteText(""); }
               }}
@@ -230,7 +230,7 @@ export default function Timer() {
             <div className="flex gap-2 justify-end">
               <button onClick={() => { setNotePrompt(null); setNoteText(""); }} className="text-[10px] text-white/30 hover:text-white/60">Skip</button>
               <button onClick={() => {
-                if (noteText.trim()) apiCall("PUT", `/api/sessions/${notePrompt.sessionId}/note`, { notes: noteText.trim() });
+                if (noteText.trim()) apiCall("PUT", `/api/sessions/${notePrompt.sessionId}/note`, { note: noteText.trim() });
                 setNotePrompt(null); setNoteText("");
               }} className="text-[10px] text-[var(--color-accent)]">Save</button>
             </div>

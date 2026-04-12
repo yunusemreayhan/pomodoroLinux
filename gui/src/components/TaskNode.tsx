@@ -135,10 +135,10 @@ export default function TaskNode({ node, depth, onView, selectMode, onSelect, se
             const [sprints, planning, users] = await Promise.all([
               apiCall<{ id: number; name: string; status: string }[]>("GET", "/api/sprints?status=active").catch(() => []),
               apiCall<{ id: number; name: string; status: string }[]>("GET", "/api/sprints?status=planning").catch(() => []),
-              apiCall<string[]>("GET", "/api/users").catch(() => []),
+              apiCall<{id: number; username: string}[]>("GET", "/api/users").catch(() => []),
             ]);
             setCtxSprints([...sprints, ...planning]);
-            setCtxUsers(users);
+            setCtxUsers(users.map(u => u.username));
             setCtxCacheTime(now);
           }
         }}
