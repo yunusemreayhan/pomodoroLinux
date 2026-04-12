@@ -103,28 +103,28 @@ The `tokio::spawn` for @mention parsing runs after the response is sent. If the 
 
 | ID | Severity | Category | Status |
 |----|----------|----------|--------|
-| V35-1 | Medium | Security | |
-| V35-2 | Medium | Bug | |
-| V35-3 | Medium | Performance | |
-| V35-4 | Medium | Security | |
-| V35-5 | Low | Bug | |
-| V35-6 | Low | Bug | |
-| V35-7 | Low | Security | |
-| V35-8 | Low | Bug | |
-| V35-9 | Low | Performance | |
-| V35-10 | Low | Bug | |
-| V35-11 | Low | Code quality | |
-| V35-12 | Low | Bug | |
+| V35-1 | Medium | Security | FIXED |
+| V35-2 | Medium | Bug | FIXED |
+| V35-3 | Medium | Performance | FIXED |
+| V35-4 | Medium | Security | FIXED |
+| V35-5 | Low | Bug | WON'T FIX — design pattern, refactor risk |
+| V35-6 | Low | Bug | FALSE POSITIVE — sessions correctly marked interrupted before engine starts |
+| V35-7 | Low | Security | FIXED |
+| V35-8 | Low | Bug | WON'T FIX — showing historical path including deleted parents is correct for history |
+| V35-9 | Low | Performance | WON'T FIX — typically 1-3 active sprints, sequential is fine |
+| V35-10 | Low | Bug | WON'T FIX — route layer validates room context before calling DB |
+| V35-11 | Low | Code quality | WON'T FIX — 500 is reasonable limit, no pagination promise |
+| V35-12 | Low | Bug | FALSE POSITIVE — both sides use UTC consistently |
 | V35-13 | Low | UX | FALSE POSITIVE |
-| V35-14 | Low | Bug | |
-| V35-15 | Low | Performance | |
-| V35-16 | Low | Code quality | |
-| V35-17 | Low | Bug | |
-| V35-18 | Low | UX | |
-| V35-19 | Low | Bug | |
-| V35-20 | Low | Security | |
-| V35-21 | Low | Code quality | |
-| V35-22 | Low | Bug | |
-| V35-23 | Low | Documentation | |
+| V35-14 | Low | Bug | FIXED |
+| V35-15 | Low | Performance | FIXED |
+| V35-16 | Low | Code quality | FIXED |
+| V35-17 | Low | Bug | FIXED |
+| V35-18 | Low | UX | FALSE POSITIVE — reload button already exists |
+| V35-19 | Low | Bug | FIXED |
+| V35-20 | Low | Security | FIXED |
+| V35-21 | Low | Code quality | FIXED |
+| V35-22 | Low | Bug | WON'T FIX — best-effort notification, acceptable to lose on shutdown |
+| V35-23 | Low | Documentation | FIXED |
 
-**Total: 23 items** — 4 medium, 19 low (1 pre-marked false positive)
+**Total: 23 items** — 12 fixed, 6 won't fix, 5 false positive
