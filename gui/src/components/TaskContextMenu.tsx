@@ -157,14 +157,14 @@ export default function TaskContextMenu(p: CtxMenuProps) {
           const allTasks = useStore.getState().tasks;
           const siblings = allTasks.filter((s: Task) => s.parent_id === t.parent_id).sort((a: Task, b: Task) => a.sort_order - b.sort_order);
           const idx = siblings.findIndex((s: Task) => s.id === t.id);
-          if (idx > 0) { const prev = siblings[idx - 1]; await Promise.all([p.updateTask(t.id, { sort_order: prev.sort_order }), p.updateTask(prev.id, { sort_order: t.sort_order })]); }
+          if (idx > 0) { const prev = siblings[idx - 1]; const so = prev.sort_order === t.sort_order ? t.sort_order - 1 : prev.sort_order; await Promise.all([p.updateTask(t.id, { sort_order: so }), p.updateTask(prev.id, { sort_order: t.sort_order })]); }
           close();
         }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">↑ Move up</button>
         <button role="menuitem" onClick={async () => {
           const allTasks = useStore.getState().tasks;
           const siblings = allTasks.filter((s: Task) => s.parent_id === t.parent_id).sort((a: Task, b: Task) => a.sort_order - b.sort_order);
           const idx = siblings.findIndex((s: Task) => s.id === t.id);
-          if (idx < siblings.length - 1) { const next = siblings[idx + 1]; await Promise.all([p.updateTask(t.id, { sort_order: next.sort_order }), p.updateTask(next.id, { sort_order: t.sort_order })]); }
+          if (idx < siblings.length - 1) { const next = siblings[idx + 1]; const so = next.sort_order === t.sort_order ? t.sort_order + 1 : next.sort_order; await Promise.all([p.updateTask(t.id, { sort_order: so }), p.updateTask(next.id, { sort_order: t.sort_order })]); }
           close();
         }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">↓ Move down</button>
 
