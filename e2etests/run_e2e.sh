@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # Run the full E2E test suite for pomodoroLinux.
+# Each test file gets its own pytest invocation (fresh daemon + GUI session)
+# to avoid state contamination between files.
+#
 # Automatically starts Xvfb on a free display so multiple instances
 # can run in parallel on the same machine (CI-friendly).
 #
 # Usage: ./run_e2e.sh [pytest args...]
 # Examples:
-#   ./run_e2e.sh                    # run all tests
-#   ./run_e2e.sh -k TestLogin -v    # run specific class
+#   ./run_e2e.sh                    # run all test files
+#   ./run_e2e.sh -k TestLogin -v    # pass-through to single pytest run
 #   ./run_e2e.sh test_flows.py      # run specific file
 set -euo pipefail
 
@@ -51,10 +54,11 @@ if [ ! -d "$VENV" ]; then
 fi
 
 # ── Start Xvfb on a free display ────────────────────────────────
-# Pick a random display number (99-599) and retry if taken.
 XVFB_PID=""
 cleanup() {
     [ -n "$XVFB_PID" ] && kill "$XVFB_PID" 2>/dev/null || true
+    # Kill any leftover processes
+    pkill -9 -f "tauri-driver|WebKitWebDriver|pomodoro-gui|pomodoro-daemon" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -80,4 +84,58 @@ fi
 
 # ── Run tests ───────────────────────────────────────────────────
 cd "$SCRIPT_DIR"
-"$VENV/bin/python" -m pytest -v "$@"
+
+# If args given, pass through to a single pytest invocation
+if [ $# -gt 0 ]; then
+    "$VENV/bin/python" -m pytest -v "$@"
+    exit $?
+fi
+
+# No args: run each test file separately (fresh daemon per file)
+TOTAL_PASS=0
+TOTAL_FAIL=0
+TOTAL_SKIP=0
+FAILED_FILES=()
+
+for f in test_*.py; do
+    echo ""
+    echo "━━━ $f ━━━"
+    # Kill leftovers from previous file
+    pkill -9 -f "tauri-driver|WebKitWebDriver|pomodoro-gui|pomodoro-daemon" 2>/dev/null || true
+    sleep 1
+
+    if output=$("$VENV/bin/python" -m pytest "$f" -q --no-header --tb=line 2>&1); then
+        status=0
+    else
+        status=$?
+    fi
+    echo "$output" | tail -1
+
+    # Parse "X passed, Y failed, Z skipped" from last line
+    last=$(echo "$output" | tail -1)
+    p=$(echo "$last" | grep -oP '\d+ passed' | grep -oP '\d+' || echo 0)
+    fl=$(echo "$last" | grep -oP '\d+ failed' | grep -oP '\d+' || echo 0)
+    s=$(echo "$last" | grep -oP '\d+ skipped' | grep -oP '\d+' || echo 0)
+    e=$(echo "$last" | grep -oP '\d+ error' | grep -oP '\d+' || echo 0)
+
+    TOTAL_PASS=$((TOTAL_PASS + p))
+    TOTAL_FAIL=$((TOTAL_FAIL + fl + e))
+    TOTAL_SKIP=$((TOTAL_SKIP + s))
+
+    if [ "$fl" -gt 0 ] || [ "$e" -gt 0 ]; then
+        FAILED_FILES+=("$f")
+        # Show failure details
+        echo "$output" | grep "FAILED\|ERROR" | head -5
+    fi
+done
+
+echo ""
+echo "════════════════════════════════════════════════════════════"
+echo "TOTAL: $TOTAL_PASS passed, $TOTAL_FAIL failed, $TOTAL_SKIP skipped"
+if [ ${#FAILED_FILES[@]} -gt 0 ]; then
+    echo "FAILED FILES: ${FAILED_FILES[*]}"
+    exit 1
+else
+    echo "ALL FILES PASSED ✓"
+    exit 0
+fi

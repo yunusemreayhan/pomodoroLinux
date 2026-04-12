@@ -105,7 +105,7 @@ class TestTaskDelete:
             api("DELETE", f"/api/tasks/{task['id']}/permanent", token=t)
         except Exception:
             pytest.skip("purge endpoint not available in this build")
-        deleted = api("GET", "/api/tasks/deleted", token=t)
+        deleted = api("GET", "/api/tasks/trash", token=t)
         assert not any(x["title"] == f"Pu_{_ID}" for x in deleted)
 
     def test_bulk_status_update(self, logged_in):

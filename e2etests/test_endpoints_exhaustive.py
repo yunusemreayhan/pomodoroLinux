@@ -214,7 +214,7 @@ class TestMiscEndpoints:
 
     def test_users_list(self, logged_in):
         users = api("GET", "/api/users", token=tok())
-        assert "root" in users
+        assert any(u["username"] == "root" if isinstance(u, dict) else u == "root" for u in users)
 
     def test_assignees_list(self, logged_in):
         r = api("GET", "/api/assignees", token=tok())
