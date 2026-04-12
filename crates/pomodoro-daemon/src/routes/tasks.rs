@@ -48,7 +48,7 @@ pub async fn search_tasks(State(engine): State<AppState>, claims: Claims, Query(
 
 // F4: Task time tracking summary
 #[utoipa::path(get, path = "/api/tasks/{id}/time-summary", responses((status = 200)), security(("bearer" = [])))]
-pub async fn get_task_time_summary(State(engine): State<AppState>, claims: Claims, Path(id): Path<i64>) -> ApiResult<serde_json::Value> {
+pub async fn get_task_time_summary(State(engine): State<AppState>, _claims: Claims, Path(id): Path<i64>) -> ApiResult<serde_json::Value> {
     // B3: Verify task exists
     db::get_task(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
     let rows: Vec<(String, f64, i64)> = sqlx::query_as(

@@ -74,9 +74,11 @@ pub async fn skip(State(engine): State<AppState>, claims: Claims) -> ApiResult<c
 #[utoipa::path(post, path = "/api/timer/join/{session_id}", responses((status = 200)), security(("bearer" = [])))]
 pub async fn join_session(State(engine): State<AppState>, claims: Claims, Path(session_id): Path<i64>) -> Result<StatusCode, ApiError> {
     // Verify session exists and is active
-    let session: (String,) = sqlx::query_as("SELECT status FROM sessions WHERE id = ?")
+    let session: (String, i64) = sqlx::query_as("SELECT status, user_id FROM sessions WHERE id = ?")
         .bind(session_id).fetch_one(&engine.pool).await.map_err(|_| err(StatusCode::NOT_FOUND, "Session not found"))?;
     if session.0 != "active" { return Err(err(StatusCode::BAD_REQUEST, "Session is not active")); }
+    // PF15: Prevent joining own session
+    if session.1 == claims.user_id { return Err(err(StatusCode::BAD_REQUEST, "Cannot join your own session")); }
     sqlx::query("INSERT OR IGNORE INTO session_participants (session_id, user_id, joined_at) VALUES (?, ?, ?)")
         .bind(session_id).bind(claims.user_id).bind(db::now_str())
         .execute(&engine.pool).await.map_err(internal)?;

@@ -198,6 +198,8 @@ export const useStore = create<Store>((set, get) => ({
     }
     set({ token: null, username: null, role: null });
     invoke("set_token", { token: "" }).catch(() => {});
+    // PF8: Clear SW API cache on logout to prevent stale auth data leaking
+    if (typeof caches !== 'undefined') caches.delete('pomo-v1').catch(() => {});
   },
 
   restoreAuth: async () => {

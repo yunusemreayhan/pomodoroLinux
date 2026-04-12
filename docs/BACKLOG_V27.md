@@ -123,22 +123,22 @@ report. Should be GET for proper HTTP semantics and cacheability.
 
 | ID | Severity | Category | Status |
 |----|----------|----------|--------|
-| PF1 | Medium | OpenAPI completeness | TODO |
-| PF2 | Medium | OpenAPI completeness | TODO |
-| PF3 | Low | Dead code | TODO |
-| PF4 | Low | Dead code | TODO |
-| PF5 | Medium-High | Security | TODO |
-| PF6 | Low | Validation | TODO |
-| PF7 | Low | Validation | TODO |
-| PF8 | Medium | Security | TODO |
-| PF9 | Low | Performance | TODO |
-| PF10 | Low | UX/Race condition | TODO |
-| PF11 | Low | Logic | TODO |
-| PF12 | Low | Logic | TODO |
-| PF13 | Low | Wasted requests | TODO |
-| PF14 | Medium | Wasted writes | TODO |
-| PF15 | Low | Logic | TODO |
-| PF16 | Low | Validation | TODO |
-| PF17 | Low | HTTP semantics | TODO |
+| PF1 | Medium | OpenAPI completeness | FIXED |
+| PF2 | Medium | OpenAPI completeness | FIXED |
+| PF3 | Low | Dead code | FIXED |
+| PF4 | Low | Dead code | FIXED |
+| PF5 | Medium-High | Security | FIXED |
+| PF6 | Low | Validation | FIXED |
+| PF7 | Low | Validation | FIXED |
+| PF8 | Medium | Security | FIXED |
+| PF9 | Low | Performance | FIXED |
+| PF10 | Low | UX/Race condition | FIXED |
+| PF11 | Low | Logic | FIXED |
+| PF12 | Low | Logic | FIXED |
+| PF13 | Low | Wasted requests | FALSE POSITIVE — Dashboard only renders when authenticated |
+| PF14 | Medium | Wasted writes | FIXED |
+| PF15 | Low | Logic | FIXED |
+| PF16 | Low | Validation | FIXED |
+| PF17 | Low | HTTP semantics | FIXED |
 
-**Total: 17 items** (1 medium-high, 3 medium, 13 low)
+**Total: 17 items** — 16 fixed, 1 false positive

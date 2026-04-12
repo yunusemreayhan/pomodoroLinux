@@ -140,7 +140,6 @@ const ACHIEVEMENT_DEFS: &[(&str, &str)] = &[
 pub async fn list_achievements(State(engine): State<AppState>, claims: Claims) -> ApiResult<Vec<serde_json::Value>> {
     let unlocked: Vec<(String, String)> = sqlx::query_as("SELECT achievement_type, unlocked_at FROM achievements WHERE user_id = ? ORDER BY unlocked_at DESC")
         .bind(claims.user_id).fetch_all(&engine.pool).await.map_err(internal)?;
-    let unlocked_set: std::collections::HashSet<String> = unlocked.iter().map(|(t, _)| t.clone()).collect();
     let result: Vec<serde_json::Value> = ACHIEVEMENT_DEFS.iter().map(|(typ, desc)| {
         let u = unlocked.iter().find(|(t, _)| t == typ);
         serde_json::json!({"type": typ, "description": desc, "unlocked": u.is_some(), "unlocked_at": u.map(|(_, d)| d.as_str())})
@@ -254,6 +253,11 @@ pub struct FeedQuery { pub since: Option<String>, pub types: Option<String>, pub
 #[utoipa::path(get, path = "/api/feed", responses((status = 200)), security(("bearer" = [])))]
 pub async fn activity_feed(State(engine): State<AppState>, _claims: Claims, Query(q): Query<FeedQuery>) -> ApiResult<Vec<serde_json::Value>> {
     let since = q.since.as_deref().unwrap_or("2000-01-01T00:00:00");
+    // PF7: Basic datetime format validation
+    if q.since.is_some() && chrono::NaiveDateTime::parse_from_str(since, "%Y-%m-%dT%H:%M:%S").is_err()
+        && chrono::NaiveDateTime::parse_from_str(since, "%Y-%m-%dT%H:%M:%S%.f").is_err() {
+        return Err(err(StatusCode::BAD_REQUEST, "Invalid 'since' format. Use ISO 8601 (YYYY-MM-DDTHH:MM:SS)"));
+    }
     let limit = q.limit.unwrap_or(50).min(200);
     let types: Option<Vec<&str>> = q.types.as_deref().map(|t| t.split(',').map(|s| s.trim()).collect());
 
@@ -331,7 +335,7 @@ pub async fn schedule_suggestions(State(engine): State<AppState>, claims: Claims
 }
 
 // F20: On-demand report generation (can be called by cron/scheduler)
-#[utoipa::path(post, path = "/api/reports/weekly-digest", responses((status = 200)), security(("bearer" = [])))]
+#[utoipa::path(get, path = "/api/reports/weekly-digest", responses((status = 200)), security(("bearer" = [])))]
 pub async fn weekly_digest(State(engine): State<AppState>, claims: Claims) -> ApiResult<serde_json::Value> {
     let stats = db::get_day_stats(&engine.pool, 7, Some(claims.user_id)).await.map_err(internal)?;
     let total_focus: f64 = stats.iter().map(|s| s.total_focus_s as f64 / 3600.0).sum();

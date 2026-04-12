@@ -3615,6 +3615,7 @@ dependencies = [
  "chrono",
  "dirs 5.0.1",
  "futures",
+ "hex",
  "hmac 0.13.0",
  "http-body-util",
  "hyper",

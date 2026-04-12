@@ -50,7 +50,7 @@ export default function KanbanBoard() {
     if (!taskId) return;
     setDragId(null);
     const task = tasks.find(t => t.id === taskId);
-    if (!task || task.status === colId) return;
+    if (!task || task.status === colId || (task.status === "done" && colId === "completed") || (task.status === "estimated" && colId === "backlog")) return;
     await updateTask(taskId, { status: colId });
   }, [dragId, tasks, updateTask]);
 

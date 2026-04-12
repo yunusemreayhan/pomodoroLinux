@@ -452,8 +452,11 @@ function FocusScore() {
 function Achievements() {
   const [achievements, setAchievements] = useState<{ type: string; description: string; unlocked: boolean; unlocked_at: string | null }[]>([]);
   useEffect(() => {
-    // Check for new achievements, then load all
-    apiCall("POST", "/api/achievements/check").catch(() => {});
+    // PF14: Throttle check to once per hour
+    const lastCheck = Number(localStorage.getItem("achievements_last_check") || "0");
+    if (Date.now() - lastCheck > 3600_000) {
+      apiCall("POST", "/api/achievements/check").then(() => localStorage.setItem("achievements_last_check", String(Date.now()))).catch(() => {});
+    }
     apiCall<typeof achievements>("GET", "/api/achievements").then(d => d && setAchievements(d)).catch(() => {});
   }, []);
   const unlocked = achievements.filter(a => a.unlocked);

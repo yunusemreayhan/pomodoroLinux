@@ -75,6 +75,17 @@ use utoipa_swagger_ui::SwaggerUi;
         routes::purge_task,
         routes::restore_task,
         routes::list_deleted_tasks,
+        // Feature endpoints (F1-F28)
+        routes::estimation_accuracy, routes::focus_score,
+        routes::list_achievements, routes::check_achievements,
+        routes::leaderboard, routes::priority_suggestions,
+        routes::activity_feed, routes::schedule_suggestions, routes::weekly_digest,
+        routes::export_ical, routes::sprint_retro_report,
+        routes::get_task_links, routes::add_task_link,
+        routes::github_webhook,
+        routes::list_automations, routes::create_automation, routes::delete_automation, routes::toggle_automation,
+        routes::user_presence, routes::create_slack_integration,
+        routes::join_session, routes::session_participants,
     ),
     components(schemas(
         db::Task, db::Session, db::Comment, db::User, db::TaskDetail, db::SessionWithPath, db::DayStat, db::TaskAssignee,
@@ -93,6 +104,10 @@ use utoipa_swagger_ui::SwaggerUi;
         routes::CreateSprintRequest, routes::UpdateSprintRequest, routes::AddSprintTasksRequest,
         routes::LogBurnRequest, routes::ApiErrorBody,
         db::Attachment, db::TaskTemplate, db::Notification,
+        // Feature schemas (F1-F28)
+        routes::AddTaskLinkRequest, routes::GitHubPushEvent, routes::GitHubCommit, routes::GitHubRepo,
+        routes::CreateAutomationRuleRequest, routes::AutomationRule,
+        routes::SlackIntegrationRequest,
     )),
     modifiers(&SecurityAddon),
     info(title = "Pomodoro API", version = "1.0.0", description = "Multi-user Pomodoro timer with hierarchical task management")

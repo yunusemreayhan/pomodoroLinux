@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, MessageSquare, Clock, Plus, Trash2, Users } from "lucide-react";
 import { useStore } from "../store/store";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { TaskDetail, Comment, TimeReport } from "../store/api";
 import { TaskLabelPicker } from "./Labels";
 import { TaskDependencies } from "./Dependencies";
@@ -17,9 +17,15 @@ import { formatDuration, EditField, ProgressBar, ExportButton, EstimateVsActual 
 function DescriptionWithChecklists({ taskId, description }: { taskId: number; description: string }) {
   const { updateTask } = useStore();
   const hasChecklist = /^- \[[ x]\]/m.test(description);
+  const [localDesc, setLocalDesc] = useState(description);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync from prop when it changes externally
+  useEffect(() => { setLocalDesc(description); }, [description]);
+
   if (!hasChecklist) return <p className="text-xs text-white/50 mb-3 whitespace-pre-wrap">{description}</p>;
 
-  const lines = description.split("\n");
+  const lines = localDesc.split("\n");
   const total = lines.filter(l => /^- \[[ x]\]/.test(l)).length;
   const checked = lines.filter(l => /^- \[x\]/i.test(l)).length;
 
@@ -30,7 +36,10 @@ function DescriptionWithChecklists({ taskId, description }: { taskId: number; de
       if (/^- \[x\]/i.test(l)) return l.replace(/^- \[x\]/i, "- [ ]");
       return l;
     }).join("\n");
-    updateTask(taskId, { description: updated });
+    setLocalDesc(updated);
+    // PF10: Debounce API call by 500ms
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => updateTask(taskId, { description: updated }), 500);
   };
 
   return (

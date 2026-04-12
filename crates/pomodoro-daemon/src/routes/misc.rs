@@ -218,8 +218,23 @@ pub struct GitHubCommit { pub id: String, pub message: String, pub url: String }
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct GitHubRepo { pub full_name: Option<String> }
 
-#[utoipa::path(post, path = "/api/integrations/github", responses((status = 200)))]
-pub async fn github_webhook(State(engine): State<AppState>, Json(payload): Json<GitHubPushEvent>) -> Result<StatusCode, ApiError> {
+#[utoipa::path(post, path = "/api/integrations/github", responses((status = 200)),
+    request_body(content = GitHubPushEvent, content_type = "application/json"))]
+pub async fn github_webhook(State(engine): State<AppState>, headers: axum::http::HeaderMap, body: axum::body::Bytes) -> Result<StatusCode, ApiError> {
+    // PF5: Verify HMAC-SHA256 signature if GITHUB_WEBHOOK_SECRET is set
+    if let Ok(secret) = std::env::var("GITHUB_WEBHOOK_SECRET") {
+        let sig_header = headers.get("x-hub-signature-256").and_then(|v| v.to_str().ok()).unwrap_or("");
+        let expected_sig = sig_header.strip_prefix("sha256=").unwrap_or("");
+        use hmac::{Hmac, Mac, KeyInit};
+        type HmacSha256 = Hmac<sha2::Sha256>;
+        let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).map_err(|_| err(StatusCode::INTERNAL_SERVER_ERROR, "HMAC init failed"))?;
+        mac.update(&body);
+        let computed = hex::encode(mac.finalize().into_bytes());
+        if computed != expected_sig {
+            return Err(err(StatusCode::UNAUTHORIZED, "Invalid webhook signature"));
+        }
+    }
+    let payload: GitHubPushEvent = serde_json::from_slice(&body).map_err(|e| err(StatusCode::BAD_REQUEST, format!("Invalid JSON: {}", e)))?;
     let repo = payload.repository.as_ref().and_then(|r| r.full_name.as_deref()).unwrap_or("unknown");
     let now = db::now_str();
     let mut linked = 0;
@@ -277,6 +292,9 @@ pub async fn create_automation(State(engine): State<AppState>, claims: Claims, J
     if req.name.trim().is_empty() || req.name.len() > 200 { return Err(err(StatusCode::BAD_REQUEST, "Name required (max 200 chars)")); }
     if !VALID_TRIGGERS.contains(&req.trigger_event.as_str()) { return Err(err(StatusCode::BAD_REQUEST, format!("Invalid trigger. Must be one of: {}", VALID_TRIGGERS.join(", ")))); }
     if req.action_json.len() > 4096 { return Err(err(StatusCode::BAD_REQUEST, "Action JSON too large")); }
+    // PF6: Validate JSON
+    if serde_json::from_str::<serde_json::Value>(&req.action_json).is_err() { return Err(err(StatusCode::BAD_REQUEST, "action_json is not valid JSON")); }
+    if let Some(ref c) = req.condition_json { if serde_json::from_str::<serde_json::Value>(c).is_err() { return Err(err(StatusCode::BAD_REQUEST, "condition_json is not valid JSON")); } }
     // Limit rules per user
     let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM automation_rules WHERE user_id = ?")
         .bind(claims.user_id).fetch_one(&engine.pool).await.map_err(internal)?;
@@ -339,6 +357,7 @@ pub async fn create_slack_integration(State(engine): State<AppState>, claims: Cl
     if !req.webhook_url.starts_with("https://hooks.slack.com/") && !req.webhook_url.starts_with("https://discord.com/api/webhooks/") {
         return Err(err(StatusCode::BAD_REQUEST, "URL must be a Slack or Discord webhook URL"));
     }
+    if req.webhook_url.len() > 500 { return Err(err(StatusCode::BAD_REQUEST, "URL too long")); }
     let events = req.events.as_deref().unwrap_or("sprint.started,sprint.completed");
     // Store as a regular webhook with a special "slack" marker in the events field
     db::create_webhook(&engine.pool, claims.user_id, &req.webhook_url, &format!("slack:{}", events), None).await.map_err(internal)?;

@@ -46,7 +46,7 @@ export default function CalendarView() {
   const tasksByDate = useMemo(() => {
     const map = new Map<string, Task[]>();
     for (const t of tasks) {
-      if (t.due_date && t.status !== "archived") {
+      if (t.due_date && t.status !== "archived" && !t.deleted_at) {
         const list = map.get(t.due_date) || [];
         list.push(t);
         map.set(t.due_date, list);

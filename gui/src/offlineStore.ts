@@ -3,7 +3,11 @@
 const DB_NAME = 'pomo-offline';
 const DB_VERSION = 1;
 
+// PF9: Singleton DB connection
+let dbInstance: IDBDatabase | null = null;
+
 function openDB(): Promise<IDBDatabase> {
+  if (dbInstance) return Promise.resolve(dbInstance);
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
@@ -11,7 +15,7 @@ function openDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains('tasks')) db.createObjectStore('tasks', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('syncQueue')) db.createObjectStore('syncQueue', { keyPath: 'queueId', autoIncrement: true });
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => { dbInstance = req.result; dbInstance.onclose = () => { dbInstance = null; }; resolve(dbInstance); };
     req.onerror = () => reject(req.error);
   });
 }
@@ -30,13 +34,11 @@ export async function cacheTasksOffline(tasks: unknown[]): Promise<void> {
   const db = await openDB();
   const store = tx(db, 'tasks', 'readwrite');
   for (const t of tasks) store.put(t);
-  db.close();
 }
 
 export async function getOfflineTasks(): Promise<unknown[]> {
   const db = await openDB();
   const result = await reqToPromise(tx(db, 'tasks', 'readonly').getAll());
-  db.close();
   return result;
 }
 
@@ -54,20 +56,17 @@ export async function enqueueOfflineAction(method: string, url: string, body?: u
   const db = await openDB();
   const store = tx(db, 'syncQueue', 'readwrite');
   store.add({ method, url, body, createdAt: new Date().toISOString() } as SyncEntry);
-  db.close();
 }
 
 export async function getSyncQueue(): Promise<SyncEntry[]> {
   const db = await openDB();
   const result = await reqToPromise(tx(db, 'syncQueue', 'readonly').getAll());
-  db.close();
   return result;
 }
 
 export async function clearSyncEntry(queueId: number): Promise<void> {
   const db = await openDB();
   tx(db, 'syncQueue', 'readwrite').delete(queueId);
-  db.close();
 }
 
 export async function processSyncQueue(token: string): Promise<{ synced: number; failed: number }> {
