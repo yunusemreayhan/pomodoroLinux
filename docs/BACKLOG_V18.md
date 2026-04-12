@@ -46,12 +46,12 @@ Full audit of 56 backend .rs files (6523 LOC), 53 frontend .ts/.tsx files (9261 
 
 ## Validation (6 items)
 
-- [ ] **V1.** `create_room` doesn't validate `project` length — unbounded string stored in DB.
-- [ ] **V2.** `create_sprint` doesn't validate `project` length — same issue.
-- [ ] **V3.** `add_comment` doesn't validate `session_id` exists — can reference non-existent session.
-- [ ] **V4.** `create_webhook` validates URL format but doesn't limit webhooks per user — a user could create thousands of webhooks.
-- [ ] **V5.** `add_team_root_tasks` doesn't deduplicate `task_ids` — same task can be added multiple times (INSERT OR IGNORE handles it, but the count validation is wrong).
-- [ ] **V6.** `import_tasks_csv` doesn't validate total task count against existing tasks — could exceed reasonable limits.
+- [x] **V1.** `create_room` doesn't validate `project` length — unbounded string stored in DB.
+- [x] **V2.** `create_sprint` doesn't validate `project` length — same issue.
+- [x] **V3.** `add_comment` doesn't validate `session_id` exists — can reference non-existent session.
+- [x] **V4.** `create_webhook` validates URL format but doesn't limit webhooks per user — a user could create thousands of webhooks.
+- [x] **V5.** `add_team_root_tasks` doesn't deduplicate `task_ids` — same task can be added multiple times (INSERT OR IGNORE handles it, but the count validation is wrong).
+- [x] **V6.** `import_tasks_csv` doesn't validate total task count against existing tasks — could exceed reasonable limits.
 
 ## UX Improvements (10 items)
 

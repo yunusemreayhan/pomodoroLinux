@@ -17,6 +17,7 @@ pub async fn create_sprint(State(engine): State<AppState>, claims: Claims, Json(
     if req.name.trim().is_empty() { return Err(err(StatusCode::BAD_REQUEST, "Sprint name cannot be empty")); }
     if req.name.len() > 200 { return Err(err(StatusCode::BAD_REQUEST, "Sprint name too long (max 200 chars)")); }
     if req.goal.as_ref().map_or(false, |g| g.len() > 1000) { return Err(err(StatusCode::BAD_REQUEST, "Goal too long (max 1000 chars)")); }
+    if req.project.as_ref().map_or(false, |p| p.len() > 200) { return Err(err(StatusCode::BAD_REQUEST, "Project name too long (max 200 chars)")); }
     if let Some(ref d) = req.start_date { if chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").is_err() { return Err(err(StatusCode::BAD_REQUEST, "start_date must be YYYY-MM-DD")); } }
     if let Some(ref d) = req.end_date { if chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").is_err() { return Err(err(StatusCode::BAD_REQUEST, "end_date must be YYYY-MM-DD")); } }
     // V4: Validate end_date >= start_date

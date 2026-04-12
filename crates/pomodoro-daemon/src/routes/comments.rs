@@ -12,6 +12,10 @@ pub async fn add_comment(State(engine): State<AppState>, claims: Claims, Path(id
     if req.content.len() > 10000 { return Err(err(StatusCode::BAD_REQUEST, "Comment too long (max 10000 chars)")); }
     // V7: Validate task exists
     db::get_task(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
+    if let Some(sid) = req.session_id {
+        sqlx::query("SELECT 1 FROM sessions WHERE id = ?").bind(sid).fetch_one(&engine.pool).await
+            .map_err(|_| err(StatusCode::NOT_FOUND, "Session not found"))?;
+    }
     db::add_comment(&engine.pool, claims.user_id, id, req.session_id, &req.content)
         .await.map(|c| {
             // BL23: Notify @mentioned users

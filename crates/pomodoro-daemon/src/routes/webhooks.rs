@@ -33,6 +33,10 @@ pub async fn create_webhook(State(engine): State<AppState>, claims: Claims, Json
         }
     }
     let events = req.events.as_deref().unwrap_or("*");
+    // V4: Limit webhooks per user
+    let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM webhooks WHERE user_id = ?")
+        .bind(claims.user_id).fetch_one(&engine.pool).await.map_err(internal)?;
+    if count >= 50 { return Err(err(StatusCode::BAD_REQUEST, "Too many webhooks (max 50)")); }
     if events != "*" {
         const VALID_EVENTS: &[&str] = &["task.created", "task.updated", "task.deleted", "sprint.created", "sprint.started", "sprint.completed"];
         for ev in events.split(',') {

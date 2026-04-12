@@ -19,6 +19,7 @@ pub async fn create_room(State(engine): State<AppState>, claims: Claims, Json(re
     if !["points", "hours", "mandays", "tshirt"].contains(&unit) { return Err(err(StatusCode::BAD_REQUEST, "estimation_unit must be points, hours, mandays, or tshirt")); }
     let room_type = req.room_type.as_deref().unwrap_or("estimation");
     if room_type != "estimation" { return Err(err(StatusCode::BAD_REQUEST, "room_type must be 'estimation'")); }
+    if req.project.as_ref().map(|p| p.len()).unwrap_or(0) > 200 { return Err(err(StatusCode::BAD_REQUEST, "Project name too long (max 200 chars)")); }
     // V2: Limit active rooms per user
     let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM rooms WHERE creator_id = ? AND status != 'closed'")
         .bind(claims.user_id).fetch_one(&engine.pool).await.map_err(internal)?;
