@@ -4914,3 +4914,122 @@ async fn test_auto_archive() {
     let task = body_json(resp).await;
     assert_eq!(task["task"]["status"], "archived");
 }
+
+// ============================================================
+// v12 T1: FTS5 search
+// ============================================================
+
+#[tokio::test]
+async fn test_fts5_search() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"Quantum physics research"})))).await.unwrap();
+    app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"Buy groceries"})))).await.unwrap();
+    // Search should find the physics task
+    let resp = app.clone().oneshot(auth_req("GET", "/api/tasks?search=quantum", &tok, None)).await.unwrap();
+    let tasks = body_json(resp).await;
+    let arr = tasks.as_array().unwrap();
+    assert!(arr.iter().any(|t| t["title"].as_str().unwrap().contains("Quantum")));
+    assert!(!arr.iter().any(|t| t["title"].as_str().unwrap().contains("groceries")));
+}
+
+// ============================================================
+// v12 T2: Backup list endpoint
+// ============================================================
+
+#[tokio::test]
+async fn test_backup_list() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let resp = app.clone().oneshot(auth_req("GET", "/api/admin/backups", &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    // Restore with invalid filename
+    let resp = app.clone().oneshot(auth_req("POST", "/api/admin/restore", &tok, Some(json!({"filename":"../../../etc/passwd"})))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+}
+
+// ============================================================
+// v12 T3: User hours report
+// ============================================================
+
+#[tokio::test]
+async fn test_user_hours_report() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let resp = app.clone().oneshot(auth_req("GET", "/api/reports/user-hours", &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let data = body_json(resp).await;
+    assert!(data.as_array().unwrap().len() >= 1); // At least root user
+    // Invalid date format
+    let resp = app.clone().oneshot(auth_req("GET", "/api/reports/user-hours?from=garbage", &tok, None)).await.unwrap();
+    assert_eq!(resp.status(), 400);
+}
+
+// ============================================================
+// v12 T4: Sprint carry-over preserves capacity
+// ============================================================
+
+#[tokio::test]
+async fn test_carryover_preserves_capacity() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let tid = body_json(app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"CapTask"})))).await.unwrap()).await["id"].as_i64().unwrap();
+    let sid = body_json(app.clone().oneshot(auth_req("POST", "/api/sprints", &tok, Some(json!({"name":"CapSprint","capacity_hours":42.0})))).await.unwrap()).await["id"].as_i64().unwrap();
+    app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/tasks", sid), &tok, Some(json!({"task_ids":[tid]})))).await.unwrap();
+    app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/start", sid), &tok, None)).await.unwrap();
+    app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/complete", sid), &tok, None)).await.unwrap();
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/carryover", sid), &tok, None)).await.unwrap();
+    let new_sprint = body_json(resp).await;
+    assert_eq!(new_sprint["capacity_hours"], 42.0);
+}
+
+// ============================================================
+// v12 T5: Dependency ownership enforcement
+// ============================================================
+
+#[tokio::test]
+async fn test_dependency_ownership() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    // Register a second user
+    app.clone().oneshot(json_req("POST", "/api/auth/register", Some(json!({"username":"depuser","password":"Password1!"})))).await.unwrap();
+    let resp = app.clone().oneshot(json_req("POST", "/api/auth/login", Some(json!({"username":"depuser","password":"Password1!"})))).await.unwrap();
+    let user_tok = body_json(resp).await["token"].as_str().unwrap().to_string();
+    // Root creates a task
+    let tid = body_json(app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"RootTask"})))).await.unwrap()).await["id"].as_i64().unwrap();
+    let tid2 = body_json(app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"RootTask2"})))).await.unwrap()).await["id"].as_i64().unwrap();
+    // Non-owner can't add dependency
+    let resp = app.clone().oneshot(auth_req("POST", &format!("/api/tasks/{}/dependencies", tid), &user_tok, Some(json!({"depends_on": tid2})))).await.unwrap();
+    assert_eq!(resp.status(), 403);
+}
+
+// ============================================================
+// v12 T9: Sprint date ordering on create
+// ============================================================
+
+#[tokio::test]
+async fn test_sprint_date_ordering_create() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let resp = app.clone().oneshot(auth_req("POST", "/api/sprints", &tok, Some(json!({"name":"BadDates","start_date":"2025-03-01","end_date":"2025-02-01"})))).await.unwrap();
+    assert_eq!(resp.status(), 400);
+}
+
+// ============================================================
+// v12 T10: Concurrent timer start
+// ============================================================
+
+#[tokio::test]
+async fn test_concurrent_timer_start() {
+    let app = app().await;
+    let tok = login_root(&app).await;
+    let t1 = body_json(app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"Timer1"})))).await.unwrap()).await["id"].as_i64().unwrap();
+    let t2 = body_json(app.clone().oneshot(auth_req("POST", "/api/tasks", &tok, Some(json!({"title":"Timer2"})))).await.unwrap()).await["id"].as_i64().unwrap();
+    // Start first timer
+    app.clone().oneshot(auth_req("POST", "/api/timer/start", &tok, Some(json!({"task_id": t1})))).await.unwrap();
+    // Start second timer — should stop first
+    let resp = app.clone().oneshot(auth_req("POST", "/api/timer/start", &tok, Some(json!({"task_id": t2})))).await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let state = body_json(resp).await;
+    assert_eq!(state["current_task_id"], t2);
+}
