@@ -118,21 +118,40 @@ pub async fn import_tasks_csv(State(engine): State<AppState>, claims: Claims, Js
     let mut created = 0i64;
     let mut errors = Vec::new();
     let mut tx = engine.pool.begin().await.map_err(internal)?;
-    for (i, line) in req.csv.lines().enumerate() {
-        if i == 0 { continue; }
+    // Detect header to determine column mapping
+    let mut lines = req.csv.lines();
+    let header = match lines.next() {
+        Some(h) => h,
+        None => return Ok(Json(serde_json::json!({ "created": 0, "errors": [] }))),
+    };
+    let hcols = parse_csv_line(header);
+    let hcols: Vec<&str> = hcols.iter().map(|s| s.trim()).collect();
+    // Build column index map from header
+    let col_idx = |name: &str| hcols.iter().position(|h| h.eq_ignore_ascii_case(name));
+    let idx_title = col_idx("title").unwrap_or(0);
+    let idx_priority = col_idx("priority");
+    let idx_estimated = col_idx("estimated");
+    let idx_project = col_idx("project");
+    let idx_description = col_idx("description");
+    let idx_tags = col_idx("tags");
+    let idx_due_date = col_idx("due_date");
+    for (i, line) in lines.enumerate() {
         let cols = parse_csv_line(line);
-        if cols.is_empty() || cols[0].trim().is_empty() { continue; }
-        let title = cols[0].trim().to_string();
-        if title.len() > 500 { errors.push(format!("Line {}: title too long", i + 1)); continue; }
-        let priority = cols.get(1).and_then(|s| s.trim().parse::<i64>().ok()).unwrap_or(3).clamp(1, 5);
-        let estimated = cols.get(2).and_then(|s| s.trim().parse::<i64>().ok()).unwrap_or(0);
-        let project = cols.get(3).map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+        if cols.is_empty() || cols.get(idx_title).map(|s| s.trim().is_empty()).unwrap_or(true) { continue; }
+        let title = cols[idx_title].trim().to_string();
+        if title.len() > 500 { errors.push(format!("Line {}: title too long", i + 2)); continue; }
+        let priority = idx_priority.and_then(|i| cols.get(i)).and_then(|s| s.trim().parse::<i64>().ok()).unwrap_or(3).clamp(1, 5);
+        let estimated = idx_estimated.and_then(|i| cols.get(i)).and_then(|s| s.trim().parse::<i64>().ok()).unwrap_or(0);
+        let project = idx_project.and_then(|i| cols.get(i)).map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+        let description = idx_description.and_then(|i| cols.get(i)).map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+        let tags = idx_tags.and_then(|i| cols.get(i)).map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+        let due_date = idx_due_date.and_then(|i| cols.get(i)).map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
         let now = db::now_str();
-        if let Err(e) = sqlx::query("INSERT INTO tasks (user_id, title, project, priority, estimated, actual, estimated_hours, remaining_points, status, sort_order, created_at, updated_at) VALUES (?,?,?,?,?,0,0.0,0.0,'backlog',0,?,?)")
-            .bind(claims.user_id).bind(&title).bind(project.as_deref()).bind(priority).bind(estimated).bind(&now).bind(&now)
+        if let Err(e) = sqlx::query("INSERT INTO tasks (user_id, title, description, project, tags, priority, estimated, actual, estimated_hours, remaining_points, due_date, status, sort_order, created_at, updated_at) VALUES (?,?,?,?,?,?,?,0,0.0,0.0,?,'backlog',0,?,?)")
+            .bind(claims.user_id).bind(&title).bind(description.as_deref()).bind(project.as_deref()).bind(tags.as_deref()).bind(priority).bind(estimated).bind(due_date.as_deref()).bind(&now).bind(&now)
             .execute(&mut *tx).await {
             tx.rollback().await.ok();
-            return Err(internal(format!("Line {}: {}", i + 1, e)));
+            return Err(internal(format!("Line {}: {}", i + 2, e)));
         }
         created += 1;
     }

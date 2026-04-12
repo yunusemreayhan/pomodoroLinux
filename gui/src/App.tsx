@@ -43,7 +43,8 @@ function Sidebar() {
 
   const setTheme = (th: string) => {
     setThemeLocal(th);
-    apiCall("PUT", "/api/config", { theme: th }).catch(() => {});
+    const cur = useStore.getState().config;
+    apiCall("PUT", "/api/config", { ...cur, theme: th }).catch(() => {});
   };
 
   useEffect(() => {

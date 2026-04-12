@@ -12,8 +12,8 @@ pub struct Webhook {
     pub created_at: String,
 }
 
-// S5: Encrypt/decrypt webhook secrets at rest using JWT secret as key
-fn derive_key() -> Vec<u8> {
+// S5: Encrypt/decrypt webhook secrets at rest using AES-256-GCM
+fn derive_key() -> [u8; 32] {
     use hmac::{Hmac, Mac, KeyInit};
     use sha2::Sha256;
     let secret_bytes: Vec<u8> = std::env::var("POMODORO_JWT_SECRET")
@@ -26,27 +26,78 @@ fn derive_key() -> Vec<u8> {
                 .filter(|d| d.len() >= 32)
                 .unwrap_or_else(|| {
                     tracing::error!("SECURITY: No JWT secret available for webhook key derivation — using data_dir hash as fallback");
-                    // Fallback: hash the data_dir path as a machine-specific but weak key
-                    use sha2::{Sha256, Digest};
-                    Sha256::digest(crate::db::data_dir().to_string_lossy().as_bytes()).to_vec()
+                    use sha2::{Sha256 as S, Digest};
+                    S::digest(crate::db::data_dir().to_string_lossy().as_bytes()).to_vec()
                 })
         });
     let mut mac = Hmac::<Sha256>::new_from_slice(&secret_bytes).unwrap();
     mac.update(b"webhook-secret-encryption");
-    mac.finalize().into_bytes().to_vec()
+    let result = mac.finalize().into_bytes();
+    let mut key = [0u8; 32];
+    key.copy_from_slice(&result);
+    key
 }
 
 fn encrypt_secret(plaintext: &str) -> String {
+    use aes_gcm::{Aes256Gcm, KeyInit, aead::Aead};
+    use aes_gcm::Nonce;
     let key = derive_key();
-    let encrypted: Vec<u8> = plaintext.as_bytes().iter().enumerate().map(|(i, b)| b ^ key[i % key.len()]).collect();
-    encrypted.iter().map(|b| format!("{:02x}", b)).collect()
+    let cipher = Aes256Gcm::new_from_slice(&key).unwrap();
+    let mut nonce_bytes = [0u8; 12];
+    use rand::Rng;
+    rand::rng().fill(&mut nonce_bytes);
+    let nonce = Nonce::from_slice(&nonce_bytes);
+    let ciphertext = cipher.encrypt(nonce, plaintext.as_bytes()).expect("encryption failed");
+    // Format: hex(nonce) + ":" + hex(ciphertext)
+    let nonce_hex: String = nonce_bytes.iter().map(|b| format!("{:02x}", b)).collect();
+    let ct_hex: String = ciphertext.iter().map(|b| format!("{:02x}", b)).collect();
+    format!("{}:{}", nonce_hex, ct_hex)
 }
 
-pub fn decrypt_secret(ciphertext: &str) -> Option<String> {
-    let encrypted: Vec<u8> = (0..ciphertext.len()).step_by(2)
-        .map(|i| u8::from_str_radix(&ciphertext[i..i+2], 16).ok())
+pub fn decrypt_secret(stored: &str) -> Option<String> {
+    // Try AES-GCM format first (nonce:ciphertext)
+    if let Some((nonce_hex, ct_hex)) = stored.split_once(':') {
+        if nonce_hex.len() == 24 {
+            return decrypt_secret_aes(nonce_hex, ct_hex);
+        }
+    }
+    // Fallback: legacy XOR format (no colon)
+    decrypt_secret_xor(stored)
+}
+
+fn decrypt_secret_aes(nonce_hex: &str, ct_hex: &str) -> Option<String> {
+    use aes_gcm::{Aes256Gcm, KeyInit, aead::Aead};
+    use aes_gcm::Nonce;
+    let nonce_bytes: Vec<u8> = (0..nonce_hex.len()).step_by(2)
+        .map(|i| u8::from_str_radix(&nonce_hex[i..i+2], 16).ok())
+        .collect::<Option<Vec<u8>>>()?;
+    let ciphertext: Vec<u8> = (0..ct_hex.len()).step_by(2)
+        .map(|i| u8::from_str_radix(&ct_hex[i..i+2], 16).ok())
         .collect::<Option<Vec<u8>>>()?;
     let key = derive_key();
+    let cipher = Aes256Gcm::new_from_slice(&key).ok()?;
+    let nonce = Nonce::from_slice(&nonce_bytes);
+    let plaintext = cipher.decrypt(nonce, ciphertext.as_ref()).ok()?;
+    String::from_utf8(plaintext).ok()
+}
+
+fn decrypt_secret_xor(ciphertext_hex: &str) -> Option<String> {
+    // Legacy XOR decryption for backwards compatibility
+    let encrypted: Vec<u8> = (0..ciphertext_hex.len()).step_by(2)
+        .map(|i| u8::from_str_radix(&ciphertext_hex[i..i+2], 16).ok())
+        .collect::<Option<Vec<u8>>>()?;
+    use hmac::{Hmac, Mac, KeyInit};
+    use sha2::Sha256;
+    let secret_bytes: Vec<u8> = std::env::var("POMODORO_JWT_SECRET")
+        .ok().filter(|s| !s.is_empty()).map(|s| s.into_bytes())
+        .unwrap_or_else(|| {
+            let path = crate::db::data_dir().join(".jwt_secret");
+            std::fs::read(&path).ok().filter(|d| d.len() >= 32)
+                .unwrap_or_else(|| { use sha2::{Sha256 as S, Digest}; S::digest(crate::db::data_dir().to_string_lossy().as_bytes()).to_vec() })
+        });
+    let mut mac = Hmac::<Sha256>::new_from_slice(&secret_bytes).unwrap();
+    mac.update(b"webhook-secret-encryption");
+    let key = mac.finalize().into_bytes().to_vec();
     let decrypted: Vec<u8> = encrypted.iter().enumerate().map(|(i, b)| b ^ key[i % key.len()]).collect();
     String::from_utf8(decrypted).ok()
 }

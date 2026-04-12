@@ -17,9 +17,13 @@ pub async fn get_task_sprints(State(engine): State<AppState>, _claims: Claims) -
     db::get_all_task_sprints(&engine.pool).await.map(Json).map_err(internal)
 }
 
-#[utoipa::path(get, path = "/api/users", responses((status = 200, body = Vec<String>)), security(("bearer" = [])))]
-pub async fn list_usernames(State(engine): State<AppState>, _claims: Claims) -> ApiResult<Vec<String>> {
-    db::list_usernames(&engine.pool).await.map(Json).map_err(internal)
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct UserEntry { pub id: i64, pub username: String }
+
+#[utoipa::path(get, path = "/api/users", responses((status = 200, body = Vec<UserEntry>)), security(("bearer" = [])))]
+pub async fn list_usernames(State(engine): State<AppState>, _claims: Claims) -> ApiResult<Vec<UserEntry>> {
+    let rows = db::list_usernames(&engine.pool).await.map_err(internal)?;
+    Ok(Json(rows.into_iter().map(|(id, username)| UserEntry { id, username }).collect()))
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
