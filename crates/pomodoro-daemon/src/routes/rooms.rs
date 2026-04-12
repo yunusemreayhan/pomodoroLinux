@@ -102,6 +102,10 @@ pub async fn cast_vote(State(engine): State<AppState>, claims: Claims, Path(id):
     if !members.iter().any(|m| m.user_id == claims.user_id) && claims.role != "root" {
         return Err(err(StatusCode::FORBIDDEN, "Not a room member"));
     }
+    // V3: Observers cannot vote
+    if members.iter().any(|m| m.user_id == claims.user_id && m.role == "observer") {
+        return Err(err(StatusCode::FORBIDDEN, "Observers cannot vote"));
+    }
     let task_id = room.current_task_id.ok_or_else(|| err(StatusCode::BAD_REQUEST, "No active vote"))?;
     db::cast_vote(&engine.pool, id, task_id, claims.user_id, req.value).await.map_err(internal)?;
     engine.notify(ChangeEvent::Rooms);

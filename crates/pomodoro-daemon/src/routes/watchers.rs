@@ -25,7 +25,10 @@ pub async fn add_task_dependency(State(engine): State<AppState>, _claims: Claims
     let task = db::get_task(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
     if !is_owner_or_root(task.user_id, &_claims) { return Err(err(StatusCode::FORBIDDEN, "Not task owner")); }
     db::get_task(&engine.pool, dep_id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Dependency task not found"))?;
-    db::add_dependency(&engine.pool, id, dep_id).await.map_err(internal)?;
+    db::add_dependency(&engine.pool, id, dep_id).await.map_err(|e| {
+        if e.to_string().contains("UNIQUE") { err(StatusCode::CONFLICT, "Dependency already exists") }
+        else { internal(e) }
+    })?;
     engine.notify(ChangeEvent::Tasks);
     Ok(StatusCode::NO_CONTENT)
 }
@@ -39,5 +42,7 @@ pub async fn remove_task_dependency(State(engine): State<AppState>, _claims: Cla
 }
 
 pub async fn get_task_blocking(State(engine): State<AppState>, _claims: Claims, Path(id): Path<i64>) -> ApiResult<Vec<i64>> {
+    let task = db::get_task(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
+    if !is_owner_or_root(task.user_id, &_claims) { return Err(err(StatusCode::FORBIDDEN, "Not task owner")); }
     db::get_dependencies(&engine.pool, id).await.map(Json).map_err(internal)
 }

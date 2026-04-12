@@ -121,6 +121,7 @@ pub async fn import_tasks_csv(State(engine): State<AppState>, claims: Claims, Js
         let cols = parse_csv_line(line);
         if cols.is_empty() || cols[0].trim().is_empty() { continue; }
         let title = cols[0].trim().to_string();
+        if title.len() > 500 { errors.push(format!("Line {}: title too long", i + 1)); continue; }
         let priority = cols.get(1).and_then(|s| s.trim().parse::<i64>().ok()).unwrap_or(3).clamp(1, 5);
         let estimated = cols.get(2).and_then(|s| s.trim().parse::<i64>().ok()).unwrap_or(0);
         let project = cols.get(3).map(|s| s.trim().to_string()).filter(|s| !s.is_empty());

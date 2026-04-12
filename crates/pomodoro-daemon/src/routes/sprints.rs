@@ -21,6 +21,7 @@ pub async fn create_sprint(State(engine): State<AppState>, claims: Claims, Json(
     if let Some(ref d) = req.end_date { if chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").is_err() { return Err(err(StatusCode::BAD_REQUEST, "end_date must be YYYY-MM-DD")); } }
     // V4: Validate end_date >= start_date
     if let (Some(ref s), Some(ref e)) = (&req.start_date, &req.end_date) { if e < s { return Err(err(StatusCode::BAD_REQUEST, "end_date must be on or after start_date")); } }
+    if let Some(ch) = req.capacity_hours { if ch < 0.0 || ch > 10000.0 { return Err(err(StatusCode::BAD_REQUEST, "capacity_hours must be 0-10000")); } }
     let s = db::create_sprint(&engine.pool, claims.user_id, &req.name, req.project.as_deref(), req.goal.as_deref(), req.start_date.as_deref(), req.end_date.as_deref(), req.capacity_hours)
         .await.map_err(internal)?;
     db::audit(&engine.pool, claims.user_id, "create", "sprint", Some(s.id), Some(&s.name)).await.ok();
