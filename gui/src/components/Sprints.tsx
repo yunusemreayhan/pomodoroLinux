@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Plus, Trash2, Play, CheckCircle, ArrowLeft } from "lucide-react";
 import { apiCall } from "../store/api";
 import { useStore } from "../store/store";
@@ -22,8 +22,22 @@ export default function Sprints() {
   const [createRoots, setCreateRoots] = useState<number[]>([]);
   const [createRootSearch, setCreateRootSearch] = useState("");
   const allTasks = useStore(s => s.tasks);
+  const taskSprintsMap = useStore(s => s.taskSprintsMap);
+  const currentUser = useStore(s => s.username);
   const [loading, setLoading] = useState(true);
   const rootTasks = allTasks.filter(t => t.parent_id === null);
+
+  // BL2: Count user's tasks per sprint
+  const myTasksPerSprint = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const t of allTasks) {
+      if (t.user !== currentUser) continue;
+      for (const ts of taskSprintsMap.get(t.id) || []) {
+        map.set(ts.sprint_id, (map.get(ts.sprint_id) || 0) + 1);
+      }
+    }
+    return map;
+  }, [allTasks, taskSprintsMap, currentUser]);
 
   const load = useCallback(async () => {
     const params = filter !== "all" ? `?status=${filter}` : "";
@@ -139,6 +153,7 @@ export default function Sprints() {
                 "bg-white/5"
               }`}>{s.status}</span>
               {s.start_date && <span>{s.start_date} → {s.end_date || "?"}</span>}
+              {myTasksPerSprint.get(s.id) && <span className="bg-[var(--color-accent)]/20 text-[var(--color-accent)] px-1.5 py-0.5 rounded">{myTasksPerSprint.get(s.id)} my tasks</span>}
             </div>
           </div>
           <button onClick={async e => { e.stopPropagation();

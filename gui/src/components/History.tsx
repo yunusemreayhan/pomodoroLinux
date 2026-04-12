@@ -142,6 +142,44 @@ export default function History() {
         ))}
       </div>
 
+      {/* BL11: Focus time report */}
+      {filteredStats.length > 7 && (() => {
+        const last7 = filteredStats.slice(-7);
+        const last30 = filteredStats.slice(-30);
+        const weekFocus = last7.reduce((a, s) => a + s.total_focus_s, 0) / 3600;
+        const monthFocus = last30.reduce((a, s) => a + s.total_focus_s, 0) / 3600;
+        const avgDaily = last30.length > 0 ? monthFocus / last30.length : 0;
+        const activeDays = last30.filter(s => s.total_focus_s > 0).length;
+        const bestDay = last30.reduce((best, s) => s.total_focus_s > best.total_focus_s ? s : best, last30[0]);
+        return (
+          <div className="glass p-4">
+            <div className="text-xs text-white/40 mb-2 font-medium">Focus Report</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+              <div><div className="text-sm text-white font-semibold">{weekFocus.toFixed(1)}h</div><div className="text-[10px] text-white/30">This week</div></div>
+              <div><div className="text-sm text-white font-semibold">{monthFocus.toFixed(1)}h</div><div className="text-[10px] text-white/30">Last 30 days</div></div>
+              <div><div className="text-sm text-white font-semibold">{avgDaily.toFixed(1)}h</div><div className="text-[10px] text-white/30">Avg daily</div></div>
+              <div><div className="text-sm text-white font-semibold">{activeDays}/{last30.length}d</div><div className="text-[10px] text-white/30">Active days</div></div>
+            </div>
+            {bestDay && bestDay.total_focus_s > 0 && (
+              <div className="text-[10px] text-white/20 mt-2 text-center">Best day: {bestDay.date} ({(bestDay.total_focus_s / 3600).toFixed(1)}h)</div>
+            )}
+            {/* BL13: Break compliance */}
+            {(() => {
+              const workSessions = filteredHistory.filter(s => s.session_type === "work" && s.status === "completed").length;
+              const breakSessions = filteredHistory.filter(s => (s.session_type === "short_break" || s.session_type === "long_break") && s.status === "completed").length;
+              if (workSessions === 0) return null;
+              const ratio = breakSessions / workSessions;
+              const color = ratio >= 0.8 ? "text-green-400" : ratio >= 0.5 ? "text-yellow-400" : "text-red-400";
+              return (
+                <div className="text-[10px] text-white/20 mt-1 text-center">
+                  Break compliance: <span className={color}>{Math.round(ratio * 100)}%</span> ({breakSessions} breaks / {workSessions} work sessions)
+                </div>
+              );
+            })()}
+          </div>
+        );
+      })()}
+
       {/* Heatmap */}
       <div className="glass p-5">
         <h3 className="text-sm font-semibold text-white/60 mb-4">Activity (Last 365 Days)</h3>
