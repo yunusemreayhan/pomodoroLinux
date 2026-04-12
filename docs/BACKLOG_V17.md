@@ -45,16 +45,16 @@ Tests: 275 backend, 154 frontend
 
 ## Business Logic (10)
 
-- [ ] **BL1.** `room_ws` broadcasts full `get_room_state` for ALL connected WebSockets on any `ChangeEvent::Rooms` — even for unrelated rooms. Thundering herd of DB queries.
-- [ ] **BL2.** Room creator can leave their own room — if only admin, room becomes orphaned (no one can delete or manage it).
-- [ ] **BL3.** Team admin can remove themselves — if last admin, team becomes unmanageable.
-- [ ] **BL4.** `kick_member` allows admin to kick themselves — room becomes admin-less.
-- [ ] **BL5.** `accept_estimate` doesn't verify room is in "revealed" state — admin can accept before reveal.
-- [ ] **BL6.** `VALID_ROOM_ROLES` is `["admin","voter"]` but `cast_vote` checks for `"observer"` — dead code, observer role unreachable.
-- [ ] **BL7.** `log_burn` (sprint) allows burns on "planning" sprints — should require `status == "active"`.
-- [ ] **BL8.** `export_burns` requires sprint ownership but `list_burns` has no ownership check — inconsistent authorization.
-- [ ] **BL9.** `get_active_webhooks` LIKE matching (`events LIKE '%task.created%'`) matches superstrings — `task.created_extra` would match.
-- [ ] **BL10.** `update_sprint` doesn't validate name emptiness or length — bypasses `create_sprint` validations.
+- [x] **BL1.** `room_ws` broadcasts full `get_room_state` for ALL connected WebSockets on any `ChangeEvent::Rooms` — even for unrelated rooms. Thundering herd of DB queries.
+- [x] **BL2.** Room creator can leave their own room — if only admin, room becomes orphaned (no one can delete or manage it).
+- [x] **BL3.** Team admin can remove themselves — if last admin, team becomes unmanageable.
+- [x] **BL4.** `kick_member` allows admin to kick themselves — room becomes admin-less.
+- [x] **BL5.** `accept_estimate` doesn't verify room is in "revealed" state — admin can accept before reveal.
+- [x] **BL6.** `VALID_ROOM_ROLES` is `["admin","voter"]` but `cast_vote` checks for `"observer"` — dead code, observer role unreachable.
+- [x] **BL7.** `log_burn` (sprint) allows burns on "planning" sprints — should require `status == "active"`.
+- [x] **BL8.** `export_burns` requires sprint ownership but `list_burns` has no ownership check — inconsistent authorization.
+- [x] **BL9.** `get_active_webhooks` LIKE matching (`events LIKE '%task.created%'`) matches superstrings — `task.created_extra` would match.
+- [x] **BL10.** `update_sprint` doesn't validate name emptiness or length — bypasses `create_sprint` validations.
 
 ## Validation Gaps (10)
 

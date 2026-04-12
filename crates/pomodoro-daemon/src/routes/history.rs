@@ -33,7 +33,7 @@ pub async fn get_history(State(engine): State<AppState>, claims: Claims, Query(q
 #[utoipa::path(get, path = "/api/stats", responses((status = 200, body = Vec<db::DayStat>)), security(("bearer" = [])))]
 pub async fn get_stats(State(engine): State<AppState>, claims: Claims, Query(q): Query<StatsQuery>) -> ApiResult<Vec<db::DayStat>> {
     let user_id = if claims.role == "root" { None } else { Some(claims.user_id) };
-    db::get_day_stats(&engine.pool, q.days.unwrap_or(30), user_id).await.map(Json).map_err(internal)
+    db::get_day_stats(&engine.pool, q.days.unwrap_or(30).min(365), user_id).await.map(Json).map_err(internal)
 }
 
 // --- Config ---

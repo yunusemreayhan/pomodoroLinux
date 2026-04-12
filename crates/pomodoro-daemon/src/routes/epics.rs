@@ -45,13 +45,14 @@ pub async fn add_epic_group_tasks(State(engine): State<AppState>, claims: Claims
     }
     if req.task_ids.is_empty() { return Ok(StatusCode::NO_CONTENT); }
     if req.task_ids.len() > 500 { return Err(err(StatusCode::BAD_REQUEST, "Too many task IDs (max 500)")); }
-    let ph = req.task_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let unique_ids: Vec<i64> = { let mut s = std::collections::HashSet::new(); req.task_ids.iter().filter(|id| s.insert(**id)).copied().collect() };
+    let ph = unique_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
     let q = format!("SELECT COUNT(*) FROM tasks WHERE id IN ({}) AND deleted_at IS NULL", ph);
     let mut query = sqlx::query_as::<_, (i64,)>(&q);
-    for id in &req.task_ids { query = query.bind(id); }
+    for id in &unique_ids { query = query.bind(id); }
     let (found,): (i64,) = query.fetch_one(&engine.pool).await.map_err(internal)?;
-    if found != req.task_ids.len() as i64 { return Err(err(StatusCode::NOT_FOUND, "One or more tasks not found")); }
-    for tid in &req.task_ids {
+    if found != unique_ids.len() as i64 { return Err(err(StatusCode::NOT_FOUND, "One or more tasks not found")); }
+    for tid in &unique_ids {
         db::add_epic_group_task(&engine.pool, id, *tid).await.map_err(internal)?;
     }
     Ok(StatusCode::NO_CONTENT)

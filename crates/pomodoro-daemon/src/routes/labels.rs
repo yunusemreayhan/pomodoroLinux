@@ -13,6 +13,7 @@ pub async fn list_labels(State(engine): State<AppState>, _claims: Claims) -> Api
 #[utoipa::path(post, path = "/api/labels", responses((status = 201)), security(("bearer" = [])))]
 pub async fn create_label(State(engine): State<AppState>, _claims: Claims, Json(req): Json<CreateLabelRequest>) -> Result<(StatusCode, Json<db::Label>), ApiError> {
     if req.name.trim().is_empty() { return Err(err(StatusCode::BAD_REQUEST, "Label name cannot be empty")); }
+    if req.name.len() > 100 { return Err(err(StatusCode::BAD_REQUEST, "Label name too long (max 100)")); }
     let color = req.color.as_deref().unwrap_or("#6366f1");
     if !color.starts_with('#') || !matches!(color.len(), 4 | 7) || !color[1..].chars().all(|c| c.is_ascii_hexdigit()) {
         return Err(err(StatusCode::BAD_REQUEST, "Color must be #RGB or #RRGGBB hex format"));
