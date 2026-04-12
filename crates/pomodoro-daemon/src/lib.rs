@@ -139,6 +139,7 @@ pub fn build_router(engine: Arc<engine::Engine>) -> Router {
         .route("/api/me/teams", get(routes::get_my_teams))
         .route("/api/sprints/{id}/snapshot", post(routes::snapshot_sprint))
         .route("/api/sprints/{id}/board", get(routes::get_sprint_board))
+        .route("/api/sprints/{id}/retro-report", get(routes::sprint_retro_report))
         .route("/api/sprints/{id}/burn", post(routes::log_burn))
         .route("/api/sprints/{id}/burns", get(routes::list_burns))
         .route("/api/sprints/{id}/burns/{burn_id}", delete(routes::cancel_burn))

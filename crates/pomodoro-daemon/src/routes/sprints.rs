@@ -253,3 +253,47 @@ pub async fn get_velocity(State(engine): State<AppState>, _claims: Claims, Query
     }).collect();
     Ok(Json(result))
 }
+
+// F7: Sprint retrospective analytics
+#[utoipa::path(get, path = "/api/sprints/{id}/retro-report", responses((status = 200)), security(("bearer" = [])))]
+pub async fn sprint_retro_report(State(engine): State<AppState>, _claims: Claims, Path(id): Path<i64>) -> ApiResult<serde_json::Value> {
+    let sprint = db::get_sprint(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Sprint not found"))?;
+    let tasks = db::get_sprint_tasks(&engine.pool, id).await.map_err(internal)?;
+    let burns = db::list_burns(&engine.pool, id).await.map_err(internal)?;
+    let stats = db::get_sprint_burndown(&engine.pool, id).await.map_err(internal)?;
+
+    let total = tasks.len();
+    let done: Vec<_> = tasks.iter().filter(|t| t.status == "completed" || t.status == "done").collect();
+    let total_points: f64 = tasks.iter().map(|t| t.remaining_points).sum();
+    let done_points: f64 = done.iter().map(|t| t.remaining_points).sum();
+    let total_hours: f64 = tasks.iter().map(|t| t.estimated_hours).sum();
+    let burned_hours: f64 = burns.iter().filter(|b| b.cancelled == 0).map(|b| b.hours).sum();
+
+    // Per-member contribution
+    let mut by_user: std::collections::HashMap<String, (f64, f64, i64)> = std::collections::HashMap::new();
+    for b in &burns {
+        if b.cancelled != 0 { continue; }
+        let e = by_user.entry(b.username.clone()).or_default();
+        e.0 += b.points; e.1 += b.hours; e.2 += 1;
+    }
+    let members: Vec<serde_json::Value> = by_user.into_iter()
+        .map(|(u, (p, h, c))| serde_json::json!({"username": u, "points": p, "hours": (h * 100.0).round() / 100.0, "burns": c}))
+        .collect();
+
+    // Scope change: count tasks added after sprint start
+    let scope_added: i64 = sqlx::query_as::<_, (i64,)>("SELECT COUNT(*) FROM sprint_tasks WHERE sprint_id = ? AND added_at > COALESCE((SELECT updated_at FROM sprints WHERE id = ? AND status != 'planning'), '9999')")
+        .bind(id).bind(id).fetch_one(&engine.pool).await.map_err(internal)?.0;
+
+    // Carry-over count
+    let carried = total - done.len();
+
+    Ok(Json(serde_json::json!({
+        "sprint": {"id": sprint.id, "name": sprint.name, "status": sprint.status},
+        "tasks": {"total": total, "done": done.len(), "carried": carried},
+        "points": {"total": total_points, "done": done_points},
+        "hours": {"estimated": total_hours, "burned": (burned_hours * 100.0).round() / 100.0},
+        "scope_changes": scope_added,
+        "members": members,
+        "daily_stats_count": stats.len(),
+    })))
+}
