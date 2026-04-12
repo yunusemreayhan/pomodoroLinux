@@ -152,7 +152,7 @@ export function CsvImport() {
         onDragOver={e => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={async e => { e.preventDefault(); setDragging(false); const file = e.dataTransfer.files[0]; if (file && (file.name.endsWith('.csv') || file.type === 'text/csv')) await processFile(file); else if (file) setResult("Only .csv files are accepted"); }}>
-        <label className="cursor-pointer text-xs text-white/40 hover:text-white/60">
+        <label className="cursor-pointer text-xs text-white/40 hover:text-white/60" tabIndex={0} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); (e.currentTarget.querySelector("input") as HTMLInputElement)?.click(); } }}>
           {dragging ? "Drop CSV here" : "Drag CSV here or click to browse"}
           <input type="file" accept=".csv" onChange={handleFile} className="hidden" />
         </label>
