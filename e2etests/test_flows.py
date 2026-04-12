@@ -9,9 +9,10 @@ import time
 import pytest
 from desktop_pilot import TauriWebDriver, WebDriverError
 from harness import (
-    Daemon, GUI_BINARY, ROOT_PASSWORD, BASE_URL,
+    Daemon, GUI_BINARY, ROOT_PASSWORD,
     connect_gui_to_daemon, gui_login, gui_logout, api_register,
 )
+import harness
 import json, urllib.request
 
 
@@ -34,11 +35,11 @@ def set_input(app, selector: str, value: str):
 
 
 def api_call(method, path, body=None, token=None):
-    data = json.dumps(body).encode() if body else None
+    data = json.dumps(body).encode() if body else (b"" if method in ("POST", "PUT") else None)
     hdrs = {"Content-Type": "application/json", "X-Requested-With": "test"}
     if token:
         hdrs["Authorization"] = f"Bearer {token}"
-    req = urllib.request.Request(f"{BASE_URL}{path}", data=data, headers=hdrs, method=method)
+    req = urllib.request.Request(f"{harness.BASE_URL}{path}", data=data, headers=hdrs, method=method)
     resp = urllib.request.urlopen(req, timeout=5)
     raw = resp.read().decode()
     return json.loads(raw) if raw else {}
@@ -519,7 +520,7 @@ class TestSessionExpiry:
         if tok:
             try:
                 req = urllib.request.Request(
-                    f"{BASE_URL}/api/auth/logout", data=b"",
+                    f"{harness.BASE_URL}/api/auth/logout", data=b"",
                     headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json", "X-Requested-With": "test"},
                     method="POST",
                 )

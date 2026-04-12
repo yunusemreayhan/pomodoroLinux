@@ -1,7 +1,7 @@
 """E2E test harness: isolated daemon + Tauri GUI via WebDriver.
 
-Spins up a fresh daemon per session, launches the GUI through
-tauri-driver, and provides helpers to login/navigate.
+Spins up a fresh daemon per session with a random port and temp dir,
+so multiple test instances can run in parallel without collisions.
 """
 
 from __future__ import annotations
@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import signal
+import socket
 import subprocess
 import tempfile
 import time
@@ -25,10 +26,19 @@ DAEMON_BINARY = str(
 GUI_BINARY = str(
     Path(__file__).resolve().parent.parent.parent / "pomodoroLinux" / "target" / "release" / "pomodoro-gui"
 )
-TEST_PORT = 19090
-BASE_URL = f"http://127.0.0.1:{TEST_PORT}"
 ROOT_PASSWORD = "TestRoot1"
 JWT_SECRET = "test-secret-for-flow-tests-1234567890abcdef"
+
+# Module-level defaults — updated by Daemon.start() to match the actual port.
+TEST_PORT = 0
+BASE_URL = ""
+
+
+def _free_port() -> int:
+    """Find a free TCP port."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
 
 
 @dataclass
@@ -37,12 +47,17 @@ class Daemon:
 
     proc: Optional[subprocess.Popen] = None
     tmpdir: Optional[str] = None
+    port: int = 0
+    base_url: str = ""
 
     def start(self) -> None:
+        if not self.port:
+            self.port = _free_port()
+        self.base_url = f"http://127.0.0.1:{self.port}"
         self.tmpdir = tempfile.mkdtemp(prefix="pomodoro_e2e_")
         Path(self.tmpdir, "config.toml").write_text(
             f'bind_address = "127.0.0.1"\n'
-            f"bind_port = {TEST_PORT}\n"
+            f"bind_port = {self.port}\n"
             f"work_duration_min = 1\n"
             f"short_break_min = 1\n"
             f"long_break_min = 1\n"
@@ -69,21 +84,26 @@ class Daemon:
         )
         for _ in range(40):
             try:
-                urllib.request.urlopen(f"{BASE_URL}/api/health", timeout=1)
+                urllib.request.urlopen(f"{self.base_url}/api/health", timeout=1)
+                # Update module-level BASE_URL so helpers use the right port
+                global BASE_URL, TEST_PORT
+                BASE_URL = self.base_url
+                TEST_PORT = self.port
                 return
             except Exception:
                 time.sleep(0.25)
-        raise RuntimeError("Daemon failed to start")
+        raise RuntimeError(f"Daemon failed to start on port {self.port}")
 
     def stop(self) -> None:
+        tmpdir = self.tmpdir
         if self.proc:
             os.killpg(os.getpgid(self.proc.pid), signal.SIGTERM)
             self.proc.wait(timeout=5)
             self.proc = None
-        if self.tmpdir:
+        if tmpdir:
             import shutil
-            shutil.rmtree(self.tmpdir, ignore_errors=True)
-            self.tmpdir = None
+            shutil.rmtree(tmpdir, ignore_errors=True)
+        self.tmpdir = None
 
 
 def connect_gui_to_daemon(app):
@@ -118,7 +138,6 @@ def gui_login(app, username: str, password: str):
 def gui_logout(app):
     """Logout via the sidebar logout button."""
     try:
-        # Logout button is in the sidebar
         app.execute_js("""
             document.querySelectorAll('button').forEach(b => {
                 if (b.textContent.includes('Logout') || b.querySelector('[class*="log-out"]'))

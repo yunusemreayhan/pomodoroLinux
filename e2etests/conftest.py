@@ -1,10 +1,12 @@
 import pytest
 from desktop_pilot import TauriWebDriver
-from harness import Daemon, GUI_BINARY, ROOT_PASSWORD, connect_gui_to_daemon, gui_login, gui_logout
+import harness
+from harness import Daemon, GUI_BINARY, ROOT_PASSWORD, connect_gui_to_daemon, gui_login
 
 
 @pytest.fixture(scope="session")
 def daemon():
+    """One daemon per pytest session — fresh DB, random port, temp dir."""
     d = Daemon()
     d.start()
     yield d
@@ -13,7 +15,7 @@ def daemon():
 
 @pytest.fixture(scope="session")
 def app(daemon):
-    """Tauri GUI connected to the test daemon, on login screen."""
+    """Tauri GUI connected to the test daemon."""
     d = TauriWebDriver(GUI_BINARY)
     d.start(load_wait=3)
     connect_gui_to_daemon(d)
@@ -23,7 +25,7 @@ def app(daemon):
 
 @pytest.fixture()
 def logged_in(app):
-    """Ensure the app is logged in as root. Use for tests that need auth."""
+    """Ensure the app is logged in as root."""
     body = app.text(app.find("body"))
     if "Sign In" in body or "sign in" in body.lower():
         connect_gui_to_daemon(app)
