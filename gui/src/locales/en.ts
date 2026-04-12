@@ -9,6 +9,8 @@ const en: Locale = {
   history: "History",
   sprints: "Sprints",
   rooms: "Rooms",
+  kanban: "Kanban",
+  calendar: "Calendar",
   skipToContent: "Skip to content",
   api: "API",
   keyboardShortcuts: "Keyboard Shortcuts",

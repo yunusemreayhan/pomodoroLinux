@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
-import { Timer as TimerIcon, ListTodo, BarChart3, Settings as SettingsIcon, Wifi, WifiOff, Code2, LogOut, Users, Zap, Sun, Moon, RefreshCw, LayoutDashboard, Bell } from "lucide-react";
+import { Timer as TimerIcon, ListTodo, BarChart3, Settings as SettingsIcon, Wifi, WifiOff, Code2, LogOut, Users, Zap, Sun, Moon, RefreshCw, LayoutDashboard, Bell, CalendarDays, Columns3 } from "lucide-react";
 import { useStore } from "./store/store";
 import { useT } from "./i18n";
 import { apiCall } from "./store/api";
@@ -14,11 +14,15 @@ import ApiReference from "./components/ApiReference";
 import AuthScreen from "./components/AuthScreen";
 import Rooms from "./components/Rooms";
 import Sprints from "./components/Sprints";
+import CalendarView from "./components/CalendarView";
+import KanbanBoard from "./components/KanbanBoard";
 
 const TABS = [
   { id: "timer", icon: TimerIcon, labelKey: "timer" },
   { id: "dashboard", icon: LayoutDashboard, labelKey: "dashboard" },
   { id: "tasks", icon: ListTodo, labelKey: "tasks" },
+  { id: "kanban", icon: Columns3, labelKey: "kanban" },
+  { id: "calendar", icon: CalendarDays, labelKey: "calendar" },
   { id: "sprints", icon: Zap, labelKey: "sprints" },
   { id: "rooms", icon: Users, labelKey: "rooms" },
   { id: "history", icon: BarChart3, labelKey: "history" },
@@ -220,10 +224,10 @@ export default function App() {
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-[var(--color-accent)] focus:text-white focus:rounded-lg focus:text-sm">
         {t.skipToContent}
       </a>
-      <nav aria-label="Main navigation" style={{ display: focusMode ? "none" : undefined }}>
+      <nav aria-label="Main navigation" className="hidden md:block" style={{ display: focusMode ? "none" : undefined }}>
         <Sidebar />
       </nav>
-      <main id="main-content" className="flex-1 overflow-hidden relative">
+      <main id="main-content" className="flex-1 overflow-hidden relative pb-14 md:pb-0">
         {focusMode && (
           <button onClick={() => useStore.getState().toggleFocusMode()}
             className="absolute top-2 right-2 z-50 text-xs text-white/30 hover:text-white/60 px-2 py-1 rounded bg-white/5"
@@ -247,6 +251,8 @@ export default function App() {
             {(focusMode || activeTab === "timer") && <Timer />}
             {!focusMode && activeTab === "dashboard" && <Dashboard />}
             <div style={{ display: !focusMode && activeTab === "tasks" ? undefined : "none" }}><TaskList /></div>
+            {!focusMode && activeTab === "kanban" && <KanbanBoard />}
+            {!focusMode && activeTab === "calendar" && <CalendarView />}
             {!focusMode && activeTab === "sprints" && <Sprints />}
             {!focusMode && activeTab === "rooms" && <Rooms />}
             {!focusMode && activeTab === "history" && <History />}
@@ -321,6 +327,24 @@ export default function App() {
           )}
         </AnimatePresence>
       </main>
+      {/* F18: Mobile bottom tab bar — visible on small screens */}
+      {!focusMode && (
+        <nav aria-label="Mobile navigation" className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--color-bg)] border-t border-white/5 flex justify-around py-1 safe-bottom">
+          {TABS.filter(t => ["timer","tasks","kanban","dashboard","sprints","settings"].includes(t.id)).map(tab => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
+            return (
+              <button key={tab.id} onClick={() => useStore.getState().setTab(tab.id)}
+                className={`flex flex-col items-center gap-0.5 px-2 py-1 ${active ? "text-[var(--color-accent)]" : "text-white/30"}`}
+                aria-label={(t as Record<string, string>)[tab.labelKey] || tab.labelKey}
+                aria-current={active ? "page" : undefined}>
+                <Icon size={18} />
+                <span className="text-[9px]">{tab.id[0].toUpperCase() + tab.id.slice(1)}</span>
+              </button>
+            );
+          })}
+        </nav>
+      )}
       {/* Keyboard shortcuts panel */}
       <AnimatePresence>
         {showShortcuts && (

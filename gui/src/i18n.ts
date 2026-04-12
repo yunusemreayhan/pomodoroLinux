@@ -10,6 +10,8 @@ export interface Locale {
   history: string;
   sprints: string;
   rooms: string;
+  kanban: string;
+  calendar: string;
   skipToContent: string;
   api: string;
   keyboardShortcuts: string;

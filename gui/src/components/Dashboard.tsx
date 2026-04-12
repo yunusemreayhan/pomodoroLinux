@@ -94,6 +94,12 @@ export default function Dashboard() {
       {/* F12: Active timers from other users */}
       <ActiveTimers />
 
+      {/* F2: Focus heatmap — year view */}
+      <FocusHeatmap stats={stats} />
+
+      {/* F5: Productivity trends — weekly comparison */}
+      <ProductivityTrends stats={stats} />
+
       {/* BL3: Daily standup view */}
       <StandupView today={today} tasks={tasks} />
 
@@ -282,6 +288,128 @@ function ProjectStats({ tasks }: { tasks: import("../store/api").Task[] }) {
           <span className="text-[10px] text-white/30 w-20 text-right">{done}/{total} · {hours.toFixed(0)}h</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+// F2: Focus heatmap — GitHub-style year view
+function FocusHeatmap({ stats }: { stats: import("../store/api").DayStat[] }) {
+  const data = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const s of stats) map.set(s.date, Math.round(s.total_focus_s / 60));
+    // Build 52 weeks of data ending today
+    const today = new Date();
+    const weeks: { date: string; min: number }[][] = [];
+    let week: { date: string; min: number }[] = [];
+    for (let i = 364; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const dow = (d.getDay() + 6) % 7; // Mon=0
+      if (dow === 0 && week.length > 0) { weeks.push(week); week = []; }
+      week.push({ date: key, min: map.get(key) || 0 });
+    }
+    if (week.length > 0) weeks.push(week);
+    return weeks;
+  }, [stats]);
+
+  const max = useMemo(() => Math.max(...data.flat().map(d => d.min), 1), [data]);
+  const total = useMemo(() => data.flat().reduce((s, d) => s + d.min, 0), [data]);
+  if (stats.length < 7) return null;
+
+  return (
+    <div className="glass p-3 rounded-lg">
+      <div className="flex justify-between items-center mb-2">
+        <div className="text-xs text-white/40">Focus Heatmap</div>
+        <div className="text-[10px] text-white/20">{Math.round(total / 60)}h total</div>
+      </div>
+      <div className="flex gap-[2px] overflow-x-auto">
+        {data.map((week, wi) => (
+          <div key={wi} className="flex flex-col gap-[2px]">
+            {week.map(d => {
+              const intensity = d.min > 0 ? 0.2 + (d.min / max) * 0.8 : 0;
+              return (
+                <div key={d.date} title={`${d.date}: ${d.min}m`}
+                  className="w-[10px] h-[10px] rounded-[2px]"
+                  style={{ background: d.min === 0 ? "rgba(255,255,255,0.03)" : `rgba(124, 58, 237, ${intensity})` }} />
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-1 mt-2 justify-end">
+        <span className="text-[9px] text-white/20">Less</span>
+        {[0, 0.2, 0.4, 0.6, 0.8, 1].map(v => (
+          <div key={v} className="w-[10px] h-[10px] rounded-[2px]"
+            style={{ background: v === 0 ? "rgba(255,255,255,0.03)" : `rgba(124, 58, 237, ${0.2 + v * 0.8})` }} />
+        ))}
+        <span className="text-[9px] text-white/20">More</span>
+      </div>
+    </div>
+  );
+}
+
+// F5: Productivity trends — weekly comparison
+function ProductivityTrends({ stats }: { stats: import("../store/api").DayStat[] }) {
+  const weeks = useMemo(() => {
+    if (stats.length < 7) return [];
+    // Group stats into weeks (Mon-Sun)
+    const sorted = [...stats].sort((a, b) => a.date.localeCompare(b.date));
+    const result: { label: string; focusH: number; sessions: number; interrupted: number }[] = [];
+    let weekStart = "";
+    let acc = { focusH: 0, sessions: 0, interrupted: 0 };
+    for (const s of sorted) {
+      const d = new Date(s.date);
+      const dow = (d.getDay() + 6) % 7;
+      const monday = new Date(d);
+      monday.setDate(d.getDate() - dow);
+      const key = `${monday.getMonth() + 1}/${monday.getDate()}`;
+      if (key !== weekStart) {
+        if (weekStart) result.push({ label: weekStart, ...acc });
+        weekStart = key;
+        acc = { focusH: 0, sessions: 0, interrupted: 0 };
+      }
+      acc.focusH += s.total_focus_s / 3600;
+      acc.sessions += s.completed;
+      acc.interrupted += s.interrupted;
+    }
+    if (weekStart) result.push({ label: weekStart, ...acc });
+    return result.slice(-8); // last 8 weeks
+  }, [stats]);
+
+  if (weeks.length < 2) return null;
+  const curr = weeks[weeks.length - 1];
+  const prev = weeks[weeks.length - 2];
+  const delta = (v: number, p: number) => p === 0 ? "" : v >= p ? `↑${Math.round(((v - p) / p) * 100)}%` : `↓${Math.round(((p - v) / p) * 100)}%`;
+  const maxH = Math.max(...weeks.map(w => w.focusH), 1);
+
+  return (
+    <div className="glass p-3 rounded-lg">
+      <div className="text-xs text-white/40 mb-2">Weekly Trends</div>
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        <div className="text-center">
+          <div className="text-sm font-bold text-white/80">{curr.focusH.toFixed(1)}h</div>
+          <div className="text-[10px] text-white/30">Focus {delta(curr.focusH, prev.focusH)}</div>
+        </div>
+        <div className="text-center">
+          <div className="text-sm font-bold text-white/80">{curr.sessions}</div>
+          <div className="text-[10px] text-white/30">Sessions {delta(curr.sessions, prev.sessions)}</div>
+        </div>
+        <div className="text-center">
+          <div className="text-sm font-bold text-white/80">{curr.sessions > 0 ? Math.round((1 - curr.interrupted / (curr.sessions + curr.interrupted)) * 100) : 0}%</div>
+          <div className="text-[10px] text-white/30">Completion rate</div>
+        </div>
+      </div>
+      <div className="flex items-end gap-1 h-16">
+        {weeks.map((w, i) => (
+          <div key={w.label} className="flex-1 flex flex-col items-center gap-0.5">
+            <div className="w-full bg-[var(--color-accent)]/30 rounded-t transition-all"
+              style={{ height: `${(w.focusH / maxH) * 100}%`, minHeight: w.focusH > 0 ? 2 : 0 }}
+              title={`${w.label}: ${w.focusH.toFixed(1)}h, ${w.sessions} sessions`} />
+            <span className={`text-[8px] ${i === weeks.length - 1 ? "text-[var(--color-accent)]" : "text-white/20"}`}>{w.label}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

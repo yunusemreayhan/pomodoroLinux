@@ -9,6 +9,8 @@ const tr: Locale = {
   history: "Geçmiş",
   sprints: "Sprintler",
   rooms: "Odalar",
+  kanban: "Kanban",
+  calendar: "Takvim",
   skipToContent: "İçeriğe geç",
   api: "API",
   keyboardShortcuts: "Klavye Kısayolları",
