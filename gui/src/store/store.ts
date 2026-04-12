@@ -183,21 +183,12 @@ export const useStore = create<Store>((set, get) => ({
   },
 
   restoreAuth: async () => {
+    // Restore server URL only — user must explicitly login.
+    // Saved servers are shown as quick-switch buttons on the login screen.
     const url = localStorage.getItem("serverUrl");
     if (url) {
       set({ serverUrl: url });
       invoke("set_connection", { baseUrl: url });
-    }
-    // Try Tauri secure store first, fall back to localStorage
-    let saved: string | null = null;
-    try { saved = await invoke<string>("load_auth"); } catch {}
-    if (!saved) saved = localStorage.getItem("auth");
-    if (saved) {
-      try {
-        const auth = JSON.parse(saved) as AuthResponse;
-        set({ token: auth.token, username: auth.username, role: auth.role });
-        setToken(auth.token);
-      } catch { /* ignore */ }
     }
   },
 
