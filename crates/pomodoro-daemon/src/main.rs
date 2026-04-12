@@ -227,6 +227,25 @@ async fn main() -> Result<()> {
         }
     });
 
+    // O3: Orphaned attachment cleanup (daily)
+    let pool_cleanup = engine.pool.clone();
+    let mut shutdown_rx_cleanup = shutdown_tx.subscribe();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(86400));
+        interval.tick().await; // Skip immediate first tick
+        loop {
+            tokio::select! {
+                _ = interval.tick() => {},
+                _ = shutdown_rx_cleanup.changed() => break,
+            }
+            match db::cleanup_orphaned_attachments(&pool_cleanup).await {
+                Ok(n) if n > 0 => tracing::info!("Cleaned up {} orphaned attachment files", n),
+                Err(e) => tracing::error!("Attachment cleanup error: {}", e),
+                _ => {}
+            }
+        }
+    });
+
     // Due date reminders (every 30 minutes)
     let engine_due = engine.clone();
     let mut shutdown_rx4 = shutdown_tx.subscribe();

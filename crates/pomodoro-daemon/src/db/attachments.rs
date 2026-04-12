@@ -42,3 +42,20 @@ pub fn attachments_dir() -> std::path::PathBuf {
     std::fs::create_dir_all(&dir).ok();
     dir
 }
+
+/// O3: Clean up orphaned attachment files (files on disk without DB records)
+pub async fn cleanup_orphaned_attachments(pool: &Pool) -> Result<u64> {
+    let dir = attachments_dir();
+    let db_keys: Vec<(String,)> = sqlx::query_as("SELECT storage_key FROM task_attachments").fetch_all(pool).await?;
+    let db_set: std::collections::HashSet<String> = db_keys.into_iter().map(|(k,)| k).collect();
+    let mut removed = 0u64;
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !db_set.contains(&name) {
+                if std::fs::remove_file(entry.path()).is_ok() { removed += 1; }
+            }
+        }
+    }
+    Ok(removed)
+}
