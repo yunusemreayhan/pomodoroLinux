@@ -379,6 +379,13 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
                     avg: {vh.average.toFixed(1)}
                   </span>
                   {vh.consensus && <span className="text-xs text-[var(--color-success)]">✓ consensus</span>}
+                  {/* BL20: Highlight high variance */}
+                  {!vh.consensus && vh.votes.length >= 2 && (() => {
+                    const vals = vh.votes.map(v => v.value).filter((v): v is number => v != null);
+                    if (vals.length < 2) return null;
+                    const spread = Math.max(...vals) - Math.min(...vals);
+                    return spread > vh.average * 0.5 ? <span className="text-xs text-amber-400">⚠ high variance (spread: {spread})</span> : null;
+                  })()}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {vh.votes.map(v => (

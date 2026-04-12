@@ -234,9 +234,22 @@ function SprintView({ id, onBack }: { id: number; onBack: () => void }) {
 
       {s.start_date && <div className="text-xs text-white/30">{s.start_date} → {s.end_date || "?"}</div>}
 
-      {/* Retro notes */}
+      {/* BL4: Goal met checkbox + Retro notes */}
       {(s.status === "completed" || s.retro_notes) && (
         <div className="space-y-1">
+          {s.status === "completed" && s.goal && (
+            <label className="flex items-center gap-2 text-xs text-white/50 cursor-pointer">
+              <input type="checkbox" defaultChecked={s.retro_notes?.includes("[GOAL MET]") ?? false}
+                onChange={e => {
+                  const marker = "[GOAL MET]";
+                  const notes = s.retro_notes || "";
+                  const updated = e.target.checked ? `${marker}\n${notes}` : notes.replace(`${marker}\n`, "").replace(marker, "");
+                  apiCall("PUT", `/api/sprints/${id}`, { retro_notes: updated || null }).then(() => load());
+                }}
+                className="accent-[var(--color-accent)]" />
+              Goal met: {s.goal}
+            </label>
+          )}
           <div className="flex items-center gap-2">
             <div className="text-xs text-white/30">Retro Notes</div>
             {!s.retro_notes && (
@@ -281,7 +294,7 @@ function SprintView({ id, onBack }: { id: number; onBack: () => void }) {
       </div>
 
       {tab === "board" && board && <BoardView board={board} reload={load} />}
-      {tab === "backlog" && <BacklogView sprintId={id} taskIds={taskIds} reload={load} />}
+      {tab === "backlog" && <BacklogView sprintId={id} taskIds={taskIds} reload={load} capacityHours={s.capacity_hours} tasks={detail.tasks} />}
       {tab === "burns" && <BurnsView sprintId={id} sprintName={detail.sprint.name} tasks={detail.tasks} />}
       {tab === "burndown" && <BurndownView stats={detail.stats} />}
       {tab === "summary" && <SummaryView detail={detail} />}

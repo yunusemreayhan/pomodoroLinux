@@ -106,7 +106,7 @@ export function BoardView({ board, reload }: { board: SprintBoard; reload: () =>
   );
 }
 
-export function BacklogView({ sprintId, taskIds, reload }: { sprintId: number; taskIds: Set<number>; reload: () => void }) {
+export function BacklogView({ sprintId, taskIds, reload, capacityHours, tasks: sprintTasks }: { sprintId: number; taskIds: Set<number>; reload: () => void; capacityHours?: number | null; tasks?: Task[] }) {
   const leafOnly = useStore(s => s.config?.leaf_only_mode ?? false);
   const tasks = useStore(s => s.tasks);
   const [rootIds, setRootIds] = useState<number[]>([]);
@@ -185,8 +185,29 @@ export function BacklogView({ sprintId, taskIds, reload }: { sprintId: number; t
         onDrop={e => { e.currentTarget.style.borderColor = "transparent"; const id = Number(e.dataTransfer.getData("text/plain")); if (id && !taskIds.has(id)) addTask(id); }}
         className="border-2 border-transparent rounded-lg transition-colors"
       >
-        <div className="text-xs text-white/50 mb-1 font-medium">Sprint Tasks (click ✕ to remove, or drag from below)</div>
+        <div className="text-xs text-white/50 mb-1 font-medium">
+          Sprint Tasks (click ✕ to remove, or drag from below)
+          {/* BL18: Capacity indicator */}
+          {sprintTasks && sprintTasks.length > 0 && (() => {
+            const totalHrs = sprintTasks.reduce((s, t) => s + t.estimated_hours, 0);
+            const totalPts = sprintTasks.reduce((s, t) => s + t.remaining_points, 0);
+            const overCapacity = capacityHours && totalHrs > capacityHours;
+            return (
+              <span className={`ml-2 ${overCapacity ? "text-red-400" : "text-white/30"}`}>
+                ({totalHrs.toFixed(1)}h{capacityHours ? ` / ${capacityHours}h` : ""} · {totalPts}pt)
+                {overCapacity && " ⚠ over capacity"}
+              </span>
+            );
+          })()}
+        </div>
         <div className="space-y-1 max-h-[50vh] overflow-y-auto">
+          {/* BL19: Unestimated task warning */}
+          {sprintTasks && (() => {
+            const unest = sprintTasks.filter(t => t.estimated_hours === 0 && t.remaining_points === 0 && t.status !== "completed");
+            return unest.length > 0 ? (
+              <div className="text-[10px] text-amber-400/70 mb-1">⚠ {unest.length} task{unest.length > 1 ? "s" : ""} without estimates</div>
+            ) : null;
+          })()}
           {[...taskIds].length === 0 && <div className="text-xs text-white/20 py-4 text-center">📋 No tasks yet — add tasks from the task list</div>}
           <TaskList selectMode onSelect={removeTask} selectedTaskId={null} votedTaskIds={taskIds}
             selectLabel="✕" selectClassName="text-red-400 hover:text-red-300" filterIds={taskIds} />

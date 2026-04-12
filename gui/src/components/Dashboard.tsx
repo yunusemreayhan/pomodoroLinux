@@ -94,6 +94,9 @@ export default function Dashboard() {
 
       {/* BL3: Daily standup view */}
       <StandupView today={today} tasks={tasks} />
+
+      {/* BL9: Team workload view */}
+      <WorkloadView tasks={tasks} sprints={sprints} />
     </div>
   );
 }
@@ -198,6 +201,41 @@ function StandupView({ today, tasks }: { today: string; tasks: import("../store/
           {done.length > 0 && <div className="text-[10px] text-white/40 ml-2">✅ Done: {done.slice(0, 3).join(", ")}{done.length > 3 ? ` +${done.length - 3}` : ""}</div>}
           {wip.length > 0 && <div className="text-[10px] text-white/40 ml-2">🔨 Working: {wip.slice(0, 3).join(", ")}{wip.length > 3 ? ` +${wip.length - 3}` : ""}</div>}
           {blocked.length > 0 && <div className="text-[10px] text-red-400/60 ml-2">🚫 Blocked: {blocked.join(", ")}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// BL9: Team workload — hours/points per user in active sprints
+function WorkloadView({ tasks, sprints }: { tasks: import("../store/api").Task[]; sprints: import("../store/api").Sprint[] }) {
+  const taskSprintsMap = useStore(s => s.taskSprintsMap);
+  const activeSprintIds = useMemo(() => new Set(sprints.filter(s => s.status === "active").map(s => s.id)), [sprints]);
+  const workload = useMemo(() => {
+    if (activeSprintIds.size === 0) return [];
+    const map: Record<string, { hours: number; points: number; tasks: number }> = {};
+    for (const t of tasks) {
+      const inActive = (taskSprintsMap.get(t.id) || []).some(ts => activeSprintIds.has(ts.sprint_id));
+      if (!inActive || t.status === "completed" || t.status === "done") continue;
+      if (!map[t.user]) map[t.user] = { hours: 0, points: 0, tasks: 0 };
+      map[t.user].hours += t.estimated_hours;
+      map[t.user].points += t.remaining_points;
+      map[t.user].tasks++;
+    }
+    return Object.entries(map).sort((a, b) => b[1].hours - a[1].hours);
+  }, [tasks, taskSprintsMap, activeSprintIds]);
+  if (workload.length === 0) return null;
+  const maxHrs = Math.max(...workload.map(([, v]) => v.hours), 1);
+  return (
+    <div className="glass p-3 rounded-lg">
+      <div className="text-xs text-white/40 mb-2">Team Workload (active sprints)</div>
+      {workload.map(([user, { hours, points, tasks: count }]) => (
+        <div key={user} className="flex items-center gap-2 py-0.5">
+          <span className="text-xs text-white/60 w-20 truncate">@{user}</span>
+          <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+            <div className="h-full bg-[var(--color-accent)] rounded-full" style={{ width: `${(hours / maxHrs) * 100}%` }} />
+          </div>
+          <span className="text-[10px] text-white/30 w-24 text-right">{hours.toFixed(1)}h · {points}pt · {count}t</span>
         </div>
       ))}
     </div>
