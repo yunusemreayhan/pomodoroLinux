@@ -79,6 +79,7 @@ pub struct UpdateSprintRequest {
     pub project: Option<Option<String>>,
     #[serde(default, deserialize_with = "deserialize_optional_nullable")]
     pub goal: Option<Option<String>>,
+    /// Rejected with error — use /start or /complete endpoints instead
     pub status: Option<String>,
     #[serde(default, deserialize_with = "deserialize_optional_nullable")]
     pub start_date: Option<Option<String>>,

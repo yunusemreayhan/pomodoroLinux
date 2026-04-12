@@ -59,11 +59,6 @@ pub async fn get_burn_summary(pool: &Pool, sprint_id: i64) -> Result<Vec<BurnSum
     ).bind(sprint_id).fetch_all(pool).await?)
 }
 
-pub async fn list_usernames(pool: &Pool) -> Result<Vec<String>> {
-    let rows: Vec<(String,)> = sqlx::query_as("SELECT username FROM users ORDER BY username").fetch_all(pool).await?;
-    Ok(rows.into_iter().map(|(u,)| u).collect())
-}
-
 pub async fn get_task_burn_users(pool: &Pool, task_id: i64) -> Result<Vec<String>> {
     let rows: Vec<(String,)> = sqlx::query_as("SELECT DISTINCT u.username FROM burn_log b JOIN users u ON b.user_id = u.id WHERE b.task_id = ? AND b.cancelled = 0")
         .bind(task_id).fetch_all(pool).await?;

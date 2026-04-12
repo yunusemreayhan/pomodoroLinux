@@ -81,4 +81,9 @@ pub async fn update_username(pool: &Pool, id: i64, username: &str) -> Result<()>
     Ok(())
 }
 
+pub async fn list_usernames(pool: &Pool) -> Result<Vec<String>> {
+    let rows: Vec<(String,)> = sqlx::query_as("SELECT username FROM users ORDER BY username").fetch_all(pool).await?;
+    Ok(rows.into_iter().map(|(u,)| u).collect())
+}
+
 // --- Task CRUD ---
