@@ -40,10 +40,12 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
 
   // Reset card selection when task changes
   // F6: Restore selected card from vote state (value visible after reveal, otherwise keep local)
+  const myVoteValue = state?.votes?.find(v => v.username === username)?.value;
+  const currentTaskId = state?.room.current_task_id;
   useEffect(() => {
-    if (myVote?.value != null) setSelectedCard(myVote.value);
+    if (myVoteValue != null) setSelectedCard(myVoteValue);
     else setSelectedCard(null);
-  }, [state?.room.current_task_id, state?.votes]);
+  }, [currentTaskId, myVoteValue]);
 
   // F9: Discussion timer — tracks time spent on current task
   // BL17: Configurable discussion time limit (default 2 min)

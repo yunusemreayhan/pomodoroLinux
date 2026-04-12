@@ -17,6 +17,9 @@ export function BoardView({ board, reload, wipLimit: wipLimitProp }: { board: Sp
   // BL7: Detect blocked tasks (unresolved dependencies)
   const [blockedBy, setBlockedBy] = useState<Record<number, string[]>>({});
   useEffect(() => {
+    // P2: Only fetch dependencies if there are non-done tasks that could be blocked
+    const nonDone = [...board.todo, ...board.in_progress, ...board.blocked];
+    if (nonDone.length === 0) { setBlockedBy({}); return; }
     apiCall<{ task_id: number; depends_on: number }[]>("GET", "/api/dependencies").then(deps => {
       if (!deps) return;
       const allTasks = [...board.todo, ...board.in_progress, ...board.blocked, ...board.done];
