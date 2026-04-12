@@ -148,7 +148,7 @@ fn auth_key() -> Vec<u8> {
     let mut h = Sha256::new();
     h.update(&salt);
     h.update(b":");
-    h.update(whoami::hostname().as_bytes());
+    h.update(whoami::fallible::hostname().unwrap_or_else(|_| "unknown".to_string()).as_bytes());
     h.update(b":");
     h.update(whoami::username().as_bytes());
     h.update(b":pomodoro-gui-auth-v2");

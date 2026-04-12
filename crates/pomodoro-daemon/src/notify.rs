@@ -43,13 +43,18 @@ pub fn notify_due_task(title: &str, urgency: &str) {
     let summary = format!("📅 Task {}", urgency);
     let body = title.to_string();
     tokio::task::spawn_blocking(move || {
-        let _ = notify_rust::Notification::new()
-            .summary(&summary)
-            .body(&body)
-            .icon("appointment-soon")
-            .appname("Pomodoro")
-            .urgency(notify_rust::Urgency::Normal)
-            .timeout(notify_rust::Timeout::Milliseconds(10000))
-            .show();
+        if std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            notify_rust::Notification::new()
+                .summary(&summary)
+                .body(&body)
+                .icon("appointment-soon")
+                .appname("Pomodoro")
+                .urgency(notify_rust::Urgency::Normal)
+                .timeout(notify_rust::Timeout::Milliseconds(10000))
+                .show()
+                .ok();
+        })).is_err() {
+            tracing::debug!("Desktop notification unavailable (no D-Bus?)");
+        }
     });
 }

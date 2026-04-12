@@ -1,26 +1,21 @@
 use super::*;
 
-// V29-14: Shared helper for auto-unblocking dependents
-// V32-11: Batch-fetch to reduce N+1 queries
+// V34-4: Batch-fetch blocked dependents and check all deps in two queries
 async fn auto_unblock_dependents(engine: &AppState, task_id: i64) {
-    if let Ok(dependents) = db::get_dependents(&engine.pool, task_id).await {
-        for dep_id in dependents {
-            if let Ok(dep_task) = db::get_task(&engine.pool, dep_id).await {
-                if dep_task.status == "blocked" {
-                    if let Ok(deps) = db::get_dependencies(&engine.pool, dep_id).await {
-                        // Batch-fetch all dependency statuses in one query
-                        if deps.is_empty() { continue; }
-                        let ph = deps.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-                        let sql = format!("SELECT id FROM tasks WHERE id IN ({}) AND deleted_at IS NULL AND status NOT IN ('completed','done')", ph);
-                        let mut q = sqlx::query_as::<_, (i64,)>(&sql);
-                        for d in &deps { q = q.bind(d); }
-                        let unresolved: Vec<(i64,)> = q.fetch_all(&engine.pool).await.unwrap_or_default();
-                        if unresolved.is_empty() {
-                            db::update_task(&engine.pool, dep_id, None, None, None, None, None, None, None, None, None, Some("backlog"), None, None, None, None, None).await.ok();
-                        }
-                    }
-                }
-            }
+    // 1. Get all blocked dependents in one query
+    let blocked: Vec<(i64,)> = sqlx::query_as(
+        "SELECT td.task_id FROM task_dependencies td JOIN tasks t ON t.id = td.task_id \
+         WHERE td.depends_on = ? AND t.status = 'blocked' AND t.deleted_at IS NULL")
+        .bind(task_id).fetch_all(&engine.pool).await.unwrap_or_default();
+    if blocked.is_empty() { return; }
+    // 2. For each blocked dependent, check if ALL its deps are resolved
+    for (dep_id,) in blocked {
+        let unresolved: Vec<(i64,)> = sqlx::query_as(
+            "SELECT td.depends_on FROM task_dependencies td JOIN tasks t ON t.id = td.depends_on \
+             WHERE td.task_id = ? AND t.deleted_at IS NULL AND t.status NOT IN ('completed','done')")
+            .bind(dep_id).fetch_all(&engine.pool).await.unwrap_or_default();
+        if unresolved.is_empty() {
+            db::update_task(&engine.pool, dep_id, None, None, None, None, None, None, None, None, None, Some("backlog"), None, None, None, None, None).await.ok();
         }
     }
 }

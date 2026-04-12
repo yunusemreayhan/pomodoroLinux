@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 // Inline rate limiter (no external module dependency)
 // Sliding window counter rate limiter with non-blocking mutex
+#[doc(hidden)] // Public for integration tests only
 pub struct RateLimiter {
     pub(crate) buckets: parking_lot::Mutex<std::collections::HashMap<String, (u32, u32, u64)>>, // (prev_count, curr_count, curr_window_start)
     pub(crate) max_requests: u32,

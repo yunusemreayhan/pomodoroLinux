@@ -114,6 +114,7 @@ pub async fn create_sse_ticket(claims: Claims) -> ApiResult<serde_json::Value> {
         if got {
             buf.iter().map(|b| format!("{:02x}", b)).collect::<String>()
         } else {
+            tracing::warn!("SECURITY: Using hash-based SSE ticket — /dev/urandom unavailable");
             use sha2::{Sha256, Digest};
             static CTR: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
             let seed = format!("sse{}{}{}",

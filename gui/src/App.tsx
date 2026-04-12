@@ -43,7 +43,7 @@ function Sidebar() {
     if (config?.theme && config.theme !== theme) {
       setThemeLocal(config.theme);
     }
-  }, [config?.theme]);
+  }, [config?.theme, theme]);
 
   const setTheme = (th: string) => {
     setThemeLocal(th);

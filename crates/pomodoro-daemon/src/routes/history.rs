@@ -110,11 +110,17 @@ pub async fn focus_score(State(engine): State<AppState>, claims: Claims) -> ApiR
     let mut streak = 0i64;
     let active_dates: std::collections::HashSet<&str> = stats.iter().filter(|s| s.completed > 0).map(|s| s.date.as_str()).collect();
     let today = chrono::Utc::now().naive_utc().date();
+    // V34-14: Start from today; if today has sessions count it, otherwise start from yesterday
     let mut check_date = today;
     loop {
         let ds = check_date.format("%Y-%m-%d").to_string();
-        if active_dates.contains(ds.as_str()) { streak += 1; } else if check_date < today { break; } // allow today to be missing (day not over)
-        else { break; }
+        if active_dates.contains(ds.as_str()) {
+            streak += 1;
+        } else if check_date == today {
+            // Today not over yet — skip and check yesterday
+        } else {
+            break;
+        }
         check_date -= chrono::Duration::days(1);
     }
     let streak_score = ((streak as f64 / 14.0).min(1.0) * 20.0).round(); // 14-day streak = max
@@ -167,7 +173,13 @@ pub async fn check_achievements(State(engine): State<AppState>, claims: Claims) 
     let mut check_date = today;
     loop {
         let ds = check_date.format("%Y-%m-%d").to_string();
-        if active_dates.contains(ds.as_str()) { streak += 1; } else if check_date < today { break; } else { break; }
+        if active_dates.contains(ds.as_str()) {
+            streak += 1;
+        } else if check_date == today {
+            // Today not over yet — skip
+        } else {
+            break;
+        }
         check_date -= chrono::Duration::days(1);
     }
     if streak >= 7 { try_unlock(&engine.pool, claims.user_id, "streak_7", &now, &mut newly_unlocked).await; }

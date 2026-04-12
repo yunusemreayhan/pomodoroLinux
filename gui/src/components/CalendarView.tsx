@@ -9,7 +9,7 @@ export default function CalendarView() {
   const tasks = useStore(s => s.tasks);
   const stats = useStore(s => s.stats);
   const loadStats = useStore(s => s.loadStats);
-  useEffect(() => { loadStats(); }, []);
+  useEffect(() => { loadStats(); }, [loadStats]);
   const [offset, setOffset] = useState(0); // months from current
   const [selected, setSelected] = useState<string | null>(null);
 

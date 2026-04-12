@@ -82,7 +82,7 @@ export default function KanbanBoard() {
                   <span className="text-xs font-medium text-white/70">{col.label}</span>
                   <span className="text-[10px] text-white/30 ml-auto">{colTasks.length}</span>
                 </div>
-                <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+                <div className="flex-1 overflow-y-auto p-2 space-y-1.5" role="list">
                   {colTasks.length === 0 && <div className="text-[10px] text-white/15 text-center py-4">Drop tasks here</div>}
                   {groupBy === "none"
                     ? colTasks.map(t => <KanbanCard key={t.id} task={t} onDragStart={onDragStart} />)
