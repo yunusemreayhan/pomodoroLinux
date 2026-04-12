@@ -182,6 +182,11 @@ export default function TaskContextMenu(p: CtxMenuProps) {
             <div className="border-t border-white/5 my-1" />
             <button onClick={() => { p.setEditingTitle(true); p.setTitleDraft(t.title); close(); }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">✏️ Rename</button>
             <button onClick={() => { p.setEditingDesc(true); p.setDescDraft(t.description || ""); close(); }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">📝 Edit description</button>
+            <button onClick={async () => {
+              const data = { title: t.title, priority: t.priority, estimated: t.estimated, estimated_hours: t.estimated_hours, remaining_points: t.remaining_points, project: t.project, description: t.description };
+              await apiCall("POST", "/api/templates", { name: t.title, data: JSON.stringify(data) });
+              useStore.getState().toast("Saved as template"); close();
+            }} className="w-full text-left px-3 py-1.5 text-white/60 hover:bg-white/5 flex items-center gap-2">📋 Save as template</button>
             <button onClick={() => { p.handleDelete(); close(); }} className="w-full text-left px-3 py-1.5 text-red-400/70 hover:bg-red-500/10 flex items-center gap-2">🗑 Delete</button>
           </>
         )}

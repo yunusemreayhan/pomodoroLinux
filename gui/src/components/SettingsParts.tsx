@@ -184,3 +184,40 @@ export function TrashView() {
     </div>
   );
 }
+
+// F12: Notification preferences per event type
+interface NotifPref { event_type: string; enabled: boolean }
+const EVENT_LABELS: Record<string, string> = {
+  task_assigned: "Task assigned to me",
+  task_completed: "Task completed",
+  comment_added: "New comment",
+  sprint_started: "Sprint started",
+  sprint_completed: "Sprint completed",
+  time_logged: "Time logged on my task",
+};
+
+export function NotificationPrefs() {
+  const [prefs, setPrefs] = useState<NotifPref[]>([]);
+  useEffect(() => { apiCall<NotifPref[]>("GET", "/api/profile/notifications").then(p => p && setPrefs(p)).catch(() => {}); }, []);
+
+  const toggle = async (eventType: string) => {
+    const updated = prefs.map(p => p.event_type === eventType ? { ...p, enabled: !p.enabled } : p);
+    setPrefs(updated);
+    await apiCall("PUT", "/api/profile/notifications", updated);
+  };
+
+  if (prefs.length === 0) return null;
+  return (
+    <div className="mt-4">
+      <h3 className="text-sm font-medium text-[var(--color-text)] mb-2">Notification Preferences</h3>
+      <div className="space-y-1">
+        {prefs.map(p => (
+          <label key={p.event_type} className="flex items-center gap-2 text-xs text-[var(--color-dim)] cursor-pointer">
+            <input type="checkbox" checked={p.enabled} onChange={() => toggle(p.event_type)} className="accent-[var(--color-accent)]" />
+            {EVENT_LABELS[p.event_type] || p.event_type}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Eye, Check, Crown, X, Edit3 } from "lucide-react";
 import { apiCall } from "../store/api";
 import { useStore } from "../store/store";
-import { useSseDebounce } from "../hooks/useSseDebounce";
+import { useRoomWebSocket } from "../hooks/useRoomWebSocket";
 import type { RoomState } from "../store/api";
 import TaskList from "./TaskList";
 
@@ -30,9 +30,9 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
     apiCall<RoomState>("GET", `/api/rooms/${roomId}`).then(setState).catch(() => {});
   }, [roomId]);
 
-  // Reload on SSE push (debounced)
+  // F5: Use WebSocket for real-time room state (auto-reconnect)
   useEffect(() => { load(); }, [load]);
-  useSseDebounce("sse-rooms", load, 300);
+  useRoomWebSocket(roomId, setState);
 
   // Reset card selection when task changes
   // F6: Restore selected card from vote state (value visible after reveal, otherwise keep local)

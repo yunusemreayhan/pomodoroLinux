@@ -71,6 +71,7 @@ pub fn build_router(engine: Arc<engine::Engine>) -> Router {
         .route("/api/stats", get(routes::get_stats))
         .route("/api/config", get(routes::get_config).put(routes::update_config))
         .route("/api/profile", put(routes::update_profile))
+        .route("/api/profile/notifications", get(routes::get_notif_prefs).put(routes::update_notif_prefs))
         .route("/api/admin/users", get(routes::list_users))
         .route("/api/admin/users/{id}/role", put(routes::update_user_role))
         .route("/api/admin/users/{id}", delete(routes::delete_user))

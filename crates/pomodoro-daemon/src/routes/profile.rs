@@ -31,3 +31,28 @@ pub async fn update_profile(State(engine): State<AppState>, claims: Claims, Json
 }
 
 // --- Admin ---
+
+// F12: Notification preferences per event type
+const EVENT_TYPES: &[&str] = &["task_assigned", "task_completed", "comment_added", "sprint_started", "sprint_completed", "time_logged"];
+
+#[derive(Serialize, Deserialize, utoipa::ToSchema)]
+pub struct NotifPref { pub event_type: String, pub enabled: bool }
+
+#[utoipa::path(get, path = "/api/profile/notifications", responses((status = 200)), security(("bearer" = [])))]
+pub async fn get_notif_prefs(State(engine): State<AppState>, claims: Claims) -> ApiResult<Vec<NotifPref>> {
+    let rows: Vec<(String, bool)> = sqlx::query_as("SELECT event_type, enabled FROM notification_prefs WHERE user_id = ?")
+        .bind(claims.user_id).fetch_all(&engine.pool).await.map_err(internal)?;
+    let map: std::collections::HashMap<String, bool> = rows.into_iter().collect();
+    let prefs = EVENT_TYPES.iter().map(|e| NotifPref { event_type: e.to_string(), enabled: *map.get(*e).unwrap_or(&true) }).collect();
+    Ok(Json(prefs))
+}
+
+#[utoipa::path(put, path = "/api/profile/notifications", responses((status = 200)), security(("bearer" = [])))]
+pub async fn update_notif_prefs(State(engine): State<AppState>, claims: Claims, Json(prefs): Json<Vec<NotifPref>>) -> Result<StatusCode, ApiError> {
+    for p in &prefs {
+        if !EVENT_TYPES.contains(&p.event_type.as_str()) { return Err(err(StatusCode::BAD_REQUEST, &format!("Unknown event type: {}", p.event_type))); }
+        sqlx::query("INSERT INTO notification_prefs (user_id, event_type, enabled) VALUES (?, ?, ?) ON CONFLICT(user_id, event_type) DO UPDATE SET enabled = excluded.enabled")
+            .bind(claims.user_id).bind(&p.event_type).bind(p.enabled).execute(&engine.pool).await.map_err(internal)?;
+    }
+    Ok(StatusCode::OK)
+}

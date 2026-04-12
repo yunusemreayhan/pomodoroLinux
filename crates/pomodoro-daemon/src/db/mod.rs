@@ -340,6 +340,16 @@ async fn migrate(pool: &Pool) -> Result<()> {
         sqlx::query("ALTER TABLE tasks ADD COLUMN deleted_at TEXT").execute(pool).await.ok();
         sqlx::query("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (2, ?)").bind(&now_str()).execute(pool).await.ok();
     }
+    // Migration 3: Notification preferences per event type
+    if !applied_set.contains(&3) {
+        sqlx::query("CREATE TABLE IF NOT EXISTS notification_prefs (
+            user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            event_type TEXT NOT NULL,
+            enabled    INTEGER NOT NULL DEFAULT 1,
+            PRIMARY KEY (user_id, event_type)
+        )").execute(pool).await.ok();
+        sqlx::query("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (3, ?)").bind(&now_str()).execute(pool).await.ok();
+    }
 
     sqlx::query("CREATE TABLE IF NOT EXISTS task_attachments (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
