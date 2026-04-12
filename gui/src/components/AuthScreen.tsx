@@ -19,6 +19,8 @@ export default function AuthScreen() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) return;
+    // UX7: Client-side password length validation for registration
+    if (isRegister && password.length < 6) { setError("Password must be at least 6 characters"); return; }
     setLoading(true);
     setError("");
     try {

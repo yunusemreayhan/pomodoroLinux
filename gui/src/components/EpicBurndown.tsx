@@ -53,9 +53,11 @@ export default function EpicBurndown() {
   };
 
   const del = async (id: number) => {
-    await apiCall("DELETE", `/api/epics/${id}`);
-    if (selected === id) { setSelected(null); setDetail(null); }
-    loadGroups();
+    useStore.getState().showConfirm("Delete this epic group?", async () => {
+      await apiCall("DELETE", `/api/epics/${id}`);
+      if (selected === id) { setSelected(null); setDetail(null); }
+      loadGroups();
+    });
   };
 
   if (!open) return (
@@ -86,7 +88,7 @@ export default function EpicBurndown() {
           <button key={g.id} onClick={() => setSelected(g.id)}
             className={`px-2 py-0.5 rounded text-xs transition-colors ${selected === g.id ? "bg-[var(--color-accent)] text-white" : "bg-white/5 text-white/50 hover:text-white/70"}`}>
             {g.name}
-            <span onClick={e => { e.stopPropagation(); del(g.id); }} className="ml-1 text-white/20 hover:text-red-400">×</span>
+            <button onClick={e => { e.stopPropagation(); del(g.id); }} className="ml-1 text-white/20 hover:text-red-400" aria-label={`Delete ${g.name}`}>×</button>
           </button>
         ))}
       </div>

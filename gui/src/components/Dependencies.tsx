@@ -23,6 +23,7 @@ export function TaskDependencies({ taskId, allTasks }: { taskId: number; allTask
   };
 
   const available = allTasks.filter(t => t.id !== taskId && !deps.includes(t.id));
+  const [depSearch, setDepSearch] = useState("");
 
   return (
     <div className="space-y-1">
@@ -40,12 +41,16 @@ export function TaskDependencies({ taskId, allTasks }: { taskId: number; allTask
         {deps.length === 0 && <span className="text-xs text-[var(--color-dim)]">{t.none}</span>}
       </div>
       {available.length > 0 && (
-        <select onChange={e => { if (e.target.value) add(Number(e.target.value)); e.target.value = ""; }}
-          className="text-xs px-2 py-1 rounded bg-[var(--color-surface)] border border-white/10 text-[var(--color-text)]"
-          defaultValue="" aria-label="Add dependency">
-          <option value="" disabled>{t.addDependency}</option>
-          {available.slice(0, 20).map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
-        </select>
+        <div className="flex gap-1 items-center">
+          <input value={depSearch} onChange={e => setDepSearch(e.target.value)} placeholder="Search tasks..."
+            className="text-xs px-2 py-1 rounded bg-[var(--color-surface)] border border-white/10 text-[var(--color-text)] outline-none w-24 placeholder-white/20" />
+          <select onChange={e => { if (e.target.value) { add(Number(e.target.value)); setDepSearch(""); } e.target.value = ""; }}
+            className="text-xs px-2 py-1 rounded bg-[var(--color-surface)] border border-white/10 text-[var(--color-text)]"
+            defaultValue="" aria-label="Add dependency">
+            <option value="" disabled>{t.addDependency}</option>
+            {available.filter(t => !depSearch || t.title.toLowerCase().includes(depSearch.toLowerCase())).slice(0, 30).map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+          </select>
+        </div>
       )}
     </div>
   );

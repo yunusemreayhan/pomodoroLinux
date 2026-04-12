@@ -26,7 +26,7 @@ export default function TeamManager() {
   const removeMember = async (userId: number) => { if (!selected) return; await apiCall("DELETE", `/api/teams/${selected.team.id}/members/${userId}`); loadDetail(selected.team.id); };
   const addRoot = async (taskId: number) => { if (!selected) return; await apiCall("POST", `/api/teams/${selected.team.id}/roots`, { task_ids: [taskId] }); loadDetail(selected.team.id); };
   const removeRoot = async (taskId: number) => { if (!selected) return; await apiCall("DELETE", `/api/teams/${selected.team.id}/roots/${taskId}`); loadDetail(selected.team.id); };
-  const del = async (id: number) => { await apiCall("DELETE", `/api/teams/${id}`); if (selected?.team.id === id) setSelected(null); load(); };
+  const del = async (id: number) => { useStore.getState().showConfirm("Delete this team?", async () => { await apiCall("DELETE", `/api/teams/${id}`); if (selected?.team.id === id) setSelected(null); load(); }); };
 
   return (
     <div className="glass p-6 rounded-2xl space-y-4">

@@ -26,9 +26,11 @@ export function LabelManager() {
   };
 
   const remove = async (id: number) => {
-    await apiCall("DELETE", `/api/labels/${id}`);
-    load();
-    useStore.getState().toast("Label deleted");
+    useStore.getState().showConfirm("Delete this label?", async () => {
+      await apiCall("DELETE", `/api/labels/${id}`);
+      load();
+      useStore.getState().toast("Label deleted");
+    });
   };
 
   return (
@@ -38,7 +40,7 @@ export function LabelManager() {
         <input value={name} onChange={e => setName(e.target.value)} placeholder={t.labelName}
           className="flex-1 px-2 py-1 rounded bg-[var(--color-surface)] border border-white/10 text-sm text-[var(--color-text)]"
           onKeyDown={e => e.key === "Enter" && create()} />
-        <input type="color" value={color} onChange={e => setColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer" />
+        <input type="color" value={color} onChange={e => setColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer" aria-label="Label color" />
         <button onClick={create} className="px-3 py-1 rounded text-xs bg-[var(--color-accent)] text-white">{t.addLabel}</button>
       </div>
       <div className="flex flex-wrap gap-2">

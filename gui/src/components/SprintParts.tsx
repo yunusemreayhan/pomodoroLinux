@@ -44,7 +44,7 @@ export function BoardView({ board, reload, wipLimit: wipLimitProp }: { board: Sp
       </div>
       <div className="space-y-1.5 min-h-[40px] rounded p-1 transition-colors">
         {tasks.map(t => (
-          <div key={t.id} draggable tabIndex={0}
+          <div key={t.id} draggable tabIndex={0} role="listitem"
             onKeyDown={e => {
               const statusOrder = ["backlog", "in_progress", "blocked", "completed"];
               const curIdx = statusOrder.indexOf(status);

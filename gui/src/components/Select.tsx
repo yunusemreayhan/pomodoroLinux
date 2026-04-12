@@ -83,13 +83,14 @@ export default function Select({ value, options, onChange, className = "", place
         <ChevronDown size={14} className="text-[var(--color-text)] opacity-40 transition-transform" style={open ? {transform:"rotate(180deg)"} : {}} />
       </button>
       {open && (
-        <div className="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-lg border border-white/10 bg-[var(--color-surface)] shadow-xl" role="listbox">
+        <div className="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-lg border border-white/10 bg-[var(--color-surface)] shadow-xl" role="listbox" aria-activedescendant={filtered[focused] ? `opt-${filtered[focused].value}` : undefined}>
           {options.length > 5 && (
             <input ref={filterRef} value={filter} onChange={e => { setFilter(e.target.value); setFocused(0); }}
               placeholder="Search..." className="w-full px-3 py-1.5 text-xs bg-transparent border-b border-white/10 text-[var(--color-text)] outline-none placeholder-white/30" />
           )}
           {filtered.map((o, i) => (
             <button key={o.value} type="button" disabled={o.disabled}
+              id={`opt-${o.value}`}
               role="option" aria-selected={o.value === value}
               onClick={() => { if (!o.disabled) { onChange(o.value); setOpen(false); } }}
               onMouseEnter={() => setFocused(i)}

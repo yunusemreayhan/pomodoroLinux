@@ -127,8 +127,11 @@ export default function TaskList({ selectMode, onSelect, selectedTaskId, votedTa
             const lines = text.split("\n").map(l => l.replace(/^[-*•]\s*/, "").replace(/^- \[[ x]\] /, "").trim()).filter(Boolean);
             if (lines.length > 1) {
               e.preventDefault();
-              lines.forEach(l => createTask(l));
-              useStore.getState().toast(`Created ${lines.length} tasks from clipboard`);
+              // UX8: Limit bulk paste to 50 tasks
+              const limited = lines.slice(0, 50);
+              limited.forEach(l => createTask(l));
+              const msg = lines.length > 50 ? `Created 50 tasks (${lines.length - 50} skipped, max 50)` : `Created ${limited.length} tasks from clipboard`;
+              useStore.getState().toast(msg);
             }
           }}
           placeholder="New project or top-level task..."

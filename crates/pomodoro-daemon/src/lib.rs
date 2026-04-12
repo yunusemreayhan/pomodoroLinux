@@ -183,6 +183,8 @@ async fn security_headers(req: axum::extract::Request, next: axum::middleware::N
     h.insert("x-content-type-options", "nosniff".parse().unwrap());
     h.insert("x-frame-options", "DENY".parse().unwrap());
     h.insert("referrer-policy", "strict-origin-when-cross-origin".parse().unwrap());
+    // INF3: Content-Security-Policy
+    h.insert("content-security-policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss:".parse().unwrap());
     resp
 }
 

@@ -142,7 +142,7 @@ pub async fn accept_estimate(State(engine): State<AppState>, claims: Claims, Pat
     let next = all_tasks.iter()
         .filter(|t| t.id != task_id && t.status != "estimated" && !voted_task_ids.contains(&t.id))
         .filter(|t| !has_children.contains(&t.id)) // leaf only
-        .next();
+        .min_by_key(|t| (t.sort_order, t.id)); // BL8: deterministic ordering
     if let Some(next_task) = next { db::start_voting(&engine.pool, id, next_task.id).await.map_err(internal)?; }
     else { db::set_room_status(&engine.pool, id, "lobby").await.map_err(internal)?; }
     engine.notify(ChangeEvent::Rooms);
