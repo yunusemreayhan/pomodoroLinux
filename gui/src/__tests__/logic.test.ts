@@ -201,7 +201,8 @@ describe("matchSearch", () => {
   });
 
   it("matches with regex using /pattern/ syntax", () => {
-    expect(matchSearch("backend-api", "/back.*api/")).toBe(true);
+    // S7: Regex disabled — /pattern/ treated as plain substring
+    expect(matchSearch("backend-api", "/back.*api/")).toBe(false);
   });
 
   it("returns false for no match", () => {

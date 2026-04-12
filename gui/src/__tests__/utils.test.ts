@@ -12,9 +12,10 @@ describe("matchSearch", () => {
   });
 
   it("matches with regex patterns using /pattern/ syntax", () => {
-    expect(matchSearch("backend-api-v2", "/api.*v2/")).toBe(true);
-    expect(matchSearch("task-123", "/\\d+/")).toBe(true);
-    expect(matchSearch("foo bar", "/^foo/")).toBe(true);
+    // S7: Regex disabled — /pattern/ treated as plain substring
+    expect(matchSearch("backend-api-v2", "/api.*v2/")).toBe(false);
+    expect(matchSearch("task-123", "/\\d+/")).toBe(false);
+    expect(matchSearch("foo bar", "/^foo/")).toBe(false);
   });
 
   it("returns false for no match", () => {
@@ -33,8 +34,8 @@ describe("matchSearch", () => {
   it("handles special characters in text", () => {
     expect(matchSearch("C++ programming", "c++")).toBe(true);
     expect(matchSearch("file.txt", "file.txt")).toBe(true);
-    // Regex syntax for precise matching
-    expect(matchSearch("C++ programming", "/c\\+\\+/")).toBe(true);
+    // S7: Regex disabled — /pattern/ treated as plain substring
+    expect(matchSearch("C++ programming", "/c\\+\\+/")).toBe(false);
   });
 
   it("matches partial strings", () => {

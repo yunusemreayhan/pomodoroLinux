@@ -6,6 +6,7 @@ use std::sync::Arc;
 use tower::ServiceExt;
 
 async fn app() -> axum::Router {
+    std::env::set_var("POMODORO_ROOT_PASSWORD", "root");
     let pool = pomodoro_daemon::db::connect_memory().await.unwrap();
     let config = pomodoro_daemon::config::Config::default();
     let engine = Arc::new(pomodoro_daemon::engine::Engine::new(pool, config).await);
@@ -764,6 +765,8 @@ async fn test_burn_log_and_cancel() {
     let resp = app.clone().oneshot(auth_req("POST", "/api/sprints", &tok, Some(json!({"name":"S"})))).await.unwrap();
     let sid = body_json(resp).await["id"].as_i64().unwrap();
     app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/tasks", sid), &tok, Some(json!({"task_ids":[tid]})))).await.unwrap();
+    // BL7: Sprint must be active to log burns
+    app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/start", sid), &tok, None)).await.unwrap();
 
     // Log a burn
     let resp = app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/burn", sid), &tok,
@@ -818,6 +821,7 @@ async fn test_burn_multi_user_summary() {
     let resp = app.clone().oneshot(auth_req("POST", "/api/sprints", &tok, Some(json!({"name":"S"})))).await.unwrap();
     let sid = body_json(resp).await["id"].as_i64().unwrap();
     app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/tasks", sid), &tok, Some(json!({"task_ids":[tid]})))).await.unwrap();
+    app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/start", sid), &tok, None)).await.unwrap();
 
     // Root burns 3 pts, Bob burns 5 pts
     app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/burn", sid), &tok, Some(json!({"task_id":tid,"points":3.0})))).await.unwrap();
@@ -894,6 +898,7 @@ async fn test_delete_task_cascades_burns_and_sprint_tasks() {
     let resp = app.clone().oneshot(auth_req("POST", "/api/sprints", &tok, Some(json!({"name":"S"})))).await.unwrap();
     let sid = body_json(resp).await["id"].as_i64().unwrap();
     app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/tasks", sid), &tok, Some(json!({"task_ids":[tid]})))).await.unwrap();
+    app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/start", sid), &tok, None)).await.unwrap();
     app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/burn", sid), &tok, Some(json!({"task_id":tid,"points":5.0})))).await.unwrap();
 
     // Delete task (soft delete) — sprint_tasks and burn_log remain since task still exists
@@ -1143,6 +1148,7 @@ async fn test_cancel_burn_ownership() {
     let resp = app.clone().oneshot(auth_req("POST", "/api/sprints", &tok, Some(json!({"name":"S"})))).await.unwrap();
     let sid = body_json(resp).await["id"].as_i64().unwrap();
     app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/tasks", sid), &tok, Some(json!({"task_ids":[tid]})))).await.unwrap();
+    app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/start", sid), &tok, None)).await.unwrap();
 
     // Root logs a burn
     let resp = app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/burn", sid), &tok,
@@ -2241,6 +2247,7 @@ async fn test_cancel_burn_validates_sprint() {
     let resp = app.clone().oneshot(auth_req("POST", "/api/sprints", &tok, Some(json!({"name":"S"})))).await.unwrap();
     let sid = body_json(resp).await["id"].as_i64().unwrap();
     app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/tasks", sid), &tok, Some(json!({"task_ids":[tid]})))).await.unwrap();
+    app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/start", sid), &tok, None)).await.unwrap();
     // Log burn
     let resp = app.clone().oneshot(auth_req("POST", &format!("/api/sprints/{}/burn", sid), &tok,
         Some(json!({"task_id":tid,"points":1.0,"hours":0.5})))).await.unwrap();

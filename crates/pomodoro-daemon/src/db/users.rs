@@ -5,9 +5,11 @@ pub(crate) async fn seed_root_user(pool: &Pool) -> Result<()> {
     let count = user_count(pool).await?;
     if count == 0 {
         let password = std::env::var("POMODORO_ROOT_PASSWORD").unwrap_or_else(|_| {
-            let pw = "root";
-            tracing::warn!("⚠ Default root/root credentials. Set POMODORO_ROOT_PASSWORD env var in production!");
-            pw.to_string()
+            use rand::Rng;
+            let mut rng = rand::rng();
+            let pw: String = (0..16).map(|_| rng.sample(rand::distr::Alphanumeric) as char).collect();
+            tracing::warn!("⚠ Generated root password: {} — set POMODORO_ROOT_PASSWORD to override", pw);
+            pw
         });
         let hash = bcrypt::hash(&password, 12).map_err(|e| anyhow::anyhow!(e))?;
         create_user(pool, "root", &hash, "root").await?;

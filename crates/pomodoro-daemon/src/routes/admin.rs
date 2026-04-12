@@ -49,8 +49,11 @@ pub async fn create_backup(State(engine): State<AppState>, claims: Claims) -> Re
     std::fs::create_dir_all(&backup_dir).map_err(|e| internal(format!("Failed to create backup dir: {}", e)))?;
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
     let backup_path = backup_dir.join(format!("pomodoro_{}.db", timestamp));
-    // B1: Sanitize path to prevent SQL injection — escape single quotes
-    let path_str = backup_path.display().to_string().replace('\'', "''");
+    // S2: Validate path characters to prevent SQL injection via POMODORO_DATA_DIR
+    let path_str = backup_path.display().to_string();
+    if path_str.contains('\'') || path_str.contains(';') || path_str.contains('\0') {
+        return Err(err(StatusCode::BAD_REQUEST, "Invalid characters in backup path"));
+    }
     sqlx::query(&format!("VACUUM INTO '{}'", path_str))
         .execute(&engine.pool).await.map_err(|e| internal(format!("Backup failed: {}", e)))?;
     // S1: Restrict backup file permissions
@@ -110,7 +113,10 @@ pub async fn restore_backup(State(engine): State<AppState>, claims: Claims, Json
     if !backup_path.exists() { return Err(err(StatusCode::NOT_FOUND, "Backup not found")); }
     // Create a safety backup before restoring
     let safety = backup_dir.join(format!("pre_restore_{}.db", chrono::Utc::now().format("%Y%m%d_%H%M%S")));
-    let safety_str = safety.display().to_string().replace('\'', "''");
+    let safety_str = safety.display().to_string();
+    if safety_str.contains('\'') || safety_str.contains(';') || safety_str.contains('\0') {
+        return Err(err(StatusCode::BAD_REQUEST, "Invalid characters in backup path"));
+    }
     sqlx::query(&format!("VACUUM INTO '{}'", safety_str)).execute(&engine.pool).await.map_err(|e| internal(format!("Safety backup failed: {}", e)))?;
     // B8: Checkpoint WAL before overwriting to ensure consistency
     sqlx::query("PRAGMA wal_checkpoint(TRUNCATE)").execute(&engine.pool).await.map_err(|e| internal(format!("WAL checkpoint failed: {}", e)))?;

@@ -47,6 +47,22 @@ interface Attachment {
   created_at: string;
 }
 
+function AuthImage({ id, alt }: { id: number; alt: string }) {
+  const [src, setSrc] = useState<string>();
+  useEffect(() => {
+    const { serverUrl, token } = useStore.getState();
+    let url: string | undefined;
+    fetch(`${serverUrl}/api/attachments/${id}/download`, {
+      headers: { "authorization": `Bearer ${token}`, "x-requested-with": "PomodoroGUI" },
+    }).then(r => r.ok ? r.blob() : null).then(b => {
+      if (b) { url = URL.createObjectURL(b); setSrc(url); }
+    }).catch(() => {});
+    return () => { if (url) URL.revokeObjectURL(url); };
+  }, [id]);
+  if (!src) return null;
+  return <img src={src} alt={alt} className="mt-1 max-h-32 rounded border border-white/10 object-contain" loading="lazy" />;
+}
+
 export function TaskAttachments({ taskId }: { taskId: number }) {
   const [atts, setAtts] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -75,15 +91,16 @@ export function TaskAttachments({ taskId }: { taskId: number }) {
   };
 
   const del = async (id: number) => {
-    if (!confirm("Delete this attachment?")) return;
-    await apiCall("DELETE", `/api/attachments/${id}`);
-    setAtts(a => a.filter(x => x.id !== id));
+    useStore.getState().showConfirm("Delete this attachment?", async () => {
+      await apiCall("DELETE", `/api/attachments/${id}`);
+      setAtts(a => a.filter(x => x.id !== id));
+    });
   };
 
   const download = async (id: number, filename: string) => {
     const { serverUrl, token } = useStore.getState();
     const resp = await fetch(`${serverUrl}/api/attachments/${id}/download`, {
-      headers: { "authorization": `Bearer ${token}` },
+      headers: { "authorization": `Bearer ${token}`, "x-requested-with": "PomodoroGUI" },
     });
     if (resp.ok) {
       const blob = await resp.blob();
@@ -122,9 +139,7 @@ export function TaskAttachments({ taskId }: { taskId: number }) {
           </div>
           {/* F7: Inline preview for images */}
           {a.mime_type.startsWith("image/") && (
-            <img src={`${useStore.getState().serverUrl}/api/attachments/${a.id}/download`}
-              alt={a.filename} className="mt-1 max-h-32 rounded border border-white/10 object-contain"
-              loading="lazy" />
+            <AuthImage id={a.id} alt={a.filename} />
           )}
         </div>
       ))}

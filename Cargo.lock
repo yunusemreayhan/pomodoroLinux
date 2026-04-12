@@ -3619,6 +3619,7 @@ dependencies = [
  "hyper",
  "jsonwebtoken",
  "notify-rust",
+ "rand 0.9.2",
  "reqwest 0.12.28",
  "serde",
  "serde_json",

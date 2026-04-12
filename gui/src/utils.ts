@@ -1,9 +1,6 @@
 export function matchSearch(text: string, query: string): boolean {
   if (!query) return true;
-  // Use regex only with /pattern/ syntax, otherwise plain substring
-  if (query.startsWith("/") && query.endsWith("/") && query.length > 2) {
-    try { return new RegExp(query.slice(1, -1), "i").test(text); } catch { /* fall through */ }
-  }
+  // S7: Plain substring search only — regex disabled to prevent ReDoS
   return text.toLowerCase().includes(query.toLowerCase());
 }
 

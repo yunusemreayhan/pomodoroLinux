@@ -4,24 +4,6 @@ use std::collections::HashMap;
 #[utoipa::path(get, path = "/api/health", responses((status = 200)))]
 pub async fn health(State(engine): State<AppState>) -> Json<serde_json::Value> {
     let db_ok = sqlx::query("SELECT 1").execute(&engine.pool).await.is_ok();
-    // O1: Report schema migration version
-    let migration_version: i64 = sqlx::query_as::<_, (i64,)>("SELECT COALESCE(MAX(version), 0) FROM schema_migrations")
-        .fetch_one(&engine.pool).await.map(|r| r.0).unwrap_or(0);
-    let active_timers = engine.states.lock().await.values().filter(|s| s.status == crate::engine::TimerStatus::Running).count();
-    // O2: Background task health
-    let heartbeats = engine.heartbeats.lock().await;
-    let tasks: serde_json::Map<String, serde_json::Value> = heartbeats.iter().map(|(name, last)| {
-        let secs_ago = last.elapsed().as_secs();
-        // O1: Use 2x expected interval as health threshold
-        let max_age = match name.as_str() {
-            "tick" => 10, "snapshot" => 7200, "auto_archive" => 172800,
-            _ => 600,
-        };
-        (name.clone(), serde_json::json!({ "last_heartbeat_secs_ago": secs_ago, "healthy": secs_ago < max_age }))
-    }).collect();
-    drop(heartbeats);
-    // O2: Database size
-    let db_size = std::fs::metadata(db::db_path()).map(|m| m.len()).unwrap_or(0);
     Json(serde_json::json!({ "status": if db_ok { "ok" } else { "degraded" }, "db": db_ok }))
 }
 

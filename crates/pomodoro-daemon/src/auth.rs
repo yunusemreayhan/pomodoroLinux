@@ -102,7 +102,7 @@ pub fn verify_token(token: &str) -> Result<Claims, jsonwebtoken::errors::Error> 
 
 /// Revoke a token (add to blocklist). Persists to DB.
 pub async fn revoke_token(token: &str) {
-    let hash = format!("{:032x}", token_hash(token.as_bytes()));
+    let hash = token_hash(token.as_bytes());
     blocklist().write().await.insert(hash.clone());
     // Persist to DB
     if let Some(pool) = AUTH_POOL.get() {
@@ -129,14 +129,14 @@ pub async fn revoke_token(token: &str) {
 
 /// Check if a token has been revoked.
 pub async fn is_revoked(token: &str) -> bool {
-    let hash = format!("{:032x}", token_hash(token.as_bytes()));
+    let hash = token_hash(token.as_bytes());
     blocklist().read().await.contains(&hash)
 }
 
-fn token_hash(data: &[u8]) -> u128 {
+fn token_hash(data: &[u8]) -> String {
     use sha2::{Sha256, Digest};
     let hash = Sha256::digest(data);
-    u128::from_be_bytes(hash[..16].try_into().unwrap())
+    hash.iter().map(|b| format!("{:02x}", b)).collect()
 }
 
 impl<S: Send + Sync> FromRequestParts<S> for Claims {
