@@ -326,7 +326,7 @@ Tests use in-memory SQLite — no disk I/O, fully isolated, no port conflicts.
 
 ### E2E GUI Tests
 
-659 end-to-end tests across 31 files drive the real Tauri GUI via WebDriver against an isolated daemon. 100% API endpoint coverage (154/154 endpoints tested).
+1011 end-to-end tests across 44 files drive the real Tauri GUI via WebDriver against an isolated daemon. 100% API endpoint coverage (154/154 endpoints tested).
 
 ```bash
 # Run all E2E tests
@@ -340,14 +340,19 @@ Tests use in-memory SQLite — no disk I/O, fully isolated, no port conflicts.
 ```
 
 **Coverage areas:**
-- GUI flows: login, registration, timer, task detail, sprint board, settings, theme, sidebar navigation
-- API exhaustive: every endpoint, every status transition, every config field
-- Edge cases: unicode/emoji, 10K-char strings, SQL/HTML injection, boundary values
-- Multi-user: permissions, privilege escalation, cross-user scenarios
-- Stress: 500 concurrent task creates, 200 rapid requests
-- Regressions: stale token auth, React 19 input filling, Xvfb display isolation
+- GUI flows: login, registration, timer, task detail, sprint board, settings, theme, sidebar, keyboard shortcuts
+- API exhaustive: every endpoint (154/154), every status transition, every config field, pagination, search
+- Security: JWT tampering, IDOR, privilege escalation, rate limiting, SQL injection, path traversal
+- Edge cases: unicode/emoji, 10K-char strings, HTML injection, boundary values, input validation
+- Data integrity: lifecycle counts, sprint column invariants, dependency chains, import/export round-trips
+- Performance: startup time, API latency, memory usage, concurrent throughput, P99 latency
+- Multi-user: permissions, cross-user collaboration, team workflows, estimation rooms
+- WebSocket: ticket auth, room state push, vote updates
+- Stress: 500 concurrent task creates, 200 rapid requests, concurrent burns/votes
+- Idempotency: double-delete, double-start, double-vote safety
+- Workflow scenarios: 10 realistic end-to-end user stories
 
-**Writing new tests:** See [`e2etests/CHEATSHEET.md`](e2etests/CHEATSHEET.md) for copy-paste patterns and [`e2etests/helpers.py`](e2etests/helpers.py) for the 150+ method test helper library.
+**Writing new tests:** See [`e2etests/CHEATSHEET.md`](e2etests/CHEATSHEET.md) for 12 copy-paste patterns and [`e2etests/helpers.py`](e2etests/helpers.py) for the 150+ method test helper library.
 
 **Prerequisites:**
 - `cargo install tauri-driver` (WebDriver bridge for Tauri)

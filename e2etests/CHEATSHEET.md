@@ -144,6 +144,42 @@ def test_concurrent_creates(self, logged_in):
     assert len(set(ids)) == 5  # all unique
 ```
 
+## 11. Auth matrix (parametrized)
+
+```python
+import pytest
+
+ENDPOINTS = [
+    ("GET", "/api/tasks"),
+    ("POST", "/api/tasks"),
+    ("GET", "/api/sprints"),
+]
+
+@pytest.mark.parametrize("method,path", ENDPOINTS)
+def test_requires_auth(self, logged_in, method, path):
+    from helpers import _api_status
+    code, _ = _api_status(method, path)  # no token
+    assert code == 401
+```
+
+## 12. Input validation (parametrized)
+
+```python
+import pytest
+
+CASES = [
+    ("POST", "/api/tasks", {}, "missing title"),
+    ("POST", "/api/tasks", {"title": ""}, "empty title"),
+    ("POST", "/api/tasks", {"title": "x" * 10000}, "huge title"),
+]
+
+@pytest.mark.parametrize("method,path,body,desc", CASES)
+def test_rejects_bad_input(self, logged_in, method, path, body, desc):
+    h = H()
+    code, _ = h.api_status(method, path, body)
+    assert code in (201, 400, 422), f"{desc}: got {code}"
+```
+
 ## Quick reference
 
 | What | How |
