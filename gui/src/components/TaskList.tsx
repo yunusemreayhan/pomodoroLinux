@@ -185,7 +185,16 @@ function TaskNode({ node, depth, onView, selectMode, onSelect, selectedTaskId, v
         }}
         style={{ marginLeft: depth > 0 ? depth * 24 : 0 }}
         tabIndex={0}
-        onKeyDown={e => { if (e.key === "Enter") onView(t.id); }}
+        onKeyDown={e => {
+          if (e.key === "Enter") onView(t.id);
+          // A1: Keyboard context menu (Shift+F10 or context menu key)
+          if ((e.key === "F10" && e.shiftKey) || e.key === "ContextMenu") {
+            e.preventDefault();
+            const rect = e.currentTarget.getBoundingClientRect();
+            setCtxBurnUsers(allAssignees.get(t.id) || []);
+            setCtxMenu({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+          }
+        }}
       >
         {/* Bulk checkbox for subtasks */}
         {!selectMode && depth > 0 && bulkSelected && setBulkSelected && (
