@@ -8,6 +8,7 @@ use std::collections::HashSet;
 static SECRET: OnceLock<Vec<u8>> = OnceLock::new();
 static BLOCKLIST: OnceLock<RwLock<HashSet<String>>> = OnceLock::new();
 static AUTH_POOL: OnceLock<crate::db::Pool> = OnceLock::new();
+
 // S2: Cache verified user IDs to avoid per-request DB lookup (60s TTL)
 static USER_CACHE: OnceLock<RwLock<std::collections::HashMap<i64, std::time::Instant>>> = OnceLock::new();
 

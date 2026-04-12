@@ -2098,6 +2098,7 @@ async fn test_optimistic_locking_sprint_conflict() {
 
 #[tokio::test]
 async fn test_auth_rate_limiting() {
+    if std::env::var("POMODORO_NO_RATE_LIMIT").is_ok() { eprintln!("SKIP: rate limiter disabled"); return; }
     let app = app().await;
     // Send 11 login attempts (limit is 10 per 60s)
     // Note: rate limiter uses x-forwarded-for header, which our test doesn't set,
@@ -4072,6 +4073,7 @@ async fn test_webhook_ssrf_additional_patterns() {
 // === T8: Auth rate limiting — verify limit ===
 #[tokio::test]
 async fn test_auth_rate_limit_threshold() {
+    if std::env::var("POMODORO_NO_RATE_LIMIT").is_ok() { eprintln!("SKIP: rate limiter disabled"); return; }
     let app = app().await;
 
     // Send 11 login attempts from same IP (limit is 10/60s)
@@ -4242,6 +4244,7 @@ async fn test_rate_limit_get_not_limited() {
 
 #[tokio::test]
 async fn test_auth_rate_limit_blocks_after_threshold() {
+    if std::env::var("POMODORO_NO_RATE_LIMIT").is_ok() { eprintln!("SKIP: rate limiter disabled"); return; }
     let app = app().await;
     // Use a fixed IP for all requests to trigger rate limit
     let fixed_ip = "10.99.99.1";
@@ -5585,14 +5588,15 @@ async fn flow_change_password_wrong_current_rejected() {
 async fn flow_labels_require_task_ownership() {
     let app = app().await;
     let root_token = login_root(&app).await;
-    let (user_token, _) = register_user_full(&app, "labdev", "LabDev11").await;
-    // Create label
+    let (user_token, _) = register_user_full(&app, "labownerchk", "LabDev11").await;
+    // Create label (root only since V32-7)
     let resp = app.clone().oneshot(auth_req("POST", "/api/labels", &root_token, Some(json!({"name":"flowbug","color":"#ff0000"})))).await.unwrap();
-    assert_eq!(resp.status(), 201);
+    assert_eq!(resp.status(), 201, "Label creation should succeed for root");
     let label = body_json(resp).await;
     let lid = label["id"].as_i64().expect("label should have id");
     // Root creates task
     let resp = app.clone().oneshot(auth_req("POST", "/api/tasks", &root_token, Some(json!({"title":"Labeled"})))).await.unwrap();
+    assert_eq!(resp.status(), 201, "Task creation should succeed");
     let tid = body_json(resp).await["id"].as_i64().unwrap();
     // Non-owner cannot add label to task
     let resp = app.clone().oneshot(auth_req("PUT", &format!("/api/tasks/{}/labels/{}", tid, lid), &user_token, None)).await.unwrap();
