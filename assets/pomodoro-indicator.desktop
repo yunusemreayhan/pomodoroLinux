@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Pomodoro Panel Indicator
+Comment=Shows pomodoro timer countdown in the MATE panel
+Exec=/usr/bin/python3 /usr/share/pomodoro/panel-indicator.py
+Icon=appointment-soon
+Terminal=false
+Type=Application
+Categories=Utility;
+X-MATE-Autostart-enabled=true
+X-GNOME-Autostart-enabled=true
