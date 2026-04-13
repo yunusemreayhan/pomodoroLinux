@@ -91,25 +91,25 @@ Slack integrations store events as `slack:sprint.started,sprint.completed`. The 
 
 | ID | Severity | Category | Status |
 |----|----------|----------|--------|
-| V37-1 | Medium | Bug | |
-| V37-2 | Medium | Bug | |
-| V37-3 | Medium | Security | |
-| V37-4 | Medium | Bug | |
+| V37-1 | Medium | Bug | FIXED — Rust-side chrono cutoff replaces strftime('now') |
+| V37-2 | Medium | Bug | FIXED — getrandom for nonce, Result instead of panic |
+| V37-3 | Medium | Security | FIXED — generates random .jwt_secret instead of hashing data_dir |
+| V37-4 | Medium | Bug | FIXED — async build_router with lock().await |
 | V37-5 | Low | Bug | FALSE POSITIVE — edit_comment is registered in OpenAPI |
-| V37-6 | Low | Bug | |
-| V37-7 | Low | Bug | |
-| V37-8 | Low | Bug | |
-| V37-9 | Low | Security | |
-| V37-10 | Low | Bug | |
-| V37-11 | Low | Code quality | |
-| V37-12 | Low | Bug | |
-| V37-13 | Low | UX | |
-| V37-14 | Low | Performance | |
-| V37-15 | Low | Bug | |
-| V37-16 | Low | Code quality | |
+| V37-6 | Low | Bug | WON'T FIX — intentional for team visibility, frontend filters via teamScope |
+| V37-7 | Low | Bug | FALSE POSITIVE — recursive CTE already checks for circular deps |
+| V37-8 | Low | Bug | FIXED — duplicate_task now copies recurrence |
+| V37-9 | Low | Security | FIXED — jitter added to webhook retry backoff |
+| V37-10 | Low | Bug | FIXED — 404 for non-existent sprint board |
+| V37-11 | Low | Code quality | WON'T FIX — minor duplication, refactor not worth it |
+| V37-12 | Low | Bug | FIXED — iCal DTEND +1 day per RFC 5545 |
+| V37-13 | Low | UX | WON'T FIX — cosmetic, code works correctly |
+| V37-14 | Low | Performance | WON'T FIX — acceptable for SQLite |
+| V37-15 | Low | Bug | FALSE POSITIVE — root tasks are a team concept, not sprint |
+| V37-16 | Low | Code quality | FIXED — NotifPref registered in OpenAPI schemas |
 | V37-17 | Low | Bug | FALSE POSITIVE — edit_comment validates length (max 10000) |
-| V37-18 | Low | UX | |
-| V37-19 | Low | Code quality | |
-| V37-20 | Low | Bug | |
+| V37-18 | Low | UX | FALSE POSITIVE — endDate null handled correctly |
+| V37-19 | Low | Code quality | FIXED — BulkStatusRequest registered in OpenAPI schemas |
+| V37-20 | Low | Bug | FIXED — slack: prefix events now matched in dispatch |
 
-**Total: 20 items** — 4 medium, 16 low (2 pre-marked false positive)
+**Total: 20 items** — 10 fixed, 4 won't fix, 6 false positive
