@@ -140,3 +140,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+select, select option { color-scheme: dark; background-color: #1a1a2e; color: #e0e0e0; }
+[data-theme="light"] select, [data-theme="light"] select option { color-scheme: light; background-color: #f0f0f5; color: #1a1a2e; }
