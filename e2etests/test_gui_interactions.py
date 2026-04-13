@@ -175,7 +175,6 @@ class TestTaskCreation:
 
 class TestDropdowns:
 
-    @pytest.mark.skip(reason="GUI Settings tab crashes with React error #310")
     def test_estimation_mode_dropdown(self, logged_in):
         """Settings: estimation mode dropdown changes value."""
         click_tab(logged_in, "Settings")
@@ -188,9 +187,12 @@ class TestDropdowns:
 
     def test_theme_toggle_is_clickable(self, logged_in):
         """Theme toggle button works."""
+        from harness import reload_and_login
+        reload_and_login(logged_in)
+        click_tab(logged_in, "Timer")
         old = js(logged_in, "return document.documentElement.getAttribute('data-theme')")
         click_tab(logged_in, "Toggle theme")
-        time.sleep(0.3)
+        time.sleep(0.5)
         new = js(logged_in, "return document.documentElement.getAttribute('data-theme')")
         assert new != old
         # Toggle back

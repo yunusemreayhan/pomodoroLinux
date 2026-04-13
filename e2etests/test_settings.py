@@ -4,7 +4,6 @@ import json, os, urllib.request
 import pytest
 import harness
 
-SETTINGS_CRASH = pytest.mark.skip(reason="GUI Settings tab crashes with React error #310")
 from harness import ROOT_PASSWORD, click_tab, reload_and_login
 
 
@@ -31,7 +30,6 @@ def token():
 
 
 
-@SETTINGS_CRASH
 class TestSettingsDisplay:
 
     def test_shows_work_duration(self, logged_in):
@@ -45,7 +43,6 @@ class TestSettingsDisplay:
         assert "Estimation Mode" in body
 
 
-@SETTINGS_CRASH
 class TestSettingsUpdate:
 
     def test_work_duration_change(self, logged_in):

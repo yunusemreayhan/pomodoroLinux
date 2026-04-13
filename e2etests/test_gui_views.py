@@ -75,7 +75,6 @@ class TestSidebarNavigation:
         b = wait_text(logged_in, "API", "endpoint", "Endpoint")
         assert "api" in b.lower() or "endpoint" in b.lower()
 
-    @pytest.mark.skip(reason="GUI Settings tab crashes with React error #310")
     def test_settings_tab(self, logged_in):
         click_tab(logged_in, "Settings")
         b = wait_text(logged_in, "Work (minutes)", "Settings", "Save")
@@ -258,7 +257,6 @@ class TestSprintBoard:
 
 # ── Settings Persistence ───────────────────────────────────────
 
-@pytest.mark.skip(reason="GUI Settings tab crashes with React error #310")
 class TestSettingsPersistence:
     """Change settings via API, reload, verify they persist in GUI."""
 
@@ -330,9 +328,12 @@ class TestThemeCSS:
         assert theme in ("dark", "light")
 
     def test_toggle_changes_data_theme(self, logged_in):
+        from harness import reload_and_login
+        reload_and_login(logged_in)
+        click_tab(logged_in, "Timer")
         old = js(logged_in, "return document.documentElement.getAttribute('data-theme')")
         click_tab(logged_in, "Toggle theme")
-        time.sleep(0.3)
+        time.sleep(0.5)
         new = js(logged_in, "return document.documentElement.getAttribute('data-theme')")
         assert new != old
         assert new in ("dark", "light")

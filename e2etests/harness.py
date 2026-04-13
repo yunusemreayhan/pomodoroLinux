@@ -24,7 +24,7 @@ DAEMON_BINARY = str(
     Path(__file__).resolve().parent.parent / "target" / "release" / "pomodoro-daemon"
 )
 GUI_BINARY = str(
-    Path(__file__).resolve().parent.parent.parent / "pomodoroLinux" / "target" / "release" / "pomodoro-gui"
+    Path(__file__).resolve().parent.parent / "target" / "release" / "pomodoro-gui"
 )
 ROOT_PASSWORD = "TestRoot1"
 JWT_SECRET = "test-secret-for-flow-tests-1234567890abcdef"

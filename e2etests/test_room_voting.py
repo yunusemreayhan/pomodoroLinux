@@ -74,7 +74,6 @@ class TestRoomVoting:
         self.tid = t["id"]
         api("POST", f"/api/rooms/{self.rid}/start-voting", {"task_id": t["id"]}, self.tok)
 
-    @pytest.mark.skip(reason="GUI estimation room crashes with React error #310")
     def test_detail_shows_task(self, logged_in):
         click_tab(logged_in, "Timer")
         click_tab(logged_in, "Rooms")
@@ -83,7 +82,6 @@ class TestRoomVoting:
         body = logged_in.text(logged_in.find("body"))
         assert f"Est_{_ID}" in body or "voting" in body.lower() or "Reveal" in body
 
-    @pytest.mark.skip(reason="GUI estimation room crashes with React error #310")
     def test_vote_reveal_shows_result(self, logged_in):
         api("POST", f"/api/rooms/{self.rid}/vote", {"value": 5}, self.tok)
         api("POST", f"/api/rooms/{self.rid}/reveal", token=self.tok)
@@ -94,7 +92,6 @@ class TestRoomVoting:
         src = logged_in.page_source()
         assert "revealed" in src or "5" in src or f"Vt_{_ID}" in src
 
-    @pytest.mark.skip(reason="GUI estimation room crashes with React error #310")
     def test_members_visible(self, logged_in):
         click_tab(logged_in, "Rooms")
         import time; time.sleep(1)

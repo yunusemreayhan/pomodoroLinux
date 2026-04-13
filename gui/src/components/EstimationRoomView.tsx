@@ -25,6 +25,7 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
   const [editTitle, setEditTitle] = useState("");
   const mountedRef = useRef(true);
   const stateRef = useRef(state);
+  const cancelRevealRef = useRef(false);
   stateRef.current = state;
   useEffect(() => () => { mountedRef.current = false; }, []);
   const [editDesc, setEditDesc] = useState("");
@@ -83,8 +84,6 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
     try { await apiCall("POST", `/api/rooms/${roomId}/vote`, { value }); load(); }
     finally { setSubmitting(false); }
   };
-
-  const cancelRevealRef = useRef(false);
 
   const doReveal = async () => {
     cancelRevealRef.current = false;

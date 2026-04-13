@@ -107,6 +107,7 @@ export default function Settings() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [profileMsg, setProfileMsg] = useState("");
   const [serverDraft, setServerDraft] = useState(serverUrl);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => { loadConfig(); }, []);
   useEffect(() => { if (config) setLocal({ ...config }); }, [config]);
@@ -139,8 +140,6 @@ export default function Settings() {
   };
 
   const isDirty = local && config && JSON.stringify(local) !== JSON.stringify(config);
-
-  const [saving, setSaving] = useState(false);
 
   const save = async () => {
     if (!local || saving) return;
