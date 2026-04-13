@@ -27,9 +27,9 @@ Same pattern.
 
 | ID | Severity | Category | Status |
 |----|----------|----------|--------|
-| V49-1 | Medium | Bug | |
-| V49-2 | Medium | Bug | |
-| V49-3 | Medium | Bug | |
-| V49-4 | Medium | Bug | |
+| V49-1 | Medium | Bug | FIXED — returns 404 |
+| V49-2 | Medium | Bug | FIXED — returns 404 |
+| V49-3 | Medium | Bug | FIXED — returns 404 |
+| V49-4 | Medium | Bug | FIXED — returns 404 |
 
-**Total: 4 items** — 4 medium
+**Total: 4 items** — 4 fixed
