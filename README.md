@@ -74,11 +74,42 @@ A full-featured multi-user Pomodoro timer for Linux with a Rust HTTP backend, Ta
 
 ### Multi-User
 - JWT authentication (bcrypt + 7-day tokens)
-- First registered user becomes root (seed: root/root)
+- First registered user becomes root (auto-generated password saved to `~/.local/share/pomodoro/.root_password`, or set `POMODORO_ROOT_PASSWORD` env var)
 - Root users can manage all users and override ownership
 - Everyone sees all data; ownership controls edit/delete
 - Profile management (change username/password)
 - Admin panel for user role management
+
+### Webhooks & Integrations
+- Create/manage webhooks with SSRF protection (blocks private/loopback addresses)
+- HMAC-SHA256 signature verification for GitHub push webhooks
+- Slack and Discord webhook support
+- GitHub/GitLab commit auto-linking (parses #123 / task-123 from commit messages)
+
+### Notifications & Watchers
+- In-app notification system with per-event-type preferences
+- Watch tasks for change notifications
+- Due date reminders (30-minute check interval)
+- Unread count badge
+
+### Automations
+- User-defined automation rules with triggers and actions
+- Triggers: task status changed, due approaching, all subtasks done
+
+### Analytics & Reports
+- Focus score and estimation accuracy analytics
+- Leaderboard (weekly/monthly/all-time)
+- Activity feed and weekly digest
+- Per-user hours report
+- Schedule and priority suggestions
+- Achievement system with unlock tracking
+
+### Admin & Security
+- Database backup and restore
+- Full audit log of all user actions
+- JWT with refresh token rotation and token revocation
+- Rate limiting and CSRF validation
+- Auto-archive completed tasks (configurable days)
 
 ### Architecture
 - **Backend**: Rust + axum HTTP server on port 9090
@@ -88,7 +119,7 @@ A full-featured multi-user Pomodoro timer for Linux with a Rust HTTP backend, Ta
 - **API**: OpenAPI/Swagger UI at `/swagger-ui/`
 - **State**: Zustand store with Tauri invoke → reqwest bridge
 
-## Database Schema (17 tables)
+## Database Schema (37 tables)
 
 All user references use `user_id INTEGER REFERENCES users(id)` — usernames are resolved via JOINs. This means usernames can be changed without breaking any foreign key relationships.
 
@@ -97,8 +128,17 @@ All user references use `user_id INTEGER REFERENCES users(id)` — usernames are
 | `users` | id, username (unique, changeable), password_hash, role, created_at |
 | `tasks` | Hierarchical tasks with user_id FK, parent_id self-ref, status, estimates |
 | `sessions` | Pomodoro timer sessions with user_id FK |
+| `session_participants` | Multi-user session participation tracking |
 | `comments` | Comments on tasks with user_id FK |
 | `task_assignees` | Many-to-many task↔user with user_id FK |
+| `task_dependencies` | Task dependency relationships (depends-on) |
+| `task_labels` | Many-to-many task↔label mapping |
+| `task_links` | External links (commits, PRs, issues, docs) on tasks |
+| `task_recurrence` | Recurring task patterns (daily/weekly/biweekly/monthly) |
+| `task_templates` | Reusable task configuration templates |
+| `task_watchers` | Users watching tasks for notifications |
+| `task_attachments` | File attachments on tasks |
+| `labels` | Label definitions with name and color |
 | `rooms` | Estimation rooms with creator_id FK |
 | `room_members` | Room membership with user_id FK and role |
 | `room_votes` | Votes with user_id FK, unique per room+task+user |
@@ -114,6 +154,14 @@ All user references use `user_id INTEGER REFERENCES users(id)` — usernames are
 | `epic_groups` | Epic group definitions for cross-sprint tracking |
 | `epic_group_tasks` | Epic group↔task mapping |
 | `epic_snapshots` | Daily burndown snapshots for epic groups |
+| `achievements` | User achievement tracking |
+| `automation_rules` | User-defined automation rules (triggers + actions) |
+| `audit_log` | Full audit trail of user actions |
+| `notifications` | In-app notification queue |
+| `notification_prefs` | Per-user notification preferences per event type |
+| `webhooks` | User webhook configurations for external integrations |
+| `token_blocklist` | Revoked JWT tokens |
+| `schema_migrations` | Database migration version tracking |
 
 ## REST API
 
@@ -275,6 +323,7 @@ All user references use `user_id INTEGER REFERENCES users(id)` — usernames are
 | Method | Endpoint | Description |
 |---|---|---|
 | GET/POST | `/api/webhooks` | List/create webhooks |
+| PUT | `/api/webhooks/{id}` | Update webhook |
 | DELETE | `/api/webhooks/{id}` | Delete webhook |
 
 ### Audit & Export
@@ -282,7 +331,123 @@ All user references use `user_id INTEGER REFERENCES users(id)` — usernames are
 |---|---|---|
 | GET | `/api/audit` | Query audit log (?entity_type=&entity_id=&page=&per_page=) |
 | GET | `/api/export/tasks` | Export tasks (?format=csv or json) |
+| GET | `/api/export/sessions` | Export sessions (?format=csv or json, ?from=&to=) |
+| GET | `/api/export/burns/{sprint_id}` | Export sprint burns as CSV |
+| GET | `/api/export/ical` | Export tasks and sprints as iCal feed |
+| POST | `/api/import/tasks` | Import tasks from CSV |
+| POST | `/api/import/tasks/json` | Import tasks from JSON (with hierarchy) |
 | POST | `/api/auth/logout` | Revoke current JWT token |
+
+### Attachments
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/tasks/{id}/attachments` | List task attachments |
+| POST | `/api/tasks/{id}/attachments` | Upload attachment (10MB max) |
+| GET | `/api/attachments/{id}/download` | Download attachment |
+| DELETE | `/api/attachments/{id}` | Delete attachment |
+
+### Notifications
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/notifications` | List notifications (?limit=) |
+| GET | `/api/notifications/unread` | Get unread count |
+| POST | `/api/notifications/read` | Mark notifications read |
+| GET | `/api/profile/notifications` | Get notification preferences |
+| PUT | `/api/profile/notifications` | Update notification preferences |
+
+### Automations
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/automations` | List automation rules |
+| POST | `/api/automations` | Create automation rule |
+| DELETE | `/api/automations/{id}` | Delete automation rule |
+| PUT | `/api/automations/{id}/toggle` | Toggle automation enabled/disabled |
+
+### Integrations
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/integrations/github` | GitHub/GitLab push webhook receiver |
+| POST | `/api/integrations/slack` | Create Slack/Discord webhook integration |
+
+### Analytics & Reports
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/analytics/focus-score` | User focus score analytics |
+| GET | `/api/analytics/estimation-accuracy` | Estimation accuracy report |
+| GET | `/api/leaderboard` | Leaderboard (?period=week/month/all) |
+| GET | `/api/feed` | Activity feed |
+| GET | `/api/reports/weekly-digest` | Weekly digest report |
+| GET | `/api/reports/user-hours` | Per-user hours report |
+| GET | `/api/suggestions/schedule` | AI schedule suggestions |
+| GET | `/api/suggestions/priorities` | AI priority suggestions |
+| GET | `/api/achievements` | List user achievements |
+| POST | `/api/achievements/check` | Check/unlock achievements |
+
+### Templates
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/templates` | List task templates |
+| POST | `/api/templates` | Create template |
+| GET | `/api/templates/{id}` | Get template |
+| DELETE | `/api/templates/{id}` | Delete template |
+| POST | `/api/templates/{id}/instantiate` | Create task from template |
+
+### Watchers
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/tasks/{id}/watch` | Watch a task |
+| DELETE | `/api/tasks/{id}/watch` | Unwatch a task |
+| GET | `/api/tasks/{id}/watchers` | List task watchers |
+| GET | `/api/watched` | List all watched tasks |
+
+### Task Operations
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/tasks/{id}/duplicate` | Duplicate a task |
+| POST | `/api/tasks/bulk-status` | Bulk update task status |
+| PUT | `/api/tasks/reorder` | Reorder tasks (sort_order) |
+| GET | `/api/tasks/search` | Search tasks |
+| GET | `/api/tasks/trash` | List soft-deleted tasks |
+| POST | `/api/tasks/{id}/restore` | Restore soft-deleted task |
+| DELETE | `/api/tasks/{id}/permanent` | Permanently delete task |
+| GET | `/api/tasks/{id}/sessions` | List task sessions |
+| GET | `/api/tasks/{id}/time-summary` | Task time summary |
+| GET | `/api/tasks/{id}/links` | List task links |
+| POST | `/api/tasks/{id}/links` | Add task link |
+| PUT | `/api/sessions/{id}/note` | Add note to session |
+
+### Timer (additional)
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/timer/active` | List active timers |
+| POST | `/api/timer/join/{session_id}` | Join a session |
+| GET | `/api/timer/participants/{session_id}` | List session participants |
+| POST | `/api/timer/ticket` | Create SSE auth ticket |
+
+### Admin (additional)
+| Method | Endpoint | Description |
+|---|---|---|
+| PUT | `/api/admin/users/{id}/password` | Reset user password (root) |
+| POST | `/api/admin/backup` | Create database backup |
+| GET | `/api/admin/backups` | List backups |
+| POST | `/api/admin/restore` | Restore from backup |
+| POST | `/api/auth/refresh` | Refresh JWT token |
+| POST | `/api/auth/password` | Change password |
+
+### Sprints (additional)
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/sprints/{id}/carryover` | Carry over incomplete tasks to new sprint |
+| GET | `/api/sprints/{id}/retro-report` | Sprint retrospective report |
+| GET | `/api/sprints/compare` | Compare two sprints |
+| GET | `/api/sprints/velocity` | Velocity chart data |
+
+### Presence
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/users/presence` | User presence (online/last active) |
+| GET | `/api/rooms/{id}/export` | Export room voting results |
+| GET | `/api/health` | Health check |
 
 ## Installation
 
@@ -316,7 +481,7 @@ Both must pass before pushing to main.
 
 ### Unit & Integration Tests
 
-40 integration tests run automatically before every build (configured in `tauri.conf.json`):
+333 integration tests run automatically (`cargo test -p pomodoro-daemon`):
 
 ```bash
 cargo test -p pomodoro-daemon
@@ -326,7 +491,7 @@ Tests use in-memory SQLite — no disk I/O, fully isolated, no port conflicts.
 
 ### E2E GUI Tests
 
-1011 end-to-end tests across 44 files drive the real Tauri GUI via WebDriver against an isolated daemon. 100% API endpoint coverage (154/154 endpoints tested).
+1011 end-to-end tests across 44 files drive the real Tauri GUI via WebDriver against an isolated daemon. 100% API endpoint coverage (179/179 endpoints tested).
 
 ```bash
 # Run all E2E tests
@@ -341,7 +506,7 @@ Tests use in-memory SQLite — no disk I/O, fully isolated, no port conflicts.
 
 **Coverage areas:**
 - GUI flows: login, registration, timer, task detail, sprint board, settings, theme, sidebar, keyboard shortcuts
-- API exhaustive: every endpoint (154/154), every status transition, every config field, pagination, search
+- API exhaustive: every endpoint (179/179), every status transition, every config field, pagination, search
 - Security: JWT tampering, IDOR, privilege escalation, rate limiting, SQL injection, path traversal
 - Edge cases: unicode/emoji, 10K-char strings, HTML injection, boundary values, input validation
 - Data integrity: lifecycle counts, sprint column invariants, dependency chains, import/export round-trips
