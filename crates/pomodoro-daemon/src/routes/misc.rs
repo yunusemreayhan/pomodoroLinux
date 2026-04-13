@@ -51,7 +51,7 @@ pub struct TasksFullResponse {
 }
 
 #[utoipa::path(get, path = "/api/tasks/full", responses((status = 200, body = TasksFullResponse)), security(("bearer" = [])))]
-pub async fn get_tasks_full(State(engine): State<AppState>, _claims: Claims, headers: axum::http::HeaderMap) -> Result<axum::response::Response, ApiError> {
+pub async fn get_tasks_full(State(engine): State<AppState>, claims: Claims, headers: axum::http::HeaderMap) -> Result<axum::response::Response, ApiError> {
     // B8: ETag includes labels and attachments to avoid stale data
     let (max_updated, task_count, sprint_task_count, burn_count, assignee_count, label_count, att_count): (String, i64, i64, i64, i64, i64, i64) =
         sqlx::query_as("SELECT COALESCE((SELECT MAX(COALESCE(deleted_at, updated_at)) FROM tasks), ''), (SELECT COUNT(*) FROM tasks WHERE deleted_at IS NULL), (SELECT COUNT(*) FROM sprint_tasks), (SELECT COUNT(*) FROM burn_log WHERE cancelled = 0), (SELECT COUNT(*) FROM task_assignees), (SELECT COUNT(*) FROM task_labels), (SELECT COUNT(*) FROM task_attachments)")
@@ -78,7 +78,15 @@ pub async fn get_tasks_full(State(engine): State<AppState>, _claims: Claims, hea
         .map(|(tid, bt)| BurnTotalEntry { task_id: tid, total_points: bt.total_points, total_hours: bt.total_hours, count: bt.count })
         .collect();
     let resp = TasksFullResponse {
-        tasks: tasks.map_err(internal)?,
+        tasks: {
+            let mut tasks = tasks.map_err(internal)?;
+            let cfg = engine.get_user_config(claims.user_id).await;
+            if cfg.leaf_only_mode {
+                let parent_ids: std::collections::HashSet<i64> = tasks.iter().filter_map(|t| t.parent_id).collect();
+                tasks.retain(|t| !parent_ids.contains(&t.id));
+            }
+            tasks
+        },
         task_sprints: task_sprints.map_err(internal)?,
         burn_totals,
         assignees: assignees.map_err(internal)?,
