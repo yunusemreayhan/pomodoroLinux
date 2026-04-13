@@ -43,13 +43,13 @@ The DELETE silently succeeds. Should check rows_affected.
 
 | ID | Severity | Category | Status |
 |----|----------|----------|--------|
-| V46-1 | Medium | Bug | |
-| V46-2 | Medium | Bug | |
-| V46-3 | Medium | Bug | |
-| V46-4 | Medium | Bug | |
-| V46-5 | Low | Bug | |
-| V46-6 | Low | Bug | |
-| V46-7 | Low | Bug | |
-| V46-8 | Low | Bug | |
+| V46-1 | Medium | Bug | FIXED — returns 404 |
+| V46-2 | Medium | Bug | FIXED — checks existence first |
+| V46-3 | Medium | Bug | FIXED — returns 404 if not a member |
+| V46-4 | Medium | Bug | FIXED — returns 404 if not a root task |
+| V46-5 | Low | Bug | FIXED — returns 404 |
+| V46-6 | Low | Bug | FIXED — checks task existence |
+| V46-7 | Low | Bug | FIXED — returns 404 if no recurrence |
+| V46-8 | Low | Bug | FIXED — verifies user exists |
 
-**Total: 8 items** — 4 medium, 4 low
+**Total: 8 items** — 8 fixed
