@@ -17,11 +17,33 @@ export default function KanbanBoard() {
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [groupBy, setGroupBy] = useState<"none" | "project" | "user">("none");
 
+  const leafOnly = useStore(s => s.config?.leaf_only_mode ?? false);
+
   const filtered = useMemo(() => {
     let t = tasks.filter(t => t.status !== "archived" && !t.deleted_at);
     if (teamScope) t = t.filter(task => teamScope.has(task.id));
+    if (leafOnly) {
+      const parentIds = new Set(t.map(tk => tk.parent_id).filter(Boolean));
+      t = t.filter(task => !parentIds.has(task.id));
+    }
     return t;
-  }, [tasks, teamScope]);
+  }, [tasks, teamScope, leafOnly]);
+
+  // Build ancestor path map: task.id -> ["grandparent title", "parent title"]
+  const ancestorMap = useMemo(() => {
+    const byId = new Map(tasks.map(t => [t.id, t]));
+    const map = new Map<number, string[]>();
+    for (const t of filtered) {
+      const path: string[] = [];
+      let cur = t.parent_id ? byId.get(t.parent_id) : undefined;
+      while (cur) {
+        path.unshift(cur.title);
+        cur = cur.parent_id ? byId.get(cur.parent_id) : undefined;
+      }
+      if (path.length) map.set(t.id, path);
+    }
+    return map;
+  }, [tasks, filtered]);
 
   const columns = useMemo(() => {
     const map = new Map<string, Task[]>();
@@ -85,8 +107,8 @@ export default function KanbanBoard() {
                 <div className="flex-1 overflow-y-auto p-3 space-y-2" role="list">
                   {colTasks.length === 0 && <div className="text-[10px] text-white/15 text-center py-4">Drop tasks here</div>}
                   {groupBy === "none"
-                    ? colTasks.map(t => <KanbanCard key={t.id} task={t} onDragStart={onDragStart} />)
-                    : <GroupedCards tasks={colTasks} groupBy={groupBy} onDragStart={onDragStart} />
+                    ? colTasks.map(t => <KanbanCard key={t.id} task={t} onDragStart={onDragStart} ancestors={ancestorMap.get(t.id)} />)
+                    : <GroupedCards tasks={colTasks} groupBy={groupBy} onDragStart={onDragStart} ancestorMap={ancestorMap} />
                   }
                 </div>
               </div>
@@ -98,7 +120,7 @@ export default function KanbanBoard() {
   );
 }
 
-function KanbanCard({ task, onDragStart }: { task: Task; onDragStart: (e: React.DragEvent, id: number) => void }) {
+function KanbanCard({ task, onDragStart, ancestors }: { task: Task; onDragStart: (e: React.DragEvent, id: number) => void; ancestors?: string[] }) {
   const labels = useStore(s => s.taskLabelsMap.get(task.id));
   const updateTask = useStore(s => s.updateTask);
   const nextStatus = task.status === "backlog" ? "in_progress" : task.status === "in_progress" ? "completed" : task.status === "active" ? "in_progress" : null;
@@ -107,6 +129,11 @@ function KanbanCard({ task, onDragStart }: { task: Task; onDragStart: (e: React.
       onKeyDown={e => { if (e.key === "Enter" && nextStatus) { e.preventDefault(); updateTask(task.id, { status: nextStatus }); } }}
       role="listitem" aria-label={`${task.title}, ${task.status}${nextStatus ? `. Press Enter to move to ${nextStatus}` : ""}`}
       className="bg-[var(--color-surface)] p-3 rounded-xl border border-white/5 cursor-grab active:cursor-grabbing hover:border-white/10 focus:ring-2 focus:ring-[var(--color-accent)] focus:outline-none transition-colors">
+      {ancestors && ancestors.length > 0 && (
+        <div className="text-[9px] text-white/20 leading-tight mb-1 truncate" title={ancestors.join(" › ")}>
+          {ancestors.join(" › ")}
+        </div>
+      )}
       <div className="text-xs text-white/80 leading-tight">{task.title}</div>
       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
         {task.project && <span className="text-[9px] bg-white/5 px-1 py-0.5 rounded text-white/30">{task.project}</span>}
@@ -119,7 +146,7 @@ function KanbanCard({ task, onDragStart }: { task: Task; onDragStart: (e: React.
   );
 }
 
-function GroupedCards({ tasks, groupBy, onDragStart }: { tasks: Task[]; groupBy: "project" | "user"; onDragStart: (e: React.DragEvent, id: number) => void }) {
+function GroupedCards({ tasks, groupBy, onDragStart, ancestorMap }: { tasks: Task[]; groupBy: "project" | "user"; onDragStart: (e: React.DragEvent, id: number) => void; ancestorMap: Map<number, string[]> }) {
   const groups = useMemo(() => {
     const map = new Map<string, Task[]>();
     for (const t of tasks) {
@@ -135,7 +162,7 @@ function GroupedCards({ tasks, groupBy, onDragStart }: { tasks: Task[]; groupBy:
     {groups.map(([name, items]) => (
       <div key={name}>
         <div className="text-[9px] text-white/20 font-medium px-1 py-0.5 sticky top-0 bg-white/[0.02]">{name} ({items.length})</div>
-        {items.map(t => <KanbanCard key={t.id} task={t} onDragStart={onDragStart} />)}
+        {items.map(t => <KanbanCard key={t.id} task={t} onDragStart={onDragStart} ancestors={ancestorMap.get(t.id)} />)}
       </div>
     ))}
   </>);

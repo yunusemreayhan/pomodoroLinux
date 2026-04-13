@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Eye, Check, Crown, X, Edit3 } from "lucide-react";
 import { apiCall } from "../store/api";
@@ -16,9 +16,23 @@ const CARD_PRESETS: Record<string, number[]> = { points: POINT_CARDS, hours: HOU
 export default function EstimationRoomView({ roomId, onBack }: { roomId: number; onBack: () => void }) {
   const { username } = useStore();
   const allTasks = useStore(s => s.tasks);
+
   const [state, setState] = useState<RoomState | null>(null);
   const [selectedCard, setSelectedCard] = useState<number | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
+
+  // Ancestor breadcrumb for current task
+  const ancestors = useMemo(() => {
+    if (!state?.current_task?.parent_id) return [];
+    const byId = new Map(allTasks.map(t => [t.id, t]));
+    const path: string[] = [];
+    let cur = byId.get(state.current_task.parent_id);
+    while (cur) {
+      path.unshift(cur.title);
+      cur = cur.parent_id ? byId.get(cur.parent_id) : undefined;
+    }
+    return path;
+  }, [allTasks, state?.current_task]);
   const [tab, setTab] = useState<"board" | "tasks" | "members" | "history">("board");
   const [customAccept, setCustomAccept] = useState("");
   const [editingTask, setEditingTask] = useState(false);
@@ -190,6 +204,9 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
                   </div>
                 ) : (
                   <>
+                    {ancestors.length > 0 && (
+                      <div className="text-[10px] text-white/20 mb-1 truncate" title={ancestors.join(" › ")}>{ancestors.join(" › ")}</div>
+                    )}
                     <div className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
                       {current_task.title}
                       {elapsed > 0 && <span className={`text-xs font-mono ${elapsed > discussionLimit ? "text-red-400" : "text-white/30"}`}>{Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}{elapsed > discussionLimit ? " ⏰" : ""}</span>}

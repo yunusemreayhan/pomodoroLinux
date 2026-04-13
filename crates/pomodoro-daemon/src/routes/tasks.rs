@@ -108,7 +108,7 @@ pub struct TaskQuery {
 }
 
 #[utoipa::path(get, path = "/api/tasks", responses((status = 200, body = Vec<db::Task>)), security(("bearer" = [])))]
-pub async fn list_tasks(State(engine): State<AppState>, claims: Claims, Query(q): Query<TaskQuery>) -> Result<axum::response::Response, ApiError> {
+pub async fn list_tasks(State(engine): State<AppState>, _claims: Claims, Query(q): Query<TaskQuery>) -> Result<axum::response::Response, ApiError> {
     let page = q.page.unwrap_or(1).max(1);
     let per_page = q.per_page.unwrap_or(5000).min(5000);
     let offset = (page - 1) * per_page;
@@ -118,13 +118,7 @@ pub async fn list_tasks(State(engine): State<AppState>, claims: Claims, Query(q)
         due_before: q.due_before.as_deref(), due_after: q.due_after.as_deref(),
         priority: q.priority, team_id: q.team_id, user_id: None,
     };
-    let mut tasks = db::list_tasks_paged(&engine.pool, filter, per_page, offset).await.map_err(internal)?;
-    // Leaf-only mode: exclude tasks that have children
-    let cfg = engine.get_user_config(claims.user_id).await;
-    if cfg.leaf_only_mode {
-        let parent_ids: std::collections::HashSet<i64> = tasks.iter().filter_map(|t| t.parent_id).collect();
-        tasks.retain(|t| !parent_ids.contains(&t.id));
-    }
+    let tasks = db::list_tasks_paged(&engine.pool, filter, per_page, offset).await.map_err(internal)?;
     // Only compute total count if pagination is explicitly requested
     let total = if q.page.is_some() {
         let filter2 = db::TaskFilter {

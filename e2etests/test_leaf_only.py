@@ -78,25 +78,25 @@ class TestLeafOnlyMode:
         assert self.leaf["id"] in ids, "Standalone leaf should be visible when leaf_only_mode is OFF"
 
     def test_leaf_only_on_excludes_parents(self):
-        """With leaf_only_mode ON, parent tasks (that have children) should be excluded."""
+        """With leaf_only_mode ON, API still returns all tasks (filtering is GUI-side)."""
         self._set_leaf_only(True)
         ids = self._get_task_ids()
-        assert self.parent["id"] not in ids, "Parent should be HIDDEN when leaf_only_mode is ON"
-        assert self.child["id"] in ids, "Child should be visible when leaf_only_mode is ON"
-        assert self.leaf["id"] in ids, "Standalone leaf should be visible when leaf_only_mode is ON"
+        assert self.parent["id"] in ids, "API should return parent even with leaf_only ON"
+        assert self.child["id"] in ids
+        assert self.leaf["id"] in ids
 
     def test_leaf_only_toggle_back(self):
-        """Toggling leaf_only_mode OFF again should show parents again."""
+        """Config toggle persists correctly."""
         self._set_leaf_only(True)
-        ids_on = self._get_task_ids()
-        assert self.parent["id"] not in ids_on
+        status, cfg = api("GET", "/api/config", token=self.token, base_url=self.url)
+        assert cfg["leaf_only_mode"] is True
 
         self._set_leaf_only(False)
-        ids_off = self._get_task_ids()
-        assert self.parent["id"] in ids_off, "Parent should reappear after disabling leaf_only_mode"
+        status, cfg = api("GET", "/api/config", token=self.token, base_url=self.url)
+        assert cfg["leaf_only_mode"] is False
 
     def test_tasks_full_leaf_only_off(self):
-        """/api/tasks/full with leaf_only OFF returns all tasks."""
+        """/api/tasks/full returns all tasks regardless of leaf_only."""
         self._set_leaf_only(False)
         ids = self._get_task_ids("/api/tasks/full")
         assert self.parent["id"] in ids
@@ -104,9 +104,17 @@ class TestLeafOnlyMode:
         assert self.leaf["id"] in ids
 
     def test_tasks_full_leaf_only_on(self):
-        """/api/tasks/full with leaf_only ON excludes parents."""
+        """/api/tasks/full returns all tasks even with leaf_only ON (filtering is GUI-side)."""
         self._set_leaf_only(True)
         ids = self._get_task_ids("/api/tasks/full")
-        assert self.parent["id"] not in ids, "Parent should be HIDDEN in /api/tasks/full"
+        assert self.parent["id"] in ids, "API should return parent — GUI does the filtering"
         assert self.child["id"] in ids
         assert self.leaf["id"] in ids
+
+    def test_parent_id_present_in_response(self):
+        """Tasks include parent_id so GUI can build ancestor breadcrumbs."""
+        self._set_leaf_only(False)
+        status, resp = api("GET", "/api/tasks/full", token=self.token, base_url=self.url)
+        tasks = resp["tasks"]
+        child = next(t for t in tasks if t["id"] == self.child["id"])
+        assert child["parent_id"] == self.parent["id"], "Child should reference parent_id for breadcrumb"
