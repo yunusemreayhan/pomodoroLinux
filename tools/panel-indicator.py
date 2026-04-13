@@ -16,6 +16,29 @@ BASE_URL = os.environ.get("POMODORO_URL", "http://127.0.0.1:9090")
 POLL_MS = 1000
 TOKEN = None
 
+SOUND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "sounds")
+# Fallback: installed location
+if not os.path.isdir(SOUND_DIR):
+    SOUND_DIR = "/usr/share/pomodoro/sounds"
+
+SOUNDS = {
+    "work_start":  os.path.join(SOUND_DIR, "work-start.ogg"),
+    "work_end":    os.path.join(SOUND_DIR, "work-end.ogg"),
+    "break_end":   os.path.join(SOUND_DIR, "break-end.ogg"),
+    "tick":        os.path.join(SOUND_DIR, "tick.ogg"),
+}
+
+
+def play_sound(name):
+    path = SOUNDS.get(name, "")
+    if os.path.isfile(path):
+        try:
+            import subprocess
+            subprocess.Popen(["paplay", path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
+
 ICONS = {
     "Idle":       "appointment-soon",
     "Work":       "media-record",
@@ -165,14 +188,26 @@ class PomodoroIndicator:
         self.indicator.set_label(label, "")
         self.status_item.set_label(detail)
 
-        # Notify on phase change
-        if self.last_phase and self.last_phase != phase and status != "Idle":
-            try:
-                import subprocess
-                msg = f"{'Work time!' if phase == 'Work' else 'Break time!'} ({fmt_time(duration // 60)}m)"
-                subprocess.Popen(["notify-send", "Pomodoro", msg, "-i", icon_name])
-            except Exception:
-                pass
+        # Notify and play sound on phase change
+        if self.last_phase is not None and self.last_phase != phase:
+            if phase == "Work" and self.last_phase in ("ShortBreak", "LongBreak"):
+                play_sound("break_end")
+                play_sound("work_start")
+            elif phase == "Work" and self.last_phase == "Idle":
+                play_sound("work_start")
+            elif phase in ("ShortBreak", "LongBreak") and self.last_phase == "Work":
+                play_sound("work_end")
+            if status != "Idle":
+                try:
+                    import subprocess
+                    msg = f"{'Work time!' if phase == 'Work' else 'Break time!'}"
+                    subprocess.Popen(["notify-send", "Pomodoro", msg, "-i", icon_name])
+                except Exception:
+                    pass
+
+        # Tick sound in last 5 seconds
+        if status == "Running" and 0 < remaining <= 5:
+            play_sound("tick")
         self.last_phase = phase
 
         return True
