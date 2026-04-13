@@ -51,15 +51,15 @@ The endpoint resolves the username to a user_id and calls `set_room_member_role`
 
 | ID | Severity | Category | Status |
 |----|----------|----------|--------|
-| V43-1 | Medium | Bug | |
-| V43-2 | Medium | Bug | |
-| V43-3 | Medium | Bug | |
-| V43-4 | Medium | Security | |
+| V43-1 | Medium | Bug | FIXED — returns 404 for non-existent task |
+| V43-2 | Medium | Bug | FIXED — returns 404 for non-existent task |
+| V43-3 | Medium | Bug | FIXED — returns 400 if not watching |
+| V43-4 | Medium | Security | FIXED — panics instead of using weak entropy |
 | V43-5 | Low | Bug | FALSE POSITIVE — CSV header does include status |
-| V43-6 | Low | Code quality | |
-| V43-7 | Low | Bug | |
-| V43-8 | Low | Bug | |
-| V43-9 | Low | Code quality | |
-| V43-10 | Low | Bug | |
+| V43-6 | Low | Code quality | FIXED — uses hex::encode |
+| V43-7 | Low | Bug | WON'T FIX — most parsers tolerate long lines |
+| V43-8 | Low | Bug | WON'T FIX — shared ExportQuery struct, tasks have no date range |
+| V43-9 | Low | Code quality | FIXED — maps to 404 |
+| V43-10 | Low | Bug | FIXED — returns 404 if not a member |
 
-**Total: 10 items** — 4 medium, 6 low (1 pre-marked false positive)
+**Total: 10 items** — 7 fixed, 2 won't fix, 1 false positive
