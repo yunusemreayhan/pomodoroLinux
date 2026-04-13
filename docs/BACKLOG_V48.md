@@ -19,7 +19,7 @@ Returns `[]` for non-existent sprint IDs.
 
 | ID | Severity | Category | Status |
 |----|----------|----------|--------|
-| V48-1 | Medium | Security | |
-| V48-2 | Medium | Bug | |
+| V48-1 | Medium | Security | FIXED — validates SSRF like create_webhook |
+| V48-2 | Medium | Bug | FIXED — returns 404 for non-existent sprint |
 
-**Total: 2 items** — 2 medium
+**Total: 2 items** — 2 fixed
