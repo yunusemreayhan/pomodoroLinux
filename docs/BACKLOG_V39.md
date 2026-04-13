@@ -81,23 +81,23 @@ The template instantiation reads `title`, `description`, `project`, `priority`, 
 
 | ID | Severity | Category | Status |
 |----|----------|----------|--------|
-| V39-1 | Medium | Bug | |
-| V39-2 | Medium | Bug | |
+| V39-1 | Medium | Bug | FIXED — getrandom replaces rand for root password |
+| V39-2 | Medium | Bug | FIXED — revokeObjectURL added to 2 CSV exports |
 | V39-3 | Medium | Bug | FALSE POSITIVE — sessions do use "running" status |
-| V39-4 | Medium | Bug | |
-| V39-5 | Low | Bug | |
-| V39-6 | Low | Bug | |
-| V39-7 | Low | Bug | |
-| V39-8 | Low | Bug | |
-| V39-9 | Low | Bug | |
-| V39-10 | Low | Code quality | |
-| V39-11 | Low | Code quality | |
-| V39-12 | Low | Code quality | |
-| V39-13 | Low | Bug | |
-| V39-14 | Low | Bug | |
-| V39-15 | Low | Performance | |
-| V39-16 | Low | Code quality | |
-| V39-17 | Low | Bug | |
-| V39-18 | Low | Code quality | |
+| V39-4 | Medium | Bug | FIXED — LIKE search escapes % and _ wildcards |
+| V39-5 | Low | Bug | FIXED — 404 for non-existent sprint |
+| V39-6 | Low | Bug | FIXED — 404 for non-existent sprint |
+| V39-7 | Low | Bug | FIXED — 404 for non-existent task |
+| V39-8 | Low | Bug | FIXED — 404 for non-existent task |
+| V39-9 | Low | Bug | FIXED — 404 for non-existent task |
+| V39-10 | Low | Code quality | FIXED — RefreshRequest + ChangePasswordRequest in schemas |
+| V39-11 | Low | Code quality | FIXED — RestoreRequest in schemas |
+| V39-12 | Low | Code quality | FIXED — ReorderRequest in schemas |
+| V39-13 | Low | Bug | FIXED — prefs array capped at EVENT_TYPES.len() |
+| V39-14 | Low | Bug | WON'T FIX — task_ids sufficient for JSON export |
+| V39-15 | Low | Performance | WON'T FIX — correlated subquery fine for SQLite |
+| V39-16 | Low | Code quality | FIXED — CreateTemplateRequest in schemas |
+| V39-17 | Low | Bug | FIXED — tags/due_date/estimated_hours read from template |
+| V39-18 | Low | Code quality | FIXED — RoomRoleRequest in schemas |
 
-**Total: 18 items** — 4 medium, 14 low (1 pre-marked false positive)
+**Total: 18 items** — 14 fixed, 2 won't fix, 2 false positive
