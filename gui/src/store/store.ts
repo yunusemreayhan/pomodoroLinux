@@ -126,7 +126,7 @@ export const useStore = create<Store>((set, get) => ({
   tasksLoadedAt: 0,
   activeTab: "timer",
   timerTaskId: undefined,
-  activeTeamId: JSON.parse((typeof localStorage !== "undefined" && localStorage.getItem("activeTeamId")) || "null"),
+  activeTeamId: (() => { try { return JSON.parse((typeof localStorage !== "undefined" && localStorage.getItem("activeTeamId")) || "null"); } catch { return null; } })(),
   teamScope: null,
   error: null,
   token: null,

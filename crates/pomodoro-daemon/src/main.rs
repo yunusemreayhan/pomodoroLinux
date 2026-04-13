@@ -91,6 +91,8 @@ use utoipa_swagger_ui::SwaggerUi;
         // V36-6/7/8/9/10: Previously unregistered endpoints
         routes::bulk_update_status, routes::admin_reset_password, routes::create_backup,
         routes::get_notif_prefs, routes::update_notif_prefs, routes::get_task_sessions,
+        // V38-1: Watcher endpoints
+        routes::watch_task, routes::unwatch_task, routes::get_task_watchers, routes::get_watched_tasks,
     ),
     components(schemas(
         db::Task, db::Session, db::Comment, db::User, db::TaskDetail, db::SessionWithPath, db::DayStat, db::TaskAssignee,
@@ -150,6 +152,7 @@ async fn main() -> Result<()> {
     let config = config::Config::load()?;
     let pool = db::connect().await?;
     auth::init_pool(pool.clone()).await;
+    db::webhooks::migrate_legacy_secrets(&pool).await;
 
     let interrupted = db::recover_interrupted(&pool).await?;
     if !interrupted.is_empty() {

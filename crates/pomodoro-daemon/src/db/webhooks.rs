@@ -67,6 +67,24 @@ pub fn decrypt_secret(stored: &str) -> Option<String> {
     decrypt_secret_xor(stored)
 }
 
+/// V38-4: Re-encrypt any legacy XOR webhook secrets to AES-GCM at startup
+pub async fn migrate_legacy_secrets(pool: &Pool) {
+    let rows: Vec<(i64, String)> = sqlx::query_as("SELECT id, secret FROM webhooks WHERE secret IS NOT NULL")
+        .fetch_all(pool).await.unwrap_or_default();
+    for (id, stored) in rows {
+        // Skip if already AES-GCM format (contains colon with 24-char nonce hex)
+        if stored.split_once(':').map_or(false, |(n, _)| n.len() == 24) { continue; }
+        // Try XOR decrypt, then re-encrypt with AES-GCM
+        if let Some(plaintext) = decrypt_secret_xor(&stored) {
+            if let Ok(new_encrypted) = encrypt_secret(&plaintext) {
+                sqlx::query("UPDATE webhooks SET secret = ? WHERE id = ?")
+                    .bind(&new_encrypted).bind(id).execute(pool).await.ok();
+                tracing::info!("Migrated webhook {} secret from XOR to AES-GCM", id);
+            }
+        }
+    }
+}
+
 fn decrypt_secret_aes(nonce_hex: &str, ct_hex: &str) -> Option<String> {
     use aes_gcm::{Aes256Gcm, KeyInit, aead::Aead};
     use aes_gcm::Nonce;

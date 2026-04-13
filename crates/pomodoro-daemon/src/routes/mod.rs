@@ -113,8 +113,9 @@ mod burns_task;
 pub use burns_task::*;
 mod assignees;
 pub use assignees::*;
-mod watchers;
-pub use watchers::{watch_task, unwatch_task, get_task_watchers, get_watched_tasks};
+pub mod watchers;
+pub use watchers::{watch_task, unwatch_task, get_task_watchers, get_watched_tasks,
+    __path_watch_task, __path_unwatch_task, __path_get_task_watchers, __path_get_watched_tasks};
 mod history;
 pub use history::*;
 mod config;
