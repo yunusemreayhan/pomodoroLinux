@@ -50,7 +50,7 @@ pub async fn create_webhook(State(engine): State<AppState>, claims: Claims, Json
 
 #[utoipa::path(delete, path = "/api/webhooks/{id}", responses((status = 204)), security(("bearer" = [])))]
 pub async fn delete_webhook(State(engine): State<AppState>, claims: Claims, Path(id): Path<i64>) -> Result<StatusCode, ApiError> {
-    db::delete_webhook(&engine.pool, id, claims.user_id).await.map_err(internal)?;
+    db::delete_webhook(&engine.pool, id, claims.user_id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Webhook not found"))?;
     Ok(StatusCode::NO_CONTENT)
 }
 

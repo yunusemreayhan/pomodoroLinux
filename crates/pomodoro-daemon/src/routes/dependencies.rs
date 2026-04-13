@@ -7,6 +7,7 @@ pub struct AddDependencyRequest { pub depends_on: i64 }
 
 #[utoipa::path(get, path = "/api/tasks/{id}/dependencies", responses((status = 200)), security(("bearer" = [])))]
 pub async fn get_dependencies(State(engine): State<AppState>, _claims: Claims, Path(id): Path<i64>) -> ApiResult<Vec<i64>> {
+    db::get_task(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
     db::get_dependencies(&engine.pool, id).await.map(Json).map_err(internal)
 }
 
@@ -14,6 +15,7 @@ pub async fn get_dependencies(State(engine): State<AppState>, _claims: Claims, P
 pub async fn add_dependency(State(engine): State<AppState>, claims: Claims, Path(id): Path<i64>, Json(req): Json<AddDependencyRequest>) -> Result<StatusCode, ApiError> {
     let task = db::get_task(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
     if !is_owner_or_root(task.user_id, &claims) { return Err(err(StatusCode::FORBIDDEN, "Not owner")); }
+    db::get_task(&engine.pool, req.depends_on).await.map_err(|_| err(StatusCode::NOT_FOUND, "Dependency task not found"))?;
     db::add_dependency(&engine.pool, id, req.depends_on).await
         .map_err(|e| err(StatusCode::BAD_REQUEST, e.to_string()))?;
     engine.notify(ChangeEvent::Tasks);

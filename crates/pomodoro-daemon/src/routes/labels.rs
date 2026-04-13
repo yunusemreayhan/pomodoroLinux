@@ -50,6 +50,7 @@ pub async fn update_label(State(engine): State<AppState>, claims: Claims, Path(i
 pub async fn add_task_label(State(engine): State<AppState>, claims: Claims, Path((task_id, label_id)): Path<(i64, i64)>) -> Result<StatusCode, ApiError> {
     let task = db::get_task(&engine.pool, task_id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
     if !is_owner_or_root(task.user_id, &claims) { return Err(err(StatusCode::FORBIDDEN, "Not owner")); }
+    sqlx::query("SELECT 1 FROM labels WHERE id = ?").bind(label_id).fetch_one(&engine.pool).await.map_err(|_| err(StatusCode::NOT_FOUND, "Label not found"))?;
     db::add_task_label(&engine.pool, task_id, label_id).await.map_err(internal)?;
     engine.notify(ChangeEvent::Tasks);
     Ok(StatusCode::NO_CONTENT)
@@ -66,5 +67,6 @@ pub async fn remove_task_label(State(engine): State<AppState>, claims: Claims, P
 
 #[utoipa::path(get, path = "/api/tasks/{id}/labels", responses((status = 200)), security(("bearer" = [])))]
 pub async fn get_task_labels(State(engine): State<AppState>, _claims: Claims, Path(id): Path<i64>) -> ApiResult<Vec<db::Label>> {
+    db::get_task(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
     db::get_task_labels(&engine.pool, id).await.map(Json).map_err(internal)
 }
