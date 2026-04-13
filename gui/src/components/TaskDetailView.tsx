@@ -97,7 +97,7 @@ function DetailNode({ detail, depth, onRefresh, hoursMap }: { detail: TaskDetail
       apiCall<string[]>("GET", `/api/tasks/${t.id}/assignees`).catch(() => [] as string[]),
       allUsers.length ? Promise.resolve(allUsers) : apiCall<string[]>("GET", "/api/users").catch(() => [] as string[]),
       apiCall<string[]>("GET", `/api/tasks/${t.id}/burn-users`).catch(() => [] as string[]),
-    ]).then(([tr, a, u, bu]) => { setTimeReports(tr); setAssignees(a); setAllUsers(u); setBurnUsers(bu); });
+    ]).then(([tr, a, u, bu]) => { setTimeReports(tr); setAssignees(a); setAllUsers(u); setBurnUsers(bu); }).catch(() => {});
     apiCall<number[]>("GET", `/api/tasks/${t.id}/dependencies`).then(d => d && setDeps(d)).catch(() => {});
   }, [t.id]);
 
@@ -114,19 +114,19 @@ function DetailNode({ detail, depth, onRefresh, hoursMap }: { detail: TaskDetail
     if (!h || h <= 0) return;
     await apiCall("POST", `/api/tasks/${t.id}/time`, { hours: h, description: reportDesc || null });
     setReportHours(""); setReportDesc("");
-    apiCall<TimeReport[]>("GET", `/api/tasks/${t.id}/time`).then(setTimeReports);
-    apiCall<string[]>("GET", `/api/tasks/${t.id}/assignees`).then(setAssignees);
+    apiCall<TimeReport[]>("GET", `/api/tasks/${t.id}/time`).then(setTimeReports).catch(() => {});
+    apiCall<string[]>("GET", `/api/tasks/${t.id}/assignees`).then(setAssignees).catch(() => {});
   };
 
   const addAssignee = async (username: string) => {
     if (!username) return;
     await apiCall("POST", `/api/tasks/${t.id}/assignees`, { username });
-    apiCall<string[]>("GET", `/api/tasks/${t.id}/assignees`).then(setAssignees);
+    apiCall<string[]>("GET", `/api/tasks/${t.id}/assignees`).then(setAssignees).catch(() => {});
   };
 
   const removeAssignee = async (u: string) => {
     await apiCall("DELETE", `/api/tasks/${t.id}/assignees/${u}`);
-    apiCall<string[]>("GET", `/api/tasks/${t.id}/assignees`).then(setAssignees);
+    apiCall<string[]>("GET", `/api/tasks/${t.id}/assignees`).then(setAssignees).catch(() => {});
   };
 
   return (
@@ -460,7 +460,7 @@ export default function TaskDetailView({ taskId, onBack, onNavigate }: { taskId:
   }, []);
 
   const load = useCallback(() => {
-    getTaskDetail(taskId).then((d) => { setDetail(d); loadHoursMap(d); });
+    getTaskDetail(taskId).then((d) => { setDetail(d); loadHoursMap(d); }).catch(() => {});
   }, [taskId, getTaskDetail, loadHoursMap]);
 
   useEffect(load, [load]);

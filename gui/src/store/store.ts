@@ -415,7 +415,7 @@ export const useStore = create<Store>((set, get) => ({
     if (teamId) {
       apiCall<number[]>("GET", `/api/teams/${teamId}/scope`).then(ids => {
         set({ activeTeamId: teamId, teamScope: ids && ids.length > 0 ? new Set(ids) : new Set() });
-      });
+      }).catch(() => {});
     } else {
       set({ activeTeamId: null, teamScope: null });
     }

@@ -53,7 +53,7 @@ function Sidebar() {
   };
 
   useEffect(() => {
-    apiCall<{ id: number; name: string }[]>("GET", "/api/me/teams").then(res => res && setTeams(res));
+    apiCall<{ id: number; name: string }[]>("GET", "/api/me/teams").then(res => res && setTeams(res)).catch(() => {});
   }, []);
 
   useEffect(() => {
