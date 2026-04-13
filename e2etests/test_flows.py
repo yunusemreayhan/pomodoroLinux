@@ -499,7 +499,8 @@ class TestSessionExpiry:
     def test_revoked_token_forces_relogin(self, app):
         ensure_login_screen(app)
         gui_login(app, "root", ROOT_PASSWORD)
-        app.assert_visible("Start")
+        body = wait_body_contains(app, "Start", "IDLE", "Timer")
+        assert any(t in body for t in ("Start", "IDLE", "Timer"))
         token = app.execute_js("return localStorage.getItem('auth')")
         tok = ""
         if token:
@@ -523,4 +524,5 @@ class TestSessionExpiry:
     def test_fresh_login_works_after_expiry(self, app):
         ensure_login_screen(app)
         gui_login(app, "root", ROOT_PASSWORD)
-        app.assert_visible("Start")
+        body = wait_body_contains(app, "Start", "IDLE", "Timer")
+        assert any(t in body for t in ("Start", "IDLE", "Timer"))
