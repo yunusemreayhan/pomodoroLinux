@@ -37,13 +37,12 @@ pub async fn update_config(State(engine): State<AppState>, claims: Claims, Json(
     // Root also updates global config (preserve network settings from current config)
     if claims.role == "root" {
         let mut save_cfg = cfg.clone();
-        let current = engine.config.lock().await;
+        let mut current = engine.config.lock().await;
         save_cfg.bind_address = current.bind_address.clone();
         save_cfg.bind_port = current.bind_port;
         save_cfg.cors_origins = current.cors_origins.clone();
-        drop(current);
         save_cfg.save().map_err(internal)?;
-        *engine.config.lock().await = save_cfg;
+        *current = save_cfg;
     }
     Ok(Json(cfg))
 }

@@ -37,7 +37,7 @@ pub async fn update_profile(State(engine): State<AppState>, claims: Claims, Json
 // --- Admin ---
 
 // F12: Notification preferences per event type
-const EVENT_TYPES: &[&str] = &["task_assigned", "task_completed", "comment_added", "sprint_started", "sprint_completed", "time_logged"];
+const EVENT_TYPES: &[&str] = &["task_assigned", "task_completed", "comment_added", "sprint_started", "sprint_completed", "time_logged", "task_added_to_sprint"];
 
 #[derive(Serialize, Deserialize, utoipa::ToSchema)]
 pub struct NotifPref { pub event_type: String, pub enabled: bool }

@@ -151,6 +151,7 @@ pub async fn carryover_sprint(State(engine): State<AppState>, claims: Claims, Pa
 
 #[utoipa::path(get, path = "/api/sprints/{id}/tasks", responses((status = 200, body = Vec<db::Task>)), security(("bearer" = [])))]
 pub async fn get_sprint_tasks(State(engine): State<AppState>, _claims: Claims, Path(id): Path<i64>) -> ApiResult<Vec<db::Task>> {
+    db::get_sprint(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Sprint not found"))?;
     db::get_sprint_tasks(&engine.pool, id).await.map(Json).map_err(internal)
 }
 
@@ -199,7 +200,7 @@ pub async fn add_sprint_tasks(State(engine): State<AppState>, claims: Claims, Pa
 #[utoipa::path(delete, path = "/api/sprints/{id}/tasks/{task_id}", responses((status = 204)), security(("bearer" = [])))]
 pub async fn remove_sprint_task(State(engine): State<AppState>, claims: Claims, Path((id, task_id)): Path<(i64, i64)>) -> Result<StatusCode, ApiError> {
     get_owned_sprint(&engine.pool, id, &claims).await?;
-    db::remove_sprint_task(&engine.pool, id, task_id).await.map_err(internal)?;
+    db::remove_sprint_task(&engine.pool, id, task_id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not in sprint"))?;
     // BL8: Audit sprint scope changes
     db::audit(&engine.pool, claims.user_id, "remove_task", "sprint", Some(id), Some(&format!("task {} removed", task_id))).await.ok();
     if db::get_sprint(&engine.pool, id).await.map(|s| s.status == "active").unwrap_or(false) {
@@ -211,6 +212,7 @@ pub async fn remove_sprint_task(State(engine): State<AppState>, claims: Claims, 
 
 #[utoipa::path(get, path = "/api/sprints/{id}/burndown", responses((status = 200, body = Vec<db::SprintDailyStat>)), security(("bearer" = [])))]
 pub async fn get_sprint_burndown(State(engine): State<AppState>, _claims: Claims, Path(id): Path<i64>) -> ApiResult<Vec<db::SprintDailyStat>> {
+    db::get_sprint(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Sprint not found"))?;
     db::get_sprint_burndown(&engine.pool, id).await.map(Json).map_err(internal)
 }
 
@@ -249,7 +251,7 @@ pub async fn compare_sprints(State(engine): State<AppState>, _claims: Claims, Qu
 
 #[utoipa::path(get, path = "/api/sprints/velocity", responses((status = 200)), security(("bearer" = [])))]
 pub async fn get_velocity(State(engine): State<AppState>, _claims: Claims, Query(q): Query<VelocityQuery>) -> ApiResult<Vec<serde_json::Value>> {
-    let n = q.sprints.unwrap_or(10).min(50);
+    let n = q.sprints.unwrap_or(10).clamp(1, 50);
     let rows = db::get_velocity(&engine.pool, n).await.map_err(internal)?;
     let result: Vec<serde_json::Value> = rows.into_iter().map(|(name, points, hours, tasks)| {
         serde_json::json!({ "sprint": name, "points": points, "hours": hours, "tasks_done": tasks })

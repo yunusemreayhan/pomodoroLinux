@@ -10,8 +10,9 @@ pub async fn add_assignee(pool: &Pool, task_id: i64, user_id: i64) -> Result<()>
 }
 
 pub async fn remove_assignee(pool: &Pool, task_id: i64, user_id: i64) -> Result<()> {
-    sqlx::query("DELETE FROM task_assignees WHERE task_id = ? AND user_id = ?")
+    let r = sqlx::query("DELETE FROM task_assignees WHERE task_id = ? AND user_id = ?")
         .bind(task_id).bind(user_id).execute(pool).await?;
+    if r.rows_affected() == 0 { return Err(anyhow::anyhow!("User not assigned")); }
     Ok(())
 }
 

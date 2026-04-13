@@ -63,7 +63,8 @@ pub async fn add_sprint_tasks(pool: &Pool, sprint_id: i64, task_ids: &[i64], use
 }
 
 pub async fn remove_sprint_task(pool: &Pool, sprint_id: i64, task_id: i64) -> Result<()> {
-    sqlx::query("DELETE FROM sprint_tasks WHERE sprint_id = ? AND task_id = ?").bind(sprint_id).bind(task_id).execute(pool).await?;
+    let r = sqlx::query("DELETE FROM sprint_tasks WHERE sprint_id = ? AND task_id = ?").bind(sprint_id).bind(task_id).execute(pool).await?;
+    if r.rows_affected() == 0 { return Err(anyhow::anyhow!("Task not in sprint")); }
     Ok(())
 }
 
