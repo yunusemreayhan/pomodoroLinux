@@ -113,6 +113,7 @@ use utoipa_swagger_ui::SwaggerUi;
         routes::AddTaskLinkRequest, routes::GitHubPushEvent, routes::GitHubCommit, routes::GitHubRepo,
         routes::CreateAutomationRuleRequest, routes::AutomationRule,
         routes::SlackIntegrationRequest,
+        routes::NotifPref, routes::BulkStatusRequest,
     )),
     modifiers(&SecurityAddon),
     info(title = "Pomodoro API", version = "2.0.1", description = "Multi-user Pomodoro timer with hierarchical task management")

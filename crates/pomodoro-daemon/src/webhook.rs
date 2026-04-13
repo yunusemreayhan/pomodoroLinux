@@ -102,7 +102,10 @@ pub fn dispatch(pool: Pool, event: &str, payload: serde_json::Value) {
                         if attempts >= 3 { break; }
                     }
                 }
-                tokio::time::sleep(std::time::Duration::from_secs(1 << attempts)).await;
+                let base = 1u64 << attempts;
+                let mut jitter_buf = [0u8; 1];
+                let jitter_ms = if getrandom::fill(&mut jitter_buf).is_ok() { jitter_buf[0] as u64 * 4 } else { 0 };
+                tokio::time::sleep(std::time::Duration::from_millis(base * 1000 + jitter_ms)).await;
             }
         }
     });

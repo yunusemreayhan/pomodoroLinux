@@ -266,8 +266,12 @@ pub async fn export_ical(State(engine): State<AppState>, claims: Claims) -> Resu
     for s in &sprints {
         if let (Some(ref start), Some(ref end)) = (&s.start_date, &s.end_date) {
             let uid = format!("sprint-{}@pomodoro", s.id);
+            // iCal DTEND;VALUE=DATE is exclusive — add 1 day
+            let dtend = chrono::NaiveDate::parse_from_str(end, "%Y-%m-%d")
+                .map(|d| (d + chrono::Duration::days(1)).format("%Y%m%d").to_string())
+                .unwrap_or_else(|_| end.replace('-', ""));
             ical.push_str(&format!("BEGIN:VEVENT\r\nUID:{}\r\nDTSTART;VALUE=DATE:{}\r\nDTEND;VALUE=DATE:{}\r\nSUMMARY:Sprint: {}\r\n",
-                uid, start.replace('-', ""), end.replace('-', ""), ical_escape(&s.name)));
+                uid, start.replace('-', ""), dtend, ical_escape(&s.name)));
             if let Some(ref goal) = s.goal { ical.push_str(&format!("DESCRIPTION:{}\r\n", ical_escape(goal))); }
             ical.push_str("END:VEVENT\r\n");
         }

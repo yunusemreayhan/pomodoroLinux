@@ -125,12 +125,18 @@ pub async fn delete_webhook(pool: &Pool, id: i64, user_id: i64) -> Result<()> {
 
 pub async fn get_active_webhooks(pool: &Pool, event: &str) -> Result<Vec<Webhook>> {
     // V31-5: Use exact comma-delimited matching instead of LIKE
+    // V37-20: Also match slack:-prefixed events for Slack integrations
+    let slack_event = format!("slack:{}", event);
     Ok(sqlx::query_as::<_, Webhook>(
-        "SELECT * FROM webhooks WHERE active = 1 AND (events = '*' OR events = ? OR events LIKE ? OR events LIKE ? OR events LIKE ?)"
+        "SELECT * FROM webhooks WHERE active = 1 AND (events = '*' OR events = ? OR events LIKE ? OR events LIKE ? OR events LIKE ? OR events = ? OR events LIKE ? OR events LIKE ? OR events LIKE ?)"
     )
         .bind(event)
         .bind(format!("{},%", event))
         .bind(format!("%,{}", event))
         .bind(format!("%,{},%", event))
+        .bind(&slack_event)
+        .bind(format!("{},%", slack_event))
+        .bind(format!("%,{}", slack_event))
+        .bind(format!("%,{},%", slack_event))
         .fetch_all(pool).await?)
 }

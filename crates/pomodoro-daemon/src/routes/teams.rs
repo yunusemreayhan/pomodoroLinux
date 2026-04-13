@@ -120,6 +120,7 @@ pub async fn snapshot_sprint(State(engine): State<AppState>, claims: Claims, Pat
 
 #[utoipa::path(get, path = "/api/sprints/{id}/board", responses((status = 200, body = db::SprintBoard)), security(("bearer" = [])))]
 pub async fn get_sprint_board(State(engine): State<AppState>, _claims: Claims, Path(id): Path<i64>) -> ApiResult<db::SprintBoard> {
+    db::get_sprint(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Sprint not found"))?;
     db::get_sprint_board(&engine.pool, id).await.map(Json).map_err(internal)
 }
 

@@ -51,6 +51,10 @@ pub async fn duplicate_task(State(engine): State<AppState>, claims: Claims, Path
     if let Ok(deps) = db::get_dependencies(&engine.pool, id).await {
         for dep_id in deps { db::add_dependency(&engine.pool, t.id, dep_id).await.ok(); }
     }
+    // V37-8: Copy recurrence
+    if let Ok(Some(rec)) = db::get_recurrence(&engine.pool, id).await {
+        db::set_recurrence(&engine.pool, t.id, &rec.pattern, &rec.next_due).await.ok();
+    }
     engine.notify(ChangeEvent::Tasks);
     Ok((StatusCode::CREATED, Json(t)))
 }
