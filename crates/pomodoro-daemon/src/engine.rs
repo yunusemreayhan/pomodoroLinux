@@ -74,6 +74,8 @@ pub struct Engine {
     user_config_cache: Arc<Mutex<HashMap<i64, (Config, std::time::Instant)>>>,
     /// O2: Background task heartbeats (task_name → last_heartbeat)
     pub heartbeats: Arc<Mutex<HashMap<String, std::time::Instant>>>,
+    /// Per-instance user auth cache (avoids global static race in tests)
+    pub user_auth_cache: Arc<tokio::sync::RwLock<HashMap<i64, std::time::Instant>>>,
 }
 
 impl Engine {
@@ -94,6 +96,7 @@ impl Engine {
             changes,
             user_config_cache: Arc::new(Mutex::new(HashMap::new())),
             heartbeats: Arc::new(Mutex::new(HashMap::new())),
+            user_auth_cache: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
         }
     }
 

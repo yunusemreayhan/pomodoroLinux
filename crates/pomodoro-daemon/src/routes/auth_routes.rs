@@ -71,7 +71,7 @@ pub async fn change_password(State(engine): State<AppState>, claims: Claims, Jso
     let new_hash = tokio::task::spawn_blocking(move || bcrypt::hash(&new_pw, 12)).await.map_err(internal)?.map_err(internal)?;
     db::update_user_password(&engine.pool, claims.user_id, &new_hash).await.map_err(internal)?;
     // S1: Invalidate user cache so existing tokens are re-validated against password_changed_at
-    auth::invalidate_user_cache(claims.user_id).await;
+    auth::invalidate_user_cache(&engine.user_auth_cache, claims.user_id).await;
     Ok(StatusCode::NO_CONTENT)
 }
 

@@ -26,7 +26,7 @@ pub async fn update_profile(State(engine): State<AppState>, claims: Claims, Json
             .await.map_err(internal)?.map_err(internal)?;
         db::update_user_password(&engine.pool, claims.user_id, &hash).await.map_err(internal)?;
         // S1: Invalidate user cache so existing tokens are re-validated against password_changed_at
-        auth::invalidate_user_cache(claims.user_id).await;
+        auth::invalidate_user_cache(&engine.user_auth_cache, claims.user_id).await;
     }
     let user = db::get_user(&engine.pool, claims.user_id).await.map_err(internal)?;
     let token = auth::create_token(user.id, &user.username, &user.role).map_err(internal)?;

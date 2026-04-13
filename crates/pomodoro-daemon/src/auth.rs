@@ -10,11 +10,7 @@ static BLOCKLIST: OnceLock<RwLock<HashSet<String>>> = OnceLock::new();
 static AUTH_POOL: OnceLock<crate::db::Pool> = OnceLock::new();
 
 // S2: Cache verified user IDs to avoid per-request DB lookup (60s TTL)
-static USER_CACHE: OnceLock<RwLock<std::collections::HashMap<i64, std::time::Instant>>> = OnceLock::new();
-
-fn user_cache() -> &'static RwLock<std::collections::HashMap<i64, std::time::Instant>> {
-    USER_CACHE.get_or_init(|| RwLock::new(std::collections::HashMap::new()))
-}
+// Per-instance cache is on Engine.user_auth_cache (avoids global static race in tests)
 
 fn blocklist() -> &'static RwLock<HashSet<String>> {
     BLOCKLIST.get_or_init(|| RwLock::new(HashSet::new()))
@@ -137,6 +133,7 @@ impl FromRequestParts<std::sync::Arc<crate::engine::Engine>> for Claims {
         state: &std::sync::Arc<crate::engine::Engine>,
     ) -> impl std::future::Future<Output = Result<Self, Self::Rejection>> + Send {
         let pool = state.pool.clone();
+        let user_cache = state.user_auth_cache.clone();
         async move {
             // CSRF: require x-requested-with header on state-changing requests
             let method = &parts.method;
@@ -156,7 +153,7 @@ impl FromRequestParts<std::sync::Arc<crate::engine::Engine>> for Claims {
             // Reject tokens from deleted users (cached for 60s)
             {
                 let cached = {
-                    let cache = user_cache().read().await;
+                    let cache = user_cache.read().await;
                     cache.get(&claims.user_id).map(|t| t.elapsed().as_secs() < 60).unwrap_or(false)
                 };
                 if !cached {
@@ -174,7 +171,7 @@ impl FromRequestParts<std::sync::Arc<crate::engine::Engine>> for Claims {
                         }
                         _ => {}
                     }
-                    let mut cache = user_cache().write().await;
+                    let mut cache = user_cache.write().await;
                     // S2: Prune expired entries when cache grows large
                     if cache.len() > 200 {
                         cache.retain(|_, t| t.elapsed().as_secs() < 60);
@@ -193,6 +190,6 @@ pub fn is_owner_or_root(resource_user_id: i64, claims: &Claims) -> bool {
 }
 
 /// Remove a user from the verified-user cache (call on user deletion)
-pub async fn invalidate_user_cache(user_id: i64) {
-    user_cache().write().await.remove(&user_id);
+pub async fn invalidate_user_cache(cache: &tokio::sync::RwLock<std::collections::HashMap<i64, std::time::Instant>>, user_id: i64) {
+    cache.write().await.remove(&user_id);
 }

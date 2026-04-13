@@ -22,7 +22,7 @@ pub async fn delete_user(State(engine): State<AppState>, claims: Claims, Path(id
     db::get_user(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "User not found"))?;
     db::delete_user(&engine.pool, id).await.map_err(|e| err(StatusCode::BAD_REQUEST, e.to_string()))?;
     // Invalidate user cache so deleted user's tokens are rejected immediately
-    auth::invalidate_user_cache(id).await;
+    auth::invalidate_user_cache(&engine.user_auth_cache, id).await;
     // V38-16: Stop active timer for deleted user
     engine.states.lock().await.remove(&id);
     Ok(StatusCode::NO_CONTENT)
@@ -41,7 +41,7 @@ pub async fn admin_reset_password(State(engine): State<AppState>, claims: Claims
         .await.map_err(internal)?.map_err(internal)?;
     db::update_user_password(&engine.pool, id, &hash).await.map_err(internal)?;
     // S2: Invalidate user cache so existing tokens trigger re-validation
-    auth::invalidate_user_cache(id).await;
+    auth::invalidate_user_cache(&engine.user_auth_cache, id).await;
     if let Err(e) = db::audit(&engine.pool, claims.user_id, "admin_reset_password", "user", Some(id), None).await { tracing::warn!("Audit log failed: {}", e); }
     Ok(StatusCode::NO_CONTENT)
 }
