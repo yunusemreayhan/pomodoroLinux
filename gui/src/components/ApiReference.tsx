@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Copy, Check, ExternalLink } from "lucide-react";
-import { useStore } from "../store/store";
+import { apiCall } from "../store/api";
 
 interface PathItem {
   summary?: string;
@@ -73,9 +73,7 @@ export default function ApiReference() {
   const [copyAll, setCopyAll] = useState(false);
 
   useEffect(() => {
-    const url = useStore.getState().serverUrl;
-    fetch(`${url}/api-docs/openapi.json`)
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+    apiCall<OpenApiSpec>("GET", "/api-docs/openapi.json")
       .then(setSpec)
       .catch((e) => setError(String(e)));
   }, []);

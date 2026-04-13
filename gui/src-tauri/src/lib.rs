@@ -24,8 +24,8 @@ struct AppState {
 
 #[tauri::command]
 async fn api_call(state: tauri::State<'_, Arc<AppState>>, method: String, path: String, body: Option<Value>) -> Result<Value, String> {
-    // V35-4: Validate path to prevent SSRF — must start with /api/
-    if !path.starts_with("/api/") {
+    // V35-4: Validate path to prevent SSRF — must start with /api
+    if !path.starts_with("/api") {
         return Err("Invalid API path".to_string());
     }
     let config = state.config.lock().await.clone();
