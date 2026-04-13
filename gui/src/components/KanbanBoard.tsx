@@ -53,8 +53,8 @@ export default function KanbanBoard() {
   }, [dragId, tasks, updateTask]);
 
   return (
-    <div className="p-4 space-y-3 h-full flex flex-col">
-      <div className="flex items-center gap-2">
+    <div className="p-8 h-full flex flex-col gap-5 overflow-hidden">
+      <div className="glass p-4 flex items-center gap-3">
         <h2 className="text-lg font-semibold text-white flex-1">Kanban Board</h2>
         <select value={groupBy} onChange={e => setGroupBy(e.target.value as typeof groupBy)}
           className="bg-white/5 border border-white/10 text-white/70 text-xs rounded px-2 py-1 outline-none">
@@ -65,24 +65,24 @@ export default function KanbanBoard() {
       </div>
 
       <div className="flex-1 overflow-x-auto">
-        <div className="flex gap-3 min-w-max h-full">
+        <div className="flex gap-4 min-w-max h-full">
           {COLUMNS.map(col => {
             const colTasks = columns.get(col.id) || [];
             const isOver = dragOver === col.id;
             return (
               <div key={col.id}
-                className={`w-56 md:w-64 flex flex-col rounded-lg bg-white/[0.02] border transition-colors ${
+                className={`w-60 md:w-72 flex flex-col rounded-xl bg-white/[0.03] border transition-colors ${
                   isOver ? "border-[var(--color-accent)]/50 bg-[var(--color-accent)]/5" : "border-white/5"
                 }`}
                 onDragOver={e => { e.preventDefault(); setDragOver(col.id); }}
                 onDragLeave={() => setDragOver(null)}
                 onDrop={e => onDrop(e, col.id)}>
-                <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5">
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-white/5">
                   <span className="w-2 h-2 rounded-full" style={{ background: col.color }} />
                   <span className="text-xs font-medium text-white/70">{col.label}</span>
                   <span className="text-[10px] text-white/30 ml-auto">{colTasks.length}</span>
                 </div>
-                <div className="flex-1 overflow-y-auto p-2 space-y-1.5" role="list">
+                <div className="flex-1 overflow-y-auto p-3 space-y-2" role="list">
                   {colTasks.length === 0 && <div className="text-[10px] text-white/15 text-center py-4">Drop tasks here</div>}
                   {groupBy === "none"
                     ? colTasks.map(t => <KanbanCard key={t.id} task={t} onDragStart={onDragStart} />)
@@ -106,7 +106,7 @@ function KanbanCard({ task, onDragStart }: { task: Task; onDragStart: (e: React.
     <div draggable onDragStart={e => onDragStart(e, task.id)} tabIndex={0}
       onKeyDown={e => { if (e.key === "Enter" && nextStatus) { e.preventDefault(); updateTask(task.id, { status: nextStatus }); } }}
       role="listitem" aria-label={`${task.title}, ${task.status}${nextStatus ? `. Press Enter to move to ${nextStatus}` : ""}`}
-      className="bg-[var(--color-surface)] p-2 rounded-lg border border-white/5 cursor-grab active:cursor-grabbing hover:border-white/10 focus:ring-2 focus:ring-[var(--color-accent)] focus:outline-none transition-colors">
+      className="bg-[var(--color-surface)] p-3 rounded-xl border border-white/5 cursor-grab active:cursor-grabbing hover:border-white/10 focus:ring-2 focus:ring-[var(--color-accent)] focus:outline-none transition-colors">
       <div className="text-xs text-white/80 leading-tight">{task.title}</div>
       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
         {task.project && <span className="text-[9px] bg-white/5 px-1 py-0.5 rounded text-white/30">{task.project}</span>}

@@ -91,7 +91,7 @@ export function BoardView({ board, reload, wipLimit: wipLimitProp }: { board: Sp
   const pct = total > 0 ? Math.round((board.done.length / total) * 100) : 0;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-center gap-3 text-xs text-white/50">
         <span>{total} tasks</span>
         <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
@@ -154,7 +154,7 @@ export function BacklogView({ sprintId, taskIds, reload, capacityHours, tasks: s
   const rootIdSet = new Set(rootIds);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Root task scoping */}
       <div className="space-y-1">
         <div className="text-xs text-white/50 font-medium">Sprint Scope (root tasks)</div>
@@ -259,7 +259,7 @@ export function SummaryView({ detail }: { detail: SprintDetail }) {
   );
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="grid grid-cols-3 gap-2">
         <Stat label="Tasks" value={`${done.length}/${tasks.length}`} sub={`${tasks.length - done.length} remaining`} />
         <Stat label="Points" value={`${donePts}/${totalPts}`} sub={`${totalPts - donePts} remaining`} />

@@ -27,9 +27,9 @@ export default function Dashboard() {
   const completedToday = useMemo(() => tasks.filter(t => t.status === "completed" && t.updated_at.startsWith(today)).length, [tasks, today]);
 
   return (
-    <div className="space-y-4 p-1">
-      <div className="flex justify-between items-center">
-        <dl className="grid grid-cols-2 md:grid-cols-4 gap-3 flex-1">
+    <div className="flex flex-col gap-5 p-8 h-full overflow-y-auto">
+      <div className="glass p-4 flex justify-between items-center">
+        <dl className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
         <Stat label="Focus today" value={todayStats ? `${Math.round(todayStats.total_focus_s / 60)}m` : "0m"} />
         <Stat label="Sessions" value={String(todayStats?.completed ?? 0)} />
         <Stat label="Active tasks" value={String(activeCount)} />
@@ -46,7 +46,7 @@ export default function Dashboard() {
         const last7 = stats.slice(-7);
         const max = Math.max(...last7.map(s => s.total_focus_s), 1);
         return (
-          <div className="glass p-3 rounded-lg">
+          <div className="glass p-4 rounded-xl">
             <div className="text-xs text-white/40 mb-2">Last {last7.length} days</div>
             <div className="flex items-end gap-1 h-8">
               {last7.map(s => (
@@ -61,7 +61,7 @@ export default function Dashboard() {
       {activeSprint && <SprintProgress sprintId={activeSprint.id} name={activeSprint.name} endDate={activeSprint.end_date} />}
 
       {overdue.length > 0 && (
-        <div className="glass p-3 rounded-lg border border-red-500/20">
+        <div className="glass p-4 rounded-xl border border-red-500/20">
           <div className="text-xs text-red-400 mb-2">⚠ Overdue ({overdue.length})</div>
           {overdue.slice(0, 5).map(t => (
             <div key={t.id} className="text-xs text-white/60 truncate">• {t.title} <span className="text-red-400/60">({t.due_date})</span></div>
@@ -69,7 +69,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="glass p-3 rounded-lg">
+      <div className="glass p-4 rounded-xl">
         <div className="text-xs text-white/40 mb-2">Recently Updated</div>
         {recentlyUpdated.map(t => (
           <div key={t.id} className="text-xs text-white/60 truncate flex justify-between">
@@ -80,7 +80,7 @@ export default function Dashboard() {
       </div>
 
       {activity.length > 0 && (
-        <div className="glass p-3 rounded-lg">
+        <div className="glass p-4 rounded-xl">
           <div className="text-xs text-white/40 mb-2">Activity Timeline</div>
           {activity.map((a, i) => (
             <div key={i} className="text-xs text-white/50 truncate flex justify-between">
@@ -129,7 +129,7 @@ function ActiveTimers() {
   }, [username]);
   if (timers.length === 0) return null;
   return (
-    <div className="glass p-3 rounded-lg">
+    <div className="glass p-4 rounded-xl">
       <div className="text-xs text-white/40 mb-2">Team Activity</div>
       {timers.map((t, i) => (
         <div key={i} className="text-xs text-white/50 flex justify-between">
@@ -143,7 +143,7 @@ function ActiveTimers() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="glass p-3 rounded-lg text-center">
+    <div className="glass p-4 rounded-xl text-center">
       <dd className="text-lg font-bold text-white/80">{value}</dd>
       <dt className="text-[10px] text-white/30">{label}</dt>
     </div>
@@ -158,7 +158,7 @@ function SprintProgress({ sprintId, name, endDate }: { sprintId: number; name: s
   const pct = board && total > 0 ? Math.round((board.done.length / total) * 100) : 0;
   const daysLeft = endDate ? Math.max(0, Math.ceil((new Date(endDate).getTime() - Date.now()) / 86400000)) : null;
   return (
-    <div className="glass p-3 rounded-lg">
+    <div className="glass p-4 rounded-xl">
       <div className="flex justify-between items-center mb-2">
         <div>
           <div className="text-xs text-white/40">Active Sprint</div>
@@ -211,7 +211,7 @@ function StandupView({ today, tasks }: { today: string; tasks: import("../store/
   }, [tasks, yesterday, today]);
   if (byUser.length === 0) return null;
   return (
-    <div className="glass p-3 rounded-lg">
+    <div className="glass p-4 rounded-xl">
       <div className="flex justify-between items-center mb-2">
         <div className="text-xs text-white/40">Daily Standup</div>
         <button onClick={() => {
@@ -253,7 +253,7 @@ function WorkloadView({ tasks, sprints }: { tasks: import("../store/api").Task[]
   if (workload.length === 0) return null;
   const maxHrs = Math.max(...workload.map(([, v]) => v.hours), 1);
   return (
-    <div className="glass p-3 rounded-lg">
+    <div className="glass p-4 rounded-xl">
       <div className="text-xs text-white/40 mb-2">Team Workload (active sprints)</div>
       {workload.map(([user, { hours, points, tasks: count }]) => (
         <div key={user} className="flex items-center gap-2 py-0.5">
@@ -283,7 +283,7 @@ function ProjectStats({ tasks }: { tasks: import("../store/api").Task[] }) {
   }, [tasks]);
   if (projects.length === 0) return null;
   return (
-    <div className="glass p-3 rounded-lg">
+    <div className="glass p-4 rounded-xl">
       <div className="text-xs text-white/40 mb-2">Projects</div>
       {projects.map(([name, { total, done, hours }]) => (
         <div key={name} className="flex items-center gap-2 py-0.5">
@@ -324,7 +324,7 @@ function FocusHeatmap({ stats }: { stats: import("../store/api").DayStat[] }) {
   if (stats.length < 7) return null;
 
   return (
-    <div className="glass p-3 rounded-lg">
+    <div className="glass p-4 rounded-xl">
       <div className="flex justify-between items-center mb-2">
         <div className="text-xs text-white/40">Focus Heatmap</div>
         <div className="text-[10px] text-white/20">{Math.round(total / 60)}h total</div>
@@ -390,7 +390,7 @@ function ProductivityTrends({ stats }: { stats: import("../store/api").DayStat[]
   const maxH = Math.max(...weeks.map(w => w.focusH), 1);
 
   return (
-    <div className="glass p-3 rounded-lg">
+    <div className="glass p-4 rounded-xl">
       <div className="text-xs text-white/40 mb-2">Weekly Trends</div>
       <div className="grid grid-cols-3 gap-2 mb-3">
         <div className="text-center">
@@ -425,11 +425,11 @@ function FocusScore() {
   const [data, setData] = useState<{ score: number; streak_days: number; components: Record<string, number> } | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => { apiCall<typeof data>("GET", "/api/analytics/focus-score").then(setData).catch(() => {}).finally(() => setLoading(false)); }, []);
-  if (loading) return <div className="glass p-3 rounded-lg animate-pulse h-16" />;
+  if (loading) return <div className="glass p-4 rounded-xl animate-pulse h-16" />;
   if (!data || data.score === 0) return null;
   const color = data.score >= 80 ? "#10B981" : data.score >= 50 ? "#F59E0B" : "#EF4444";
   return (
-    <div className="glass p-3 rounded-lg">
+    <div className="glass p-4 rounded-xl">
       <div className="flex items-center gap-3">
         <div className="relative w-14 h-14">
           <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
@@ -463,10 +463,10 @@ function Achievements() {
     apiCall<typeof achievements>("GET", "/api/achievements").then(d => d && setAchievements(d)).catch(() => {}).finally(() => setLoading(false));
   }, []);
   const unlocked = achievements.filter(a => a.unlocked);
-  if (loading) return <div className="glass p-3 rounded-lg animate-pulse h-16" />;
+  if (loading) return <div className="glass p-4 rounded-xl animate-pulse h-16" />;
   if (achievements.length === 0) return null;
   return (
-    <div className="glass p-3 rounded-lg">
+    <div className="glass p-4 rounded-xl">
       <div className="text-xs text-white/40 mb-2">Achievements ({unlocked.length}/{achievements.length})</div>
       <div className="flex flex-wrap gap-2">
         {achievements.map(a => (

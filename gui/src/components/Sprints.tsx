@@ -79,8 +79,8 @@ export default function Sprints() {
   if (selected) return <SprintView id={selected} onBack={() => { setSelected(null); load(); }} />;
 
   return (
-    <div className="p-4 space-y-3">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-5 p-8 h-full overflow-y-auto">
+      <div className="glass p-4 flex items-center gap-3">
         <h2 className="text-lg font-semibold text-white flex-1">Sprints</h2>
         <Select value={filter} onChange={setFilter} className="w-32 text-xs"
           options={[{value:"all",label:"All"},{value:"planning",label:"Planning"},{value:"active",label:"Active"},{value:"completed",label:"Completed"}]} />
@@ -88,7 +88,7 @@ export default function Sprints() {
       </div>
 
       {creating && (
-        <div className="bg-[var(--color-surface)] p-3 rounded-lg space-y-2 border border-white/10">
+        <div className="bg-[var(--color-surface)] p-4 rounded-xl space-y-2 border border-white/10">
           <input placeholder="Sprint name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
             onKeyDown={e => e.key === "Enter" && create()}
             className="w-full bg-transparent border-b border-white/20 text-white text-sm outline-none pb-1" autoFocus />
@@ -141,7 +141,7 @@ export default function Sprints() {
       <EpicBurndown />
 
       {sprints.map(s => (
-        <div key={s.id} role="button" tabIndex={0} className="bg-[var(--color-surface)] p-3 rounded-lg flex items-center gap-3 cursor-pointer hover:bg-white/5 border border-white/5"
+        <div key={s.id} role="button" tabIndex={0} className="bg-[var(--color-surface)] p-4 rounded-xl flex items-center gap-3 cursor-pointer hover:bg-white/5 border border-white/5"
           onClick={() => setSelected(s.id)} onKeyDown={e => e.key === "Enter" && setSelected(s.id)}>
           <div className="flex-1 min-w-0">
             <div className="text-sm text-white font-medium truncate">{s.name}</div>

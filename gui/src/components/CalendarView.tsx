@@ -68,8 +68,8 @@ export default function CalendarView() {
   const selectedTasks = selected ? tasksByDate.get(selected) || [] : [];
 
   return (
-    <div className="p-4 space-y-3">
-      <div className="flex items-center gap-3">
+    <div className="flex flex-col gap-5 p-8 h-full overflow-y-auto">
+      <div className="glass p-4 flex items-center gap-3">
         <button onClick={() => setOffset(o => o - 1)} className="p-1 text-white/50 hover:text-white" aria-label="Previous month"><ChevronLeft size={18} /></button>
         <h2 className="text-lg font-semibold text-white flex-1 text-center">{monthName}</h2>
         <button onClick={() => setOffset(o => o + 1)} className="p-1 text-white/50 hover:text-white" aria-label="Next month"><ChevronRight size={18} /></button>
@@ -77,12 +77,12 @@ export default function CalendarView() {
       </div>
 
       {/* Day headers */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-2">
         {DAYS.map(d => <div key={d} className="text-center text-[10px] text-white/30 font-medium py-1">{d}</div>)}
       </div>
 
       {/* Calendar grid */}
-      <div className="grid grid-cols-7 gap-1" role="grid" aria-label="Calendar"
+      <div className="grid grid-cols-7 gap-2" role="grid" aria-label="Calendar"
         onKeyDown={(e) => {
           // V29-19: Arrow key navigation
           const target = e.target as HTMLElement;
@@ -106,7 +106,7 @@ export default function CalendarView() {
           const overdue = dueTasks.some(t => t.status !== "completed" && t.status !== "done" && cell.date < todayStr);
           return (
             <button key={i} onClick={() => setSelected(isSelected ? null : cell.date)}
-              className={`relative p-1 rounded-lg text-left min-h-[60px] md:min-h-[72px] transition-all ${
+              className={`relative p-2 rounded-xl text-left min-h-[60px] md:min-h-[72px] transition-all ${
                 !cell.inMonth ? "opacity-30" :
                 isSelected ? "bg-[var(--color-accent)]/20 ring-1 ring-[var(--color-accent)]" :
                 isToday ? "bg-white/10 ring-1 ring-white/20" : "bg-white/[0.02] hover:bg-white/5"

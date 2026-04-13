@@ -45,8 +45,8 @@ export function BurnsView({ sprintId, sprintName, tasks }: { sprintId: number; s
   summary.forEach(s => { (byDate[s.date] ||= []).push(s); });
 
   return (
-    <div className="space-y-3">
-      <div className="bg-[var(--color-surface)] p-3 rounded-lg border border-white/5 space-y-2">
+    <div className="space-y-4">
+      <div className="bg-[var(--color-surface)] p-4 rounded-xl border border-white/5 space-y-2">
         <div className="text-xs text-white/50 font-medium">Log Burn{sprintName ? ` — ${sprintName}` : ""}</div>
         <Select value={String(taskId)} onChange={v => setTaskId(Number(v))} className="w-full text-xs"
           options={tasks.map(t => ({value:String(t.id),label:t.title}))} />
@@ -191,7 +191,7 @@ export function VelocityChart() {
   const trendColor = lastPts > avgPts * 1.1 ? "text-green-400" : lastPts < avgPts * 0.9 ? "text-red-400" : "text-white/40";
 
   return (
-    <div className="bg-[var(--color-surface)] p-3 rounded-lg border border-white/5">
+    <div className="bg-[var(--color-surface)] p-4 rounded-xl border border-white/5">
       <div className="flex justify-between items-center mb-2">
         <div className="text-xs text-white/50 font-medium">Velocity Trend</div>
         <div className="text-[10px] text-white/30">avg {avgPts.toFixed(1)}pt · <span className={trendColor}>{trend}</span></div>

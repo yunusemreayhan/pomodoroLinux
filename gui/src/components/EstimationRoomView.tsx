@@ -123,9 +123,9 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
   const consensus = revealedValues.length > 0 && revealedValues.every(v => v === revealedValues[0]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full p-8 gap-5">
       {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b border-white/5">
+      <div className="glass p-4 flex items-center gap-3">
         <button onClick={onBack} className="w-9 h-9 flex items-center justify-center rounded-lg glass text-white/60 hover:text-white">
           <ArrowLeft size={18} />
         </button>
@@ -166,7 +166,7 @@ export default function EstimationRoomView({ roomId, onBack }: { roomId: number;
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto">
         {/* Board tab */}
         {tab === "board" && (
           <div className="space-y-6">
