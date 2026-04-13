@@ -29,7 +29,8 @@ pub async fn add_team_member(pool: &Pool, team_id: i64, user_id: i64, role: &str
 }
 
 pub async fn remove_team_member(pool: &Pool, team_id: i64, user_id: i64) -> Result<()> {
-    sqlx::query("DELETE FROM team_members WHERE team_id = ? AND user_id = ?").bind(team_id).bind(user_id).execute(pool).await?;
+    let r = sqlx::query("DELETE FROM team_members WHERE team_id = ? AND user_id = ?").bind(team_id).bind(user_id).execute(pool).await?;
+    if r.rows_affected() == 0 { return Err(anyhow::anyhow!("Not a member")); }
     Ok(())
 }
 
@@ -43,7 +44,8 @@ pub async fn add_team_root_task(pool: &Pool, team_id: i64, task_id: i64) -> Resu
 }
 
 pub async fn remove_team_root_task(pool: &Pool, team_id: i64, task_id: i64) -> Result<()> {
-    sqlx::query("DELETE FROM team_root_tasks WHERE team_id = ? AND task_id = ?").bind(team_id).bind(task_id).execute(pool).await?;
+    let r = sqlx::query("DELETE FROM team_root_tasks WHERE team_id = ? AND task_id = ?").bind(team_id).bind(task_id).execute(pool).await?;
+    if r.rows_affected() == 0 { return Err(anyhow::anyhow!("Task not a root task")); }
     Ok(())
 }
 

@@ -22,6 +22,7 @@ pub async fn set_recurrence(State(engine): State<AppState>, claims: Claims, Path
 
 #[utoipa::path(get, path = "/api/tasks/{id}/recurrence", responses((status = 200)), security(("bearer" = [])))]
 pub async fn get_recurrence(State(engine): State<AppState>, _claims: Claims, Path(id): Path<i64>) -> ApiResult<Option<db::TaskRecurrence>> {
+    db::get_task(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
     db::get_recurrence(&engine.pool, id).await.map(Json).map_err(internal)
 }
 
@@ -29,6 +30,6 @@ pub async fn get_recurrence(State(engine): State<AppState>, _claims: Claims, Pat
 pub async fn remove_recurrence(State(engine): State<AppState>, claims: Claims, Path(id): Path<i64>) -> Result<StatusCode, ApiError> {
     let task = db::get_task(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not found"))?;
     if !is_owner_or_root(task.user_id, &claims) { return Err(err(StatusCode::FORBIDDEN, "Not owner")); }
-    db::remove_recurrence(&engine.pool, id).await.map_err(internal)?;
+    db::remove_recurrence(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "No recurrence set for this task"))?;
     Ok(StatusCode::NO_CONTENT)
 }

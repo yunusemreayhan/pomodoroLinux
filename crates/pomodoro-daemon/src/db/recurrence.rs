@@ -15,7 +15,8 @@ pub async fn set_recurrence(pool: &Pool, task_id: i64, pattern: &str, next_due: 
 }
 
 pub async fn remove_recurrence(pool: &Pool, task_id: i64) -> Result<()> {
-    sqlx::query("DELETE FROM task_recurrence WHERE task_id = ?").bind(task_id).execute(pool).await?;
+    let r = sqlx::query("DELETE FROM task_recurrence WHERE task_id = ?").bind(task_id).execute(pool).await?;
+    if r.rows_affected() == 0 { return Err(anyhow::anyhow!("No recurrence set")); }
     Ok(())
 }
 

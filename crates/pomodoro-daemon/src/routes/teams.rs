@@ -24,11 +24,12 @@ pub async fn create_team(State(engine): State<AppState>, claims: Claims, Json(re
 
 #[utoipa::path(get, path = "/api/teams/{id}", responses((status = 200, body = db::TeamDetail)), security(("bearer" = [])))]
 pub async fn get_team(State(engine): State<AppState>, _claims: Claims, Path(id): Path<i64>) -> ApiResult<db::TeamDetail> {
-    db::get_team_detail(&engine.pool, id).await.map(Json).map_err(internal)
+    db::get_team_detail(&engine.pool, id).await.map(Json).map_err(|_| err(StatusCode::NOT_FOUND, "Team not found"))
 }
 
 #[utoipa::path(delete, path = "/api/teams/{id}", responses((status = 204)), security(("bearer" = [])))]
 pub async fn delete_team(State(engine): State<AppState>, claims: Claims, Path(id): Path<i64>) -> Result<StatusCode, ApiError> {
+    db::get_team_detail(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Team not found"))?;
     if claims.role != "root" && !db::is_team_admin(&engine.pool, id, claims.user_id).await.map_err(internal)? {
         return Err(err(StatusCode::FORBIDDEN, "Only root or team admin can delete teams"));
     }
@@ -50,6 +51,7 @@ pub async fn add_team_member(State(engine): State<AppState>, claims: Claims, Pat
     if !["admin", "member"].contains(&req.role.as_str()) {
         return Err(err(StatusCode::BAD_REQUEST, "Role must be 'admin' or 'member'"));
     }
+    db::get_user(&engine.pool, req.user_id).await.map_err(|_| err(StatusCode::NOT_FOUND, "User not found"))?;
     db::add_team_member(&engine.pool, id, req.user_id, &req.role).await.map_err(internal)?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -65,7 +67,7 @@ pub async fn remove_team_member(State(engine): State<AppState>, claims: Claims, 
             .bind(id).fetch_one(&engine.pool).await.map_err(internal)?;
         if admin_count.0 <= 1 { return Err(err(StatusCode::BAD_REQUEST, "Cannot remove the last team admin")); }
     }
-    db::remove_team_member(&engine.pool, id, user_id).await.map_err(internal)?;
+    db::remove_team_member(&engine.pool, id, user_id).await.map_err(|_| err(StatusCode::NOT_FOUND, "User is not a team member"))?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -100,13 +102,13 @@ pub async fn remove_team_root_task(State(engine): State<AppState>, claims: Claim
     if !db::is_team_admin(&engine.pool, id, claims.user_id).await.map_err(internal)? && claims.role != "root" {
         return Err(err(StatusCode::FORBIDDEN, "Team admin only"));
     }
-    db::remove_team_root_task(&engine.pool, id, task_id).await.map_err(internal)?;
+    db::remove_team_root_task(&engine.pool, id, task_id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Task not a root task in this team"))?;
     Ok(StatusCode::NO_CONTENT)
 }
 
 #[utoipa::path(get, path = "/api/teams/{id}/scope", responses((status = 200, body = Vec<i64>)), security(("bearer" = [])))]
 pub async fn get_team_scope(State(engine): State<AppState>, _claims: Claims, Path(id): Path<i64>) -> ApiResult<Vec<i64>> {
-    let detail = db::get_team_detail(&engine.pool, id).await.map_err(internal)?;
+    let detail = db::get_team_detail(&engine.pool, id).await.map_err(|_| err(StatusCode::NOT_FOUND, "Team not found"))?;
     if detail.root_task_ids.is_empty() { return Ok(Json(vec![])); }
     db::get_descendant_ids(&engine.pool, &detail.root_task_ids).await.map(Json).map_err(internal)
 }
