@@ -7,8 +7,9 @@ pub async fn watch_task(pool: &Pool, task_id: i64, user_id: i64) -> Result<()> {
 }
 
 pub async fn unwatch_task(pool: &Pool, task_id: i64, user_id: i64) -> Result<()> {
-    sqlx::query("DELETE FROM task_watchers WHERE task_id = ? AND user_id = ?")
+    let r = sqlx::query("DELETE FROM task_watchers WHERE task_id = ? AND user_id = ?")
         .bind(task_id).bind(user_id).execute(pool).await?;
+    if r.rows_affected() == 0 { return Err(anyhow::anyhow!("Not watching")); }
     Ok(())
 }
 

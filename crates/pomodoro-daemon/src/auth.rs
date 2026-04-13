@@ -44,13 +44,7 @@ fn secret() -> &'static [u8] {
         // 3. Generate and persist a new random secret
         let mut buf = [0u8; 64];
         if let Err(e) = getrandom::fill(&mut buf) {
-            tracing::error!("SECURITY: Failed to generate JWT secret via getrandom: {}. Set POMODORO_JWT_SECRET env var for production use.", e);
-            // Fallback: hash-based entropy (weaker but avoids panic)
-            use sha2::{Sha256, Digest};
-            let seed = format!("jwt-init-{}-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0), std::process::id());
-            let hash = Sha256::digest(seed.as_bytes());
-            buf[..32].copy_from_slice(&hash);
-            buf[32..64].copy_from_slice(&Sha256::digest(&hash));
+            panic!("SECURITY: Failed to generate JWT secret via getrandom: {}. Set POMODORO_JWT_SECRET env var.", e);
         }
         if let Some(parent) = secret_path.parent() { std::fs::create_dir_all(parent).ok(); }
         std::fs::write(&secret_path, &buf).ok();
@@ -132,8 +126,7 @@ pub async fn is_revoked(token: &str) -> bool {
 
 fn token_hash(data: &[u8]) -> String {
     use sha2::{Sha256, Digest};
-    let hash = Sha256::digest(data);
-    hash.iter().map(|b| format!("{:02x}", b)).collect()
+    hex::encode(Sha256::digest(data))
 }
 
 impl FromRequestParts<std::sync::Arc<crate::engine::Engine>> for Claims {

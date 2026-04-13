@@ -53,8 +53,9 @@ pub async fn leave_room(pool: &Pool, room_id: i64, user_id: i64) -> Result<()> {
 }
 
 pub async fn set_room_member_role(pool: &Pool, room_id: i64, user_id: i64, role: &str) -> Result<()> {
-    sqlx::query("UPDATE room_members SET role = ? WHERE room_id = ? AND user_id = ?")
+    let r = sqlx::query("UPDATE room_members SET role = ? WHERE room_id = ? AND user_id = ?")
         .bind(role).bind(room_id).bind(user_id).execute(pool).await?;
+    if r.rows_affected() == 0 { return Err(anyhow::anyhow!("User is not a member")); }
     Ok(())
 }
 

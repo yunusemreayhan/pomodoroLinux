@@ -73,7 +73,7 @@ pub async fn kick_member(State(engine): State<AppState>, claims: Claims, Path((i
     }
     let uid = db::get_user_id_by_username(&engine.pool, &username).await.map_err(internal)?.ok_or_else(|| err(StatusCode::NOT_FOUND, "User not found"))?;
     if uid == claims.user_id { return Err(err(StatusCode::BAD_REQUEST, "Cannot kick yourself")); }
-    db::leave_room(&engine.pool, id, uid).await.map_err(internal)?;
+    db::leave_room(&engine.pool, id, uid).await.map_err(|_| err(StatusCode::NOT_FOUND, "User is not a member of this room"))?;
     engine.notify(crate::engine::ChangeEvent::Rooms);
     Ok(StatusCode::NO_CONTENT)
 }
@@ -85,7 +85,7 @@ pub async fn set_room_role(State(engine): State<AppState>, claims: Claims, Path(
     }
     if !VALID_ROOM_ROLES.contains(&req.role.as_str()) { return Err(err(StatusCode::BAD_REQUEST, format!("Invalid room role '{}'. Must be one of: {}", req.role, VALID_ROOM_ROLES.join(", ")))); }
     let uid = db::get_user_id_by_username(&engine.pool, &req.username).await.map_err(internal)?.ok_or_else(|| err(StatusCode::NOT_FOUND, "User not found"))?;
-    db::set_room_member_role(&engine.pool, id, uid, &req.role).await.map_err(internal)?;
+    db::set_room_member_role(&engine.pool, id, uid, &req.role).await.map_err(|_| err(StatusCode::NOT_FOUND, "User is not a member of this room"))?;
     Ok(StatusCode::NO_CONTENT)
 }
 
