@@ -59,17 +59,17 @@ The DELETE from `room_members` silently succeeds even if the user isn't a member
 
 | ID | Severity | Category | Status |
 |----|----------|----------|--------|
-| V41-1 | Medium | Bug | |
-| V41-2 | Medium | Bug | |
-| V41-3 | Medium | Bug | |
-| V41-4 | Medium | Bug | |
+| V41-1 | Medium | Bug | FIXED — returns 404 for non-existent task |
+| V41-2 | Medium | Bug | FIXED — returns 404 for non-existent task |
+| V41-3 | Medium | Bug | FIXED — returns 404 instead of 500 |
+| V41-4 | Medium | Bug | FIXED — returns 404 instead of silent 204 |
 | V41-5 | Low | Accessibility | FALSE POSITIVE — Select already uses button with role="option" |
 | V41-6 | Low | Accessibility | FALSE POSITIVE — AuthScreen already uses button element |
-| V41-7 | Low | Bug | |
-| V41-8 | Low | Code quality | |
-| V41-9 | Low | Bug | |
-| V41-10 | Low | Bug | |
-| V41-11 | Low | Bug | |
-| V41-12 | Low | Code quality | |
+| V41-7 | Low | Bug | FIXED — dead onKeyDown removed |
+| V41-8 | Low | Code quality | FIXED — uses cached get_user_config |
+| V41-9 | Low | Bug | FIXED — returns 404 for non-existent user |
+| V41-10 | Low | Bug | FIXED — returns 404 for non-existent room |
+| V41-11 | Low | Bug | FIXED — returns 400 if not a member |
+| V41-12 | Low | Code quality | FIXED — derives IntoParams |
 
-**Total: 12 items** — 4 medium, 8 low
+**Total: 12 items** — 10 fixed, 2 false positive
